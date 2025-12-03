@@ -80,7 +80,7 @@ local function update_statusline()
   local bar = string.rep("█", filled) .. string.rep("▒", bar_len - filled)
   
   local status = string.format(" %s %d%%%% | Chapter %d/%d ", bar, percent, current, total)
-  vim.api.nvim_win_set_option(ctx.content_win, "statusline", status)
+  vim.api.nvim_set_option_value("statusline", status, { win = ctx.content_win })
 end
 
 function M.render_chapter(idx, restore_line)
@@ -123,7 +123,8 @@ function M.render_chapter(idx, restore_line)
   end
 
   local max_width = M.config.max_width or 120
-  local parsed = html.parse(content, max_width)
+  local class_styles = ctx.data.class_styles or {}
+  local parsed = html.parse(content, max_width, class_styles)
 
   -- Calculate padding for centering
   local win_width = vim.api.nvim_win_get_width(ctx.content_win)
@@ -159,9 +160,9 @@ function M.render_chapter(idx, restore_line)
   end
   
   -- Set text
-  vim.api.nvim_buf_set_option(ctx.content_buf, "modifiable", true)
+  vim.api.nvim_set_option_value("modifiable", true, { buf = ctx.content_buf })
   vim.api.nvim_buf_set_lines(ctx.content_buf, 0, -1, false, parsed.lines)
-  vim.api.nvim_buf_set_option(ctx.content_buf, "modifiable", false)
+  vim.api.nvim_set_option_value("modifiable", false, { buf = ctx.content_buf })
   
   -- Clear existing highlights
   vim.api.nvim_buf_clear_namespace(ctx.content_buf, ctx.ns_id, 0, -1)
@@ -182,10 +183,12 @@ function M.render_chapter(idx, restore_line)
       end_col = math.min(end_col, line_length)
 
       -- Only apply if we have a valid range
-      if start_col <= end_col then
+      if start_col < end_col then
         vim.api.nvim_buf_set_extmark(ctx.content_buf, ctx.ns_id, line_idx, start_col, {
           end_col = end_col,
-          hl_group = hl[4]
+          hl_group = hl[4],
+          priority = 1000,  -- Very high priority
+          hl_mode = "combine"  -- Combine with existing highlights
         })
       end
     end
@@ -211,14 +214,14 @@ function M.render_chapter(idx, restore_line)
 end
 
 function M.render_toc()
-  vim.api.nvim_buf_set_option(ctx.toc_buf, "modifiable", true)
+  vim.api.nvim_set_option_value("modifiable", true, { buf = ctx.toc_buf })
   local lines = {}
   for _, item in ipairs(ctx.data.toc) do
     local indent = string.rep("  ", (item.level or 1) - 1)
     table.insert(lines, indent .. item.label)
   end
   vim.api.nvim_buf_set_lines(ctx.toc_buf, 0, -1, false, lines)
-  vim.api.nvim_buf_set_option(ctx.toc_buf, "modifiable", false)
+  vim.api.nvim_set_option_value("modifiable", false, { buf = ctx.toc_buf })
 end
 
 function M.toggle_toc()
@@ -231,9 +234,9 @@ function M.toggle_toc()
     ctx.toc_win = vim.api.nvim_get_current_win()
     vim.api.nvim_win_set_buf(ctx.toc_win, ctx.toc_buf)
     vim.api.nvim_win_set_width(ctx.toc_win, 30)
-    vim.api.nvim_win_set_option(ctx.toc_win, "number", false)
-    vim.api.nvim_win_set_option(ctx.toc_win, "relativenumber", false)
-    vim.api.nvim_win_set_option(ctx.toc_win, "wrap", false)
+    vim.api.nvim_set_option_value("number", false, { win = ctx.toc_win })
+    vim.api.nvim_set_option_value("relativenumber", false, { win = ctx.toc_win })
+    vim.api.nvim_set_option_value("wrap", false, { win = ctx.toc_win })
   end
 end
 
@@ -327,11 +330,12 @@ function M.open_book(epub_data)
   -- Create new buffers
   ctx.toc_buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_name(ctx.toc_buf, toc_name)
-  vim.api.nvim_buf_set_option(ctx.toc_buf, "filetype", "ink_toc")
+  vim.api.nvim_set_option_value("filetype", "ink_toc", { buf = ctx.toc_buf })
 
   ctx.content_buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_name(ctx.content_buf, content_name)
-  vim.api.nvim_buf_set_option(ctx.content_buf, "filetype", "ink_content")
+  vim.api.nvim_set_option_value("filetype", "ink_content", { buf = ctx.content_buf })
+  vim.api.nvim_set_option_value("syntax", "off", { buf = ctx.content_buf })  -- Disable syntax highlighting
   
   -- Setup Layout
   vim.cmd("tabnew")

@@ -10,6 +10,76 @@ A minimalist, distraction-free EPUB reader for Neovim.
 - Progress tracking and restoration
 - Image extraction and external viewing
 
+## Requirements
+
+- Neovim 0.7+
+- `unzip` command (for extracting EPUB files)
+
+## Installation
+
+### Using [lazy.nvim](https://github.com/folke/lazy.nvim)
+
+```lua
+{
+  "DanielPonte01/ink.nvim",
+  config = function()
+    require("ink").setup({
+      -- Optional configuration (these are the defaults)
+      focused_mode = true,
+      image_open = true,
+      max_width = 120,
+      keymaps = {}
+    })
+  end
+}
+```
+
+### Using [packer.nvim](https://github.com/wbthomason/packer.nvim)
+
+```lua
+use {
+  "DanielPonte01/ink.nvim",
+  config = function()
+    require("ink").setup({
+      -- Optional configuration (these are the defaults)
+      focused_mode = true,
+      image_open = true,
+      max_width = 120,
+      keymaps = {}
+    })
+  end
+}
+```
+
+## Configuration
+
+### Default Configuration
+
+```lua
+require("ink").setup({
+  focused_mode = true,
+  image_open = true,
+  max_width = 120,
+  keymaps = {}
+})
+```
+
+### Sample Configuration
+
+Here's a more complete example with custom settings:
+
+```lua
+require("ink").setup({
+  focused_mode = true,
+  image_open = true,
+  max_width = 100,
+  keymaps = {}
+})
+
+vim.keymap.set("n", "<leader>eo", ":InkOpen ", { desc = "Open EPUB file" })
+
+```
+
 ## Usage
 
 - `:InkOpen <path/to/book.epub>`: Open an EPUB file.
@@ -21,11 +91,6 @@ A minimalist, distraction-free EPUB reader for Neovim.
 ## Testing
 
 A comprehensive test EPUB (`ink-test.epub`) is included to demonstrate all features:
-
-```bash
-nvim -u repro.lua
-:InkOpen ink-test.epub
-```
 
 The test book includes:
 - Lists (ordered, unordered, nested, mixed)

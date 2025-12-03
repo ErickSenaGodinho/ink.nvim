@@ -1,4 +1,5 @@
 local fs = require("ink.fs")
+local css_parser = require("ink.css_parser")
 
 local M = {}
 
@@ -199,13 +200,30 @@ function M.open(epub_path)
     end
   end
 
+  -- 4. Parse CSS files for class-based styling
+  local class_styles = {}
+  for id, item in pairs(manifest) do
+    if item.media_type == "text/css" then
+      local css_path = opf_dir .. "/" .. item.href
+      local css_content = fs.read_file(css_path)
+      if css_content then
+        local styles = css_parser.parse_css(css_content)
+        -- Merge styles from this CSS file
+        for class_name, style in pairs(styles) do
+          class_styles[class_name] = style
+        end
+      end
+    end
+  end
+
   return {
     title = title,
     spine = spine, -- List of { href=... }
     toc = toc,     -- List of { label=..., href=... }
     base_dir = opf_dir,
     slug = slug,
-    cache_dir = cache_dir
+    cache_dir = cache_dir,
+    class_styles = class_styles  -- CSS class to style mapping
   }
 end
 

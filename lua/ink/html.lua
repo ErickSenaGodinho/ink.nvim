@@ -30,10 +30,10 @@ local highlight_map = {
   h4 = "InkH4",
   h5 = "InkH5",
   h6 = "InkH6",
-  b = "Bold",
-  strong = "Bold",
-  i = "Italic",
-  em = "Italic",
+  b = "InkBold",
+  strong = "InkBold",
+  i = "InkItalic",
+  em = "InkItalic",
   -- Note: <a> tags handled specially - only underlined if they have href
   blockquote = "Comment",
   code = "InkCode",
@@ -43,10 +43,10 @@ local highlight_map = {
   s = "InkStrikethrough",
   strike = "InkStrikethrough",
   del = "InkStrikethrough",
-  u = "Underlined"
+  u = "InkUnderlined"
 }
 
-function M.parse(content, max_width)
+function M.parse(content, max_width, class_styles)
   local lines = {}
   local highlights = {} -- { {line_idx, col_start, col_end, group}, ... }
   local links = {} -- { {line_idx, col_start, col_end, href}, ... }
@@ -64,9 +64,14 @@ function M.parse(content, max_width)
   -- Helper to calculate current indentation
   local function get_indent()
     local indent = ""
-    -- Blockquote indentation (4 spaces per level)
+    -- Blockquote indentation with visual markers
     if blockquote_depth > 0 then
-      indent = indent .. string.rep("    ", blockquote_depth)
+      -- Add vertical bar markers for each nesting level
+      for i = 1, blockquote_depth do
+        indent = indent .. "│ "
+      end
+      -- Add extra spacing after the markers
+      indent = indent .. "  "
     end
     -- List indentation (2 spaces per level)
     if #list_stack > 0 then
@@ -92,6 +97,13 @@ function M.parse(content, max_width)
 
   -- Helper to add text
   local function add_text(text)
+    -- Debug: uncomment to see state
+    -- local indent_len = #get_indent()
+    -- if indent_len > 0 then
+    --   print(string.format("add_text: in_pre=%s, blockquote_depth=%d, list_stack=%d, in_dd=%s, indent=%d",
+    --     tostring(in_pre), blockquote_depth, #list_stack, tostring(in_dd), indent_len))
+    -- end
+
     if in_pre then
       -- In pre blocks, preserve formatting, split by lines
       -- Split on newlines, preserving empty lines
@@ -147,6 +159,13 @@ function M.parse(content, max_width)
     end
 
     for i, word in ipairs(words) do
+      -- At start of line, add blockquote/list/dd indent
+      if #current_line == 0 then
+        local indent = get_indent()
+        current_line = indent
+        line_start_indent = #indent
+      end
+
       -- Add space if not at start of line
       local space = ""
       if #current_line > 0 and current_line:sub(-1) ~= " " then
@@ -162,22 +181,29 @@ function M.parse(content, max_width)
         space = ""
       end
 
+      -- Add space first, then calculate start_col so highlights don't include the space
+      current_line = current_line .. space
       local start_col = #current_line
-      current_line = current_line .. space .. word
+      current_line = current_line .. word
       local end_col = #current_line
 
       -- Apply active styles
       for _, style in ipairs(style_stack) do
-        local group = highlight_map[style.tag]
-        -- Special case: only underline <a> tags that have href (actual links, not anchors)
-        if style.tag == "a" then
-          if style.href then
-            table.insert(highlights, { #lines + 1, start_col, end_col, "Underlined" })
-            table.insert(links, { #lines + 1, start_col, end_col, style.href })
+        -- Check if this is a CSS-based style
+        if style.tag == "css_class" and style.css_group then
+          table.insert(highlights, { #lines + 1, start_col, end_col, style.css_group })
+        else
+          local group = highlight_map[style.tag]
+          -- Special case: only underline <a> tags that have href (actual links, not anchors)
+          if style.tag == "a" then
+            if style.href then
+              table.insert(highlights, { #lines + 1, start_col, end_col, "InkUnderlined" })
+              table.insert(links, { #lines + 1, start_col, end_col, style.href })
+            end
+            -- Skip adding highlight for anchor tags without href
+          elseif group then
+            table.insert(highlights, { #lines + 1, start_col, end_col, group })
           end
-          -- Skip adding highlight for anchor tags without href
-        elseif group then
-          table.insert(highlights, { #lines + 1, start_col, end_col, group })
         end
       end
     end
@@ -186,6 +212,7 @@ function M.parse(content, max_width)
   -- Tokenize: find <...> or text
   local pos = 1
   while pos <= #content do
+    ::continue::
     local start_tag, end_tag = string.find(content, "<[^>]+>", pos)
 
     if not start_tag then
@@ -250,8 +277,12 @@ function M.parse(content, max_width)
           blockquote_depth = math.max(0, blockquote_depth - 1)
           new_line()
         elseif tag_name == "pre" then
-          in_pre = false
-          new_line()
+          -- Only process closing </pre> if we're still in pre mode
+          -- (if we already handled it during opening tag, in_pre will be false)
+          if in_pre then
+            in_pre = false
+            new_line()
+          end
         elseif tag_name == "dd" then
           in_dd = false
           new_line()
@@ -262,10 +293,15 @@ function M.parse(content, max_width)
           new_line()
         end
 
-        -- Pop from style stack
+        -- Pop from style stack (including CSS classes)
         for i = #style_stack, 1, -1 do
           if style_stack[i].tag == tag_name then
+            -- Found the tag, remove it
             table.remove(style_stack, i)
+            -- Also remove any css_class entries that were added right after it
+            while i <= #style_stack and style_stack[i].tag == "css_class" do
+              table.remove(style_stack, i)
+            end
             break
           end
         end
@@ -303,6 +339,28 @@ function M.parse(content, max_width)
         elseif tag_name == "pre" then
           new_line()
           in_pre = true
+
+          -- Special handling: extract content until </pre> without tokenizing
+          -- This prevents < and > characters in code from being treated as tags
+          local pre_close_pattern = "</pre>"
+          local pre_content_start = end_tag + 1
+          local pre_close_start, pre_close_end = string.find(content:lower(), pre_close_pattern, pre_content_start, true)
+
+          if pre_close_start then
+            -- Extract and add the pre content directly
+            local pre_content = string.sub(content, pre_content_start, pre_close_start - 1)
+            -- print(string.format("DEBUG: Extracted pre content: %q", pre_content:sub(1, 50)))
+            add_text(decode_entities(pre_content))
+
+            -- Close the pre block
+            in_pre = false
+            new_line()
+
+            -- Skip ahead past the </pre> tag
+            -- print(string.format("DEBUG: Skipping from pos=%d to pos=%d", pos, pre_close_end + 1))
+            pos = pre_close_end + 1
+            goto continue
+          end
         elseif tag_name == "code" and not in_pre then
           -- Inline code opening - add backtick
           current_line = current_line .. "`"
@@ -320,7 +378,28 @@ function M.parse(content, max_width)
           href = tag_content:match('href=["\']([^"\']+)["\']')
         end
 
+        -- Push the tag to style stack
         table.insert(style_stack, { tag = tag_name, href = href })
+
+        -- Also check for class attribute and apply CSS-based styles
+        if class_styles then
+          local class_attr = tag_content:match('class=["\']([^"\']+)["\']')
+          if class_attr then
+            -- Handle multiple classes (space-separated)
+            for class_name in class_attr:gmatch("%S+") do
+              local style = class_styles[class_name]
+              if style then
+                -- Create pseudo-tags for each style found in CSS
+                local css_parser = require("ink.css_parser")
+                local hl_groups = css_parser.get_highlight_groups(style)
+                for _, group in ipairs(hl_groups) do
+                  -- Push a special marker for CSS-based styling
+                  table.insert(style_stack, { tag = "css_class", css_group = group })
+                end
+              end
+            end
+          end
+        end
       end
     end
 
@@ -330,6 +409,50 @@ function M.parse(content, max_width)
   -- Flush last line
   if #current_line > 0 then
     table.insert(lines, current_line)
+  end
+
+  -- Merge consecutive highlights with the same group on the same line
+  local function merge_highlights(hls)
+    if #hls == 0 then return hls end
+
+    -- Sort by line, then by start column
+    table.sort(hls, function(a, b)
+      if a[1] ~= b[1] then
+        return a[1] < b[1]
+      end
+      return a[2] < b[2]
+    end)
+
+    local merged = {}
+    local current = hls[1]
+
+    for i = 2, #hls do
+      local next_hl = hls[i]
+
+      -- Check if same line and same group and adjacent/overlapping
+      if current[1] == next_hl[1] and
+         current[4] == next_hl[4] and
+         current[3] >= next_hl[2] - 1 then  -- -1 to merge across single space gaps
+        -- Merge: extend current to include next
+        current[3] = math.max(current[3], next_hl[3])
+      else
+        -- Can't merge, save current and start new one
+        table.insert(merged, current)
+        current = next_hl
+      end
+    end
+
+    -- Don't forget the last one
+    table.insert(merged, current)
+    return merged
+  end
+
+  local original_count = #highlights
+  highlights = merge_highlights(highlights)
+
+  -- Debug output (optional, can be removed later)
+  if original_count > #highlights then
+    -- print(string.format("Merged %d highlights into %d", original_count, #highlights))
   end
 
   return {

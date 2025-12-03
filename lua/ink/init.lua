@@ -13,28 +13,41 @@ local default_config = {
 function M.setup(opts)
   M.config = vim.tbl_deep_extend("force", default_config, opts or {})
   ui.setup(M.config)
-  
-  -- Define Highlight Groups (link to standard groups)
-  vim.cmd([[
-    highlight default link InkTitle Title
-    highlight default link InkH1 Title
-    highlight default link InkH2 Constant
-    highlight default link InkH3 Identifier
-    highlight default link InkH4 Statement
-    highlight default link InkH5 PreProc
-    highlight default link InkH6 Type
-    highlight default link InkStatement Statement
-    highlight default link InkBold Bold
-    highlight default link InkItalic Italic
-    highlight default link InkUnderlined Underlined
-    highlight default link InkComment Comment
-    highlight default link InkSpecial Special
-    highlight default link InkListItem Special
-    highlight default link InkHorizontalRule Comment
-    highlight default link InkCode String
-    highlight default link InkHighlight Search
-    highlight default link InkStrikethrough Comment
-  ]])
+
+  -- Function to define highlights
+  local function define_highlights()
+    vim.cmd([[
+      highlight default link InkTitle Title
+      highlight default link InkH1 Title
+      highlight default link InkH2 Constant
+      highlight default link InkH3 Identifier
+      highlight default link InkH4 Statement
+      highlight default link InkH5 PreProc
+      highlight default link InkH6 Type
+      highlight default link InkStatement Statement
+      highlight default link InkComment Comment
+      highlight default link InkSpecial Special
+      highlight default link InkListItem Special
+      highlight default link InkHorizontalRule Comment
+      highlight default link InkCode String
+      highlight default link InkHighlight Search
+      highlight! InkBold cterm=bold gui=bold
+      highlight! InkItalic cterm=italic gui=italic
+      highlight! InkUnderlined cterm=underline gui=underline
+      highlight! InkStrikethrough cterm=strikethrough gui=strikethrough
+    ]])
+  end
+
+  -- Define highlights initially
+  define_highlights()
+
+  -- Re-define highlights after colorscheme changes
+  vim.api.nvim_create_autocmd("ColorScheme", {
+    group = vim.api.nvim_create_augroup("InkHighlights", { clear = true }),
+    callback = function()
+      define_highlights()
+    end
+  })
   
   -- Create Command
   vim.api.nvim_create_user_command("InkOpen", function(args)
