@@ -28,7 +28,12 @@ A minimalist, distraction-free EPUB reader for Neovim.
       focused_mode = true,
       image_open = true,
       max_width = 120,
-      keymaps = {}
+      keymaps = {
+        next_chapter = "]c",
+        prev_chapter = "[c",
+        toggle_toc = "<leader>t",
+        activate = "<CR>"
+      }
     })
   end
 }
@@ -45,7 +50,12 @@ use {
       focused_mode = true,
       image_open = true,
       max_width = 120,
-      keymaps = {}
+      keymaps = {
+        next_chapter = "]c",
+        prev_chapter = "[c",
+        toggle_toc = "<leader>t",
+        activate = "<CR>"
+      }
     })
   end
 }
@@ -60,7 +70,12 @@ require("ink").setup({
   focused_mode = true,
   image_open = true,
   max_width = 120,
-  keymaps = {}
+  keymaps = {
+    next_chapter = "]c",      -- Navigate to next chapter
+    prev_chapter = "[c",       -- Navigate to previous chapter
+    toggle_toc = "<leader>t",  -- Toggle table of contents
+    activate = "<CR>"          -- Activate link/image or TOC entry
+  }
 })
 ```
 
@@ -73,7 +88,12 @@ require("ink").setup({
   focused_mode = true,
   image_open = true,
   max_width = 100,
-  keymaps = {}
+  keymaps = {
+    next_chapter = "<C-j>",    -- Custom: use Ctrl+j for next chapter
+    prev_chapter = "<C-k>",    -- Custom: use Ctrl+k for previous chapter
+    toggle_toc = "<leader>e",  -- Custom: use <leader>e instead of <leader>t
+    activate = "<CR>"          -- Keep default Enter key
+  }
 })
 
 vim.keymap.set("n", "<leader>eo", ":InkOpen ", { desc = "Open EPUB file" })
@@ -83,10 +103,15 @@ vim.keymap.set("n", "<leader>eo", ":InkOpen ", { desc = "Open EPUB file" })
 ## Usage
 
 - `:InkOpen <path/to/book.epub>`: Open an EPUB file.
+
+### Default Keymaps
+
 - `]c`: Next chapter
 - `[c`: Previous chapter
 - `<leader>t`: Toggle TOC
 - `<CR>`: In TOC, jump to chapter; on image, open in viewer
+
+All keymaps are customizable through the `setup()` configuration (see Configuration section above).
 
 ## Testing
 

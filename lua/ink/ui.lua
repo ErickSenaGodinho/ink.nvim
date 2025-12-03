@@ -291,9 +291,19 @@ end
 
 function M.setup_keymaps(buf)
   local opts = { noremap = true, silent = true }
-  vim.api.nvim_buf_set_keymap(buf, "n", "]c", ":lua require('ink.ui').next_chapter()<CR>", opts)
-  vim.api.nvim_buf_set_keymap(buf, "n", "[c", ":lua require('ink.ui').prev_chapter()<CR>", opts)
-  vim.api.nvim_buf_set_keymap(buf, "n", "<CR>", ":lua require('ink.ui').handle_enter()<CR>", opts)
+  local keymaps = M.config.keymaps or {}
+
+  if keymaps.next_chapter then
+    vim.api.nvim_buf_set_keymap(buf, "n", keymaps.next_chapter, ":lua require('ink.ui').next_chapter()<CR>", opts)
+  end
+
+  if keymaps.prev_chapter then
+    vim.api.nvim_buf_set_keymap(buf, "n", keymaps.prev_chapter, ":lua require('ink.ui').prev_chapter()<CR>", opts)
+  end
+
+  if keymaps.activate then
+    vim.api.nvim_buf_set_keymap(buf, "n", keymaps.activate, ":lua require('ink.ui').handle_enter()<CR>", opts)
+  end
 end
 
 function M.open_book(epub_data)
@@ -357,11 +367,14 @@ function M.open_book(epub_data)
   -- Keymaps
   M.setup_keymaps(ctx.content_buf)
   M.setup_keymaps(ctx.toc_buf)
-  
+
   -- Add toggle TOC keymap to both buffers
-  local toggle_opts = { noremap = true, silent = true }
-  vim.api.nvim_buf_set_keymap(ctx.content_buf, "n", "<leader>t", ":lua require('ink.ui').toggle_toc()<CR>", toggle_opts)
-  vim.api.nvim_buf_set_keymap(ctx.toc_buf, "n", "<leader>t", ":lua require('ink.ui').toggle_toc()<CR>", toggle_opts)
+  local keymaps = M.config.keymaps or {}
+  if keymaps.toggle_toc then
+    local toggle_opts = { noremap = true, silent = true }
+    vim.api.nvim_buf_set_keymap(ctx.content_buf, "n", keymaps.toggle_toc, ":lua require('ink.ui').toggle_toc()<CR>", toggle_opts)
+    vim.api.nvim_buf_set_keymap(ctx.toc_buf, "n", keymaps.toggle_toc, ":lua require('ink.ui').toggle_toc()<CR>", toggle_opts)
+  end
 
   -- Setup autocmd for window resize
   local augroup = vim.api.nvim_create_augroup("InkResize_" .. epub_data.slug, { clear = true })

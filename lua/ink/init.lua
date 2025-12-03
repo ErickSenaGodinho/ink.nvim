@@ -6,7 +6,12 @@ local M = {}
 local default_config = {
   focused_mode = true,
   image_open = true,
-  keymaps = {},
+  keymaps = {
+    next_chapter = "]c",
+    prev_chapter = "[c",
+    toggle_toc = "<leader>t",
+    activate = "<CR>"
+  },
   max_width = 120
 }
 
