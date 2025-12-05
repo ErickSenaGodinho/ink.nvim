@@ -219,8 +219,6 @@ The library tracks all books you've opened with metadata and reading progress:
 - `<C-e>` - Edit library.json file
 - `<C-b>` - Switch to bookmarks view
 
-**Storage:** `~/.local/share/nvim/ink.nvim/library.json`
-
 ### Bookmarks
 
 Bookmarks allow you to mark important passages and navigate between them:
@@ -239,8 +237,6 @@ Bookmarks allow you to mark important passages and navigate between them:
 - `<C-f>` - Toggle between all bookmarks and current book bookmarks
 - `<C-b>` - Switch to library view
 
-**Storage:** `~/.local/share/nvim/ink.nvim/bookmarks.json`
-
 ### Notes
 
 Notes allow you to annotate your highlights with additional text:
@@ -257,7 +253,25 @@ Notes allow you to annotate your highlights with additional text:
 3. Press `<leader>na` to add/edit a note
 4. Type your note and press `<Esc>` to save
 
-**Storage:** Stored alongside highlights in `~/.local/share/nvim/ink.nvim/{book}_highlights.json`
+### Data Storage
+
+All plugin data is stored in `~/.local/share/nvim/ink.nvim/`:
+
+```
+~/.local/share/nvim/ink.nvim/
+├── library.json              # Library metadata (all books)
+├── cache/                    # Extracted EPUB contents
+│   └── {book-slug}/          # Cached files per book
+└── books/                    # Per-book user data
+    └── {book-slug}/
+        ├── state.json        # Reading position (chapter, line)
+        ├── highlights.json   # User highlights and notes
+        └── bookmarks.json    # Bookmarks for this book
+```
+
+- **library.json**: Tracks all opened books with metadata and last read position
+- **cache/{slug}/**: Extracted EPUB files (HTML, images, CSS)
+- **books/{slug}/**: User-specific data that persists across sessions
 
 ### Search Features
 
