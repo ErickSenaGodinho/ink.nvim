@@ -1,4 +1,5 @@
 local epub = require("ink.epub")
+local markdown = require("ink.markdown")
 local ui = require("ink.ui")
 
 local M = {}
@@ -51,7 +52,16 @@ local default_config = {
     list_all = "<leader>bl",      -- List all bookmarks
     list_book = "<leader>bb",     -- List bookmarks in current book
   },
-  bookmark_icon = "📑"             -- Default bookmark icon
+  bookmark_icon = "📑",            -- Default bookmark icon
+  export_keymaps = {
+    current_book = "<leader>ex",  -- Export current book
+  },
+  export_defaults = {
+    format = "markdown",           -- "markdown" | "json"
+    include_bookmarks = false,
+    include_context = false,
+    export_dir = "~/Documents",    -- Default export directory
+  }
 }
 
 function M.setup(opts)
@@ -109,17 +119,29 @@ function M.setup(opts)
   vim.api.nvim_create_user_command("InkOpen", function(args)
     local path = args.args
     if path == "" then
-      -- If no path, maybe open file picker? For now just error.
-      vim.notify("Please provide an EPUB file path", vim.log.levels.ERROR)
+      vim.notify("Please provide a file path (EPUB or Markdown)", vim.log.levels.ERROR)
       return
     end
 
     -- Expand path
     path = vim.fn.expand(path)
 
-    local ok, data = pcall(epub.open, path)
-    if not ok then
-      vim.notify("Failed to open EPUB: " .. data, vim.log.levels.ERROR)
+    -- Detect file format and open accordingly
+    local ok, data
+    if path:match("%.epub$") then
+      ok, data = pcall(epub.open, path)
+      if not ok then
+        vim.notify("Failed to open EPUB: " .. data, vim.log.levels.ERROR)
+        return
+      end
+    elseif path:match("%.md$") or path:match("%.markdown$") then
+      ok, data = pcall(markdown.open, path)
+      if not ok then
+        vim.notify("Failed to open Markdown: " .. data, vim.log.levels.ERROR)
+        return
+      end
+    else
+      vim.notify("Unsupported file format. Please use .epub or .md files", vim.log.levels.ERROR)
       return
     end
 
@@ -198,6 +220,40 @@ function M.setup(opts)
     ui.show_book_bookmarks()
   end, {})
 
+  -- Create Export command
+  vim.api.nvim_create_user_command("InkExport", function()
+    local export_ui = require("ink.export.ui")
+    export_ui.show_export_dialog()
+  end, {})
+
+  -- Create Cache management commands
+  vim.api.nvim_create_user_command("InkClearCache", function(args)
+    local slug = args.args
+    if slug == "" then slug = nil end
+
+    local success, message = epub.clear_cache(slug)
+    if success then
+      vim.notify(message, vim.log.levels.INFO)
+    else
+      vim.notify(message, vim.log.levels.ERROR)
+    end
+  end, {
+    nargs = "?",
+    desc = "Clear EPUB cache (all or specific slug)"
+  })
+
+  vim.api.nvim_create_user_command("InkCacheInfo", function()
+    local info = epub.get_cache_info()
+    if info.exists then
+      vim.notify(
+        string.format("EPUB Cache: %d books cached\nLocation: %s", info.total_books, info.path),
+        vim.log.levels.INFO
+      )
+    else
+      vim.notify("No cache directory found", vim.log.levels.INFO)
+    end
+  end, {})
+
   -- Global keymaps for library features
   local keymaps = M.config.keymaps
   local opts = { noremap = true, silent = true }
@@ -217,6 +273,12 @@ function M.setup(opts)
   end
   if bookmark_keymaps.list_book then
     vim.api.nvim_set_keymap("n", bookmark_keymaps.list_book, ":InkBookmarksBook<CR>", opts)
+  end
+
+  -- Global keymaps for export
+  local export_keymaps = M.config.export_keymaps
+  if export_keymaps.current_book then
+    vim.api.nvim_set_keymap("n", export_keymaps.current_book, ":InkExport<CR>", opts)
   end
 end
 

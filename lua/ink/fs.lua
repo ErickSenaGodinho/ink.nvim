@@ -41,6 +41,41 @@ function M.ensure_dir(path)
   vim.fn.mkdir(path, "p")
 end
 
+-- Write content to file
+function M.write_file(path, content)
+  local file = io.open(path, "w")
+  if not file then return false end
+  file:write(content or "")
+  file:close()
+  return true
+end
+
+-- Get file modification time (returns timestamp or nil)
+function M.get_mtime(path)
+  local stat = vim.loop.fs_stat(path)
+  if stat then
+    return stat.mtime.sec
+  end
+  return nil
+end
+
+-- Check if directory exists
+function M.dir_exists(path)
+  local stat = vim.loop.fs_stat(path)
+  return stat and stat.type == "directory"
+end
+
+-- Remove directory recursively
+function M.remove_dir(path)
+  if not M.dir_exists(path) then
+    return true
+  end
+
+  -- Use vim.fn.delete with 'rf' flag for recursive removal
+  local result = vim.fn.delete(path, "rf")
+  return result == 0
+end
+
 -- Unzip EPUB to destination
 function M.unzip(epub_path, dest_dir)
   M.ensure_dir(dest_dir)

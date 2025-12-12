@@ -218,6 +218,7 @@ function M.open_book(book_data)
     date = book_data.date,
     description = book_data.description,
     path = book_data.path,
+    format = book_data.format or "epub",
     chapter = 1,
     total_chapters = #book_data.spine
   })

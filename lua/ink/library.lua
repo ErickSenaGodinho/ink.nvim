@@ -3,6 +3,29 @@ local data = require("ink.data")
 
 local M = {}
 
+-- Open a book with automatic format detection
+-- Returns: data, error
+function M.open_book(book_path, book_format)
+  local epub = require("ink.epub")
+  local markdown = require("ink.markdown")
+
+  -- Detect format if not provided
+  if not book_format then
+    if book_path:match("%.md$") or book_path:match("%.markdown$") then
+      book_format = "markdown"
+    else
+      book_format = "epub"
+    end
+  end
+
+  -- Open with appropriate parser
+  if book_format == "markdown" then
+    return pcall(markdown.open, book_path)
+  else
+    return pcall(epub.open, book_path)
+  end
+end
+
 local function get_library_path()
   fs.ensure_dir(data.get_data_dir())
   return data.get_data_dir() .. "/library.json"
@@ -47,25 +70,29 @@ function M.add_book(book_info)
 
   -- Find existing book by slug or path
   local found_idx = nil
+  local existing_book = nil
   for i, book in ipairs(library.books) do
     if book.slug == book_info.slug or book.path == book_info.path then
       found_idx = i
+      existing_book = book
       break
     end
   end
 
   local book_entry = {
     slug = book_info.slug,
-    title = book_info.title or "Unknown",
-    author = book_info.author or "Unknown",
+    -- Preserve user-edited fields if book exists
+    title = (existing_book and existing_book.title) or book_info.title or "Unknown",
+    author = (existing_book and existing_book.author) or book_info.author or "Unknown",
     language = book_info.language,
     date = book_info.date,
-    description = book_info.description,
+    description = (existing_book and existing_book.description) or book_info.description,
     path = book_info.path,
+    format = book_info.format or (existing_book and existing_book.format) or "epub",
     last_opened = os.time(),
-    chapter = book_info.chapter or 1,
+    chapter = book_info.chapter or (existing_book and existing_book.chapter) or 1,
     total_chapters = book_info.total_chapters or 1,
-    tag = book_info.tag or ""
+    tag = (existing_book and existing_book.tag) or book_info.tag or ""
   }
 
   if found_idx then
@@ -173,10 +200,8 @@ function M.set_book_tag(slug, tag)
   return false
 end
 
--- Scan directory for EPUB files and add them to library (async version)
+-- Scan directory for EPUB and Markdown files and add them to library (async version)
 function M.scan_directory(directory, callback)
-  local epub = require("ink.epub")
-
   -- Expand and normalize directory path
   directory = vim.fn.fnamemodify(vim.fn.expand(directory), ":p")
 
@@ -185,14 +210,14 @@ function M.scan_directory(directory, callback)
     return
   end
 
-  -- Find all .epub files recursively using vim.loop (async)
+  -- Find all .epub, .md, and .markdown files recursively using vim.loop (async)
   local stdout = vim.loop.new_pipe(false)
   local stderr = vim.loop.new_pipe(false)
-  local epub_files = {}
+  local files = {}
   local buffer = ""
 
   local handle = vim.loop.spawn("find", {
-    args = { directory, "-type", "f", "-name", "*.epub" },
+    args = { directory, "-type", "f", "(", "-name", "*.epub", "-o", "-name", "*.md", "-o", "-name", "*.markdown", ")" },
     stdio = { nil, stdout, stderr }
   }, function(code, signal)
     -- Process completed
@@ -221,7 +246,7 @@ function M.scan_directory(directory, callback)
       -- Process complete lines
       for line in buffer:gmatch("([^\n]*)\n") do
         if line ~= "" then
-          table.insert(epub_files, line)
+          table.insert(files, line)
         end
       end
       -- Keep incomplete line in buffer
@@ -229,12 +254,12 @@ function M.scan_directory(directory, callback)
     else
       -- EOF - process remaining buffer
       if buffer ~= "" then
-        table.insert(epub_files, buffer)
+        table.insert(files, buffer)
       end
 
-      -- Now process all found EPUBs
+      -- Now process all found files
       vim.schedule(function()
-        M.process_epub_files(epub_files, callback)
+        M.process_files(files, callback)
       end)
     end
   end)
@@ -245,13 +270,14 @@ function M.scan_directory(directory, callback)
   end)
 end
 
--- Process EPUB files one by one with progress updates
-function M.process_epub_files(epub_files, callback)
+-- Process files (EPUB and Markdown) one by one with progress updates
+function M.process_files(files, callback)
   local epub = require("ink.epub")
+  local markdown = require("ink.markdown")
   local added = 0
   local skipped = 0
   local errors = {}
-  local total = #epub_files
+  local total = #files
 
   if total == 0 then
     if callback then
@@ -283,18 +309,34 @@ function M.process_epub_files(epub_files, callback)
       return
     end
 
-    local epub_path = epub_files[current_idx]
+    local file_path = files[current_idx]
+    local file_type = "unknown"
+
+    -- Detect file type
+    if file_path:match("%.epub$") then
+      file_type = "EPUB"
+    elseif file_path:match("%.md$") or file_path:match("%.markdown$") then
+      file_type = "Markdown"
+    end
 
     -- Show progress
     vim.schedule(function()
       vim.notify(
-        string.format("Processing EPUB %d/%d: %s", current_idx, total, vim.fn.fnamemodify(epub_path, ":t")),
+        string.format("Processing %s %d/%d: %s", file_type, current_idx, total, vim.fn.fnamemodify(file_path, ":t")),
         vim.log.levels.INFO
       )
     end)
 
-    -- Process this EPUB (skip TOC generation for performance)
-    local ok, data = pcall(epub.open, epub_path, { skip_toc_generation = true })
+    -- Process this file
+    local ok, data
+    if file_type == "EPUB" then
+      ok, data = pcall(epub.open, file_path, { skip_toc_generation = true })
+    elseif file_type == "Markdown" then
+      ok, data = pcall(markdown.open, file_path)
+    else
+      ok = false
+      data = "Unsupported file type"
+    end
 
     vim.schedule(function()
       if ok then
@@ -306,6 +348,7 @@ function M.process_epub_files(epub_files, callback)
           date = data.date,
           description = data.description,
           path = data.path,
+          format = data.format or "epub",  -- Preserve format from parsed data
           total_chapters = #data.spine
         }
 
@@ -326,7 +369,7 @@ function M.process_epub_files(epub_files, callback)
           skipped = skipped + 1
         end
       else
-        table.insert(errors, { path = epub_path, error = tostring(data) })
+        table.insert(errors, { path = file_path, error = tostring(data) })
       end
 
       -- Process next file after small delay to keep UI responsive
@@ -337,5 +380,8 @@ function M.process_epub_files(epub_files, callback)
   -- Start processing
   process_next()
 end
+
+-- Legacy function name for backward compatibility
+M.process_epub_files = M.process_files
 
 return M

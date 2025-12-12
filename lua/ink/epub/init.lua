@@ -12,6 +12,72 @@ local function get_cache_dir()
   return vim.fn.stdpath("data") .. "/ink.nvim/cache"
 end
 
+-- Clear cache for a specific slug or all cache
+function M.clear_cache(slug)
+  local cache_root = get_cache_dir()
+
+  if slug then
+    -- Clear specific book cache
+    local cache_dir = cache_root .. "/" .. slug
+    if fs.dir_exists(cache_dir) then
+      local success = fs.remove_dir(cache_dir)
+      if success then
+        return true, "Cleared cache for: " .. slug
+      else
+        return false, "Failed to clear cache for: " .. slug
+      end
+    else
+      return false, "Cache not found for: " .. slug
+    end
+  else
+    -- Clear all cache
+    if fs.dir_exists(cache_root) then
+      local success = fs.remove_dir(cache_root)
+      if success then
+        -- Recreate empty cache directory
+        fs.ensure_dir(cache_root)
+        return true, "Cleared all EPUB cache"
+      else
+        return false, "Failed to clear cache"
+      end
+    else
+      return true, "Cache directory already empty"
+    end
+  end
+end
+
+-- Get cache size information
+function M.get_cache_info()
+  local cache_root = get_cache_dir()
+
+  if not fs.dir_exists(cache_root) then
+    return {
+      total_books = 0,
+      exists = false
+    }
+  end
+
+  -- Count subdirectories (each is a cached book)
+  local handle = vim.loop.fs_scandir(cache_root)
+  local count = 0
+
+  if handle then
+    while true do
+      local name, type = vim.loop.fs_scandir_next(handle)
+      if not name then break end
+      if type == "directory" then
+        count = count + 1
+      end
+    end
+  end
+
+  return {
+    total_books = count,
+    exists = true,
+    path = cache_root
+  }
+end
+
 -- Build TOC from content headings (H1-H3)
 -- This is a lazy function that will be called only when TOC is first accessed
 function M.build_toc_from_content(spine, base_dir, class_styles)
@@ -48,6 +114,8 @@ function M.build_toc_from_content(spine, base_dir, class_styles)
 end
 
 function M.open(epub_path, opts)
+  -- local start_time = vim.loop.hrtime()  -- DEBUG: Start timing
+
   opts = opts or {}
   local skip_toc_generation = opts.skip_toc_generation or false
 
@@ -59,27 +127,39 @@ function M.open(epub_path, opts)
 
   local slug = util.get_slug(epub_path)
   local cache_dir = get_cache_dir() .. "/" .. slug
+  local extraction_flag = cache_dir .. "/.extracted"
 
-  -- Extraction logic (unchanged)
+  -- Check if extraction is needed
   local needs_extraction = false
-  if not fs.exists(cache_dir) then
+
+  if not fs.dir_exists(cache_dir) then
+    -- Cache directory doesn't exist
+    needs_extraction = true
+  elseif not fs.exists(extraction_flag) then
+    -- Directory exists but extraction wasn't completed (interrupted?)
     needs_extraction = true
   else
-    local epub_stat = vim.loop.fs_stat(epub_path)
-    local cache_stat = vim.loop.fs_stat(cache_dir)
-    if epub_stat and cache_stat then
-      if epub_stat.mtime.sec > cache_stat.mtime.sec then
-        needs_extraction = true
-        vim.fn.delete(cache_dir, "rf")
-      end
-    else
+    -- Check if EPUB was modified after cache was created
+    local epub_mtime = fs.get_mtime(epub_path)
+    local cache_mtime = fs.get_mtime(extraction_flag)
+
+    if epub_mtime and cache_mtime and epub_mtime > cache_mtime then
+      -- EPUB is newer than cache, re-extract
       needs_extraction = true
+      fs.remove_dir(cache_dir)
     end
   end
 
   if needs_extraction then
+    -- vim.notify("📦 Extracting EPUB to cache...", vim.log.levels.INFO)  -- DEBUG
     local success = fs.unzip(epub_path, cache_dir)
     if not success then error("Failed to unzip epub") end
+
+    -- Create extraction flag to mark successful extraction
+    fs.write_file(extraction_flag, tostring(os.time()))
+    -- vim.notify("✅ EPUB extracted to cache", vim.log.levels.INFO)  -- DEBUG
+  -- else
+    -- vim.notify("⚡ Using cached EPUB (no extraction needed)", vim.log.levels.INFO)  -- DEBUG
   end
 
   -- 1. Container
@@ -143,6 +223,11 @@ function M.open(epub_path, opts)
       toc_cache.save(slug, toc)
     end
   end
+
+  -- DEBUG: Calculate elapsed time
+  -- local end_time = vim.loop.hrtime()
+  -- local elapsed_ms = (end_time - start_time) / 1000000  -- Convert nanoseconds to milliseconds
+  -- vim.notify(string.format("⏱️  EPUB parsing took %.0f ms", elapsed_ms), vim.log.levels.INFO)
 
   return {
     title = metadata.title,

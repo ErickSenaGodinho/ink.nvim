@@ -364,21 +364,24 @@ function M.goto_bookmark(bm)
   if not ctx or not ctx.data or ctx.data.slug ~= bm.book_slug then
     local books = library.get_books()
     local book_path = nil
+    local book_format = nil
     for _, book in ipairs(books) do
       if book.slug == bm.book_slug then
         book_path = book.path
+        book_format = book.format
         break
       end
     end
     if book_path then
-      local epub = require("ink.epub")
       local ui = require("ink.ui")
-      local epub_data = epub.open(book_path)
-      if epub_data then
-        ui.open_book(epub_data)
+      local ok, book_data = library.open_book(book_path, book_format)
+      if ok then
+        ui.open_book(book_data)
         vim.defer_fn(function()
           render.render_chapter(bm.chapter, bm.paragraph_line)
         end, 100)
+      else
+        vim.notify("Failed to open book: " .. tostring(book_data), vim.log.levels.ERROR)
       end
     else
       vim.notify("Book not found in library", vim.log.levels.WARN)

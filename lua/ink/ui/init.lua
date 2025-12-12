@@ -61,10 +61,20 @@ function M.open_last_book()
   local last_path = library.get_last_book_path()
   if not last_path then vim.notify("No books in library yet", vim.log.levels.INFO); return end
   if not fs.exists(last_path) then vim.notify("Last book not found: " .. last_path, vim.log.levels.ERROR); return end
-  local epub = require("ink.epub")
-  local ok, epub_data = pcall(epub.open, last_path)
-  if not ok then vim.notify("Failed to open book: " .. tostring(epub_data), vim.log.levels.ERROR); return end
-  M.open_book(epub_data)
+
+  -- Get book format from library
+  local lib = library.load()
+  local book_format = nil
+  for _, book in ipairs(lib.books) do
+    if book.path == last_path then
+      book_format = book.format
+      break
+    end
+  end
+
+  local ok, book_data = library.open_book(last_path, book_format)
+  if not ok then vim.notify("Failed to open book: " .. tostring(book_data), vim.log.levels.ERROR); return end
+  M.open_book(book_data)
 end
 
 return M

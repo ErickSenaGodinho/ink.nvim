@@ -56,12 +56,12 @@ function M.search_toc(initial_text)
     previewer = previewers.new_buffer_previewer({
       title = "Chapter Preview",
       define_preview = function(self, entry)
-        local content = fs.read_file(entry.path)
-        if not content then vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, {"Error reading chapter"}); return end
-        local max_width = context.config.max_width or 120
-        local class_styles = ctx.data.class_styles or {}
-        local justify_text = context.config.justify_text or false
-        local parsed = html.parse(content, max_width, class_styles, justify_text)
+        -- Use get_parsed_chapter which handles both EPUB and Markdown
+        local parsed = render.get_parsed_chapter(entry.chapter_idx, ctx)
+        if not parsed then
+          vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, {"Error reading chapter"})
+          return
+        end
         vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, parsed.lines)
         vim.api.nvim_set_option_value("filetype", "ink_content", { buf = self.state.bufnr })
       end

@@ -7,17 +7,30 @@ local M = {}
 function M.open_image(src, ctx)
   ctx = ctx or context.current()
   if not ctx then return end
+
   local chapter_item = ctx.data.spine[ctx.current_chapter_idx]
-  local chapter_path = ctx.data.base_dir .. "/" .. chapter_item.href
-  local chapter_dir = vim.fn.fnamemodify(chapter_path, ":h")
+  local chapter_dir
+
+  -- Determine chapter directory based on format
+  if ctx.data.format == "markdown" then
+    -- Markdown: images are relative to the .md file
+    chapter_dir = ctx.data.base_dir
+  else
+    -- EPUB: images are relative to the chapter HTML file
+    local chapter_path = ctx.data.base_dir .. "/" .. chapter_item.href
+    chapter_dir = vim.fn.fnamemodify(chapter_path, ":h")
+  end
 
   local image_path = chapter_dir .. "/" .. src
   image_path = vim.fn.resolve(image_path)
 
-  local cache_root = vim.fn.resolve(ctx.data.cache_dir)
-  if image_path:sub(1, #cache_root) ~= cache_root then
-    vim.notify("Access denied: Image path outside EPUB cache", vim.log.levels.ERROR)
-    return
+  -- Security check (only for EPUB)
+  if ctx.data.format ~= "markdown" and ctx.data.cache_dir then
+    local cache_root = vim.fn.resolve(ctx.data.cache_dir)
+    if image_path:sub(1, #cache_root) ~= cache_root then
+      vim.notify("Access denied: Image path outside EPUB cache", vim.log.levels.ERROR)
+      return
+    end
   end
 
   if not fs.exists(image_path) then

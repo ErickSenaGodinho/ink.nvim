@@ -93,14 +93,25 @@ function M.handle_enter()
       end
     end
   elseif buf == ctx.content_buf then
+    -- Check for images first (higher priority than links)
     for _, img in ipairs(ctx.images) do
       if img.line == line and img.type == "figure" then
-        util.open_image(img.src)
+        util.open_image(img.src, ctx)
         return
       end
     end
+
+    -- Then check for links
     local href = util.get_link_at_cursor(line, col, ctx)
     if href then
+      -- Check if it's an image link (starts with common image extensions)
+      if href:match("%.jpe?g$") or href:match("%.png$") or href:match("%.gif$") or
+         href:match("%.webp$") or href:match("%.svg$") or href:match("%.bmp$") then
+        -- It's an image, open it
+        util.open_image(href, ctx)
+        return
+      end
+
       local anchor = href:match("^#(.+)$")
       if anchor then
         render.show_footnote_preview(anchor, ctx)

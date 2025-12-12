@@ -34,10 +34,19 @@ function M.get_parsed_chapter(chapter_idx, ctx)
   local chapter = ctx.data.spine[chapter_idx]
   if not chapter then return nil end
 
-  -- Read HTML content
-  local chapter_path = ctx.data.base_dir .. "/" .. chapter.href
-  local content = fs.read_file(chapter_path)
-  if not content then return nil end
+  -- Get HTML content
+  local content
+  if chapter.content then
+    -- Markdown format: content is already HTML
+    content = chapter.content
+  elseif chapter.href then
+    -- EPUB format: need to read from file
+    local chapter_path = ctx.data.base_dir .. "/" .. chapter.href
+    content = fs.read_file(chapter_path)
+    if not content then return nil end
+  else
+    return nil
+  end
 
   -- Parse HTML with current settings
   local max_width = context.config.max_width or 120
