@@ -1,6 +1,7 @@
 local context = require("ink.ui.context")
 local util = require("ink.ui.util")
 local render = require("ink.ui.render")
+local modals = require("ink.ui.modals")
 
 local M = {}
 
@@ -20,17 +21,52 @@ function M.jump_to_link()
     return
   end
 
+  -- Check if it's an external URL (http/https)
+  if href:match("^https?://") then
+    modals.open_url_confirmation(href, function(should_open)
+      if should_open then
+        util.open_url(href)
+      end
+    end)
+    return
+  end
+
   local anchor = href:match("^#(.+)$")
   if anchor then
+    -- First try current chapter
     local anchor_line = ctx.anchors[anchor]
     if anchor_line then
       vim.api.nvim_win_set_cursor(ctx.content_win, {anchor_line, 0})
       vim.cmd("normal! zz")
       return
-    else
-      vim.notify("Anchor not found: " .. anchor, vim.log.levels.WARN)
-      return
     end
+
+    -- If not found and this is Markdown, search in all chapters
+    if ctx.data.format == "markdown" then
+      for i, spine_item in ipairs(ctx.data.spine) do
+        if i ~= ctx.current_chapter_idx then
+          -- Parse this chapter to get its anchors
+          local parsed = render.get_parsed_chapter(i, ctx)
+          if parsed and parsed.anchors and parsed.anchors[anchor] then
+            -- Found in another chapter, navigate there
+            render.render_chapter(i, nil, ctx)
+            vim.schedule(function()
+              if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
+                if ctx.anchors[anchor] then
+                  vim.api.nvim_win_set_cursor(ctx.content_win, {ctx.anchors[anchor], 0})
+                  vim.cmd("normal! zz")
+                end
+              end
+            end)
+            return
+          end
+        end
+      end
+    end
+
+    -- Not found anywhere
+    vim.notify("Anchor not found: " .. anchor, vim.log.levels.WARN)
+    return
   end
 
   local target_href = href:match("^([^#]+)") or href
@@ -104,6 +140,16 @@ function M.handle_enter()
     -- Then check for links
     local href = util.get_link_at_cursor(line, col, ctx)
     if href then
+      -- Check if it's an external URL (http/https)
+      if href:match("^https?://") then
+        modals.open_url_confirmation(href, function(should_open)
+          if should_open then
+            util.open_url(href)
+          end
+        end)
+        return
+      end
+
       -- Check if it's an image link (starts with common image extensions)
       if href:match("%.jpe?g$") or href:match("%.png$") or href:match("%.gif$") or
          href:match("%.webp$") or href:match("%.svg$") or href:match("%.bmp$") then
@@ -114,7 +160,53 @@ function M.handle_enter()
 
       local anchor = href:match("^#(.+)$")
       if anchor then
-        render.show_footnote_preview(anchor, ctx)
+        -- First try to find anchor in current chapter's anchors
+        if ctx.anchors[anchor] then
+          render.show_footnote_preview(anchor, ctx)
+          return
+        end
+
+        -- If not found and this is Markdown, search in all chapters
+        if ctx.data.format == "markdown" then
+          -- Check current chapter first (might need re-parsing)
+          local parsed_current = render.get_parsed_chapter(ctx.current_chapter_idx, ctx)
+          if parsed_current and parsed_current.anchors and parsed_current.anchors[anchor] then
+            -- Found in current chapter - show preview (update ctx.anchors first)
+            ctx.anchors = parsed_current.anchors
+            render.show_footnote_preview(anchor, ctx)
+            return
+          end
+
+          -- Search in other chapters
+          for i, spine_item in ipairs(ctx.data.spine) do
+            if i ~= ctx.current_chapter_idx then
+              -- Parse this chapter to get its anchors
+              local parsed = render.get_parsed_chapter(i, ctx)
+              if parsed and parsed.anchors and parsed.anchors[anchor] then
+                -- Found in another chapter, navigate there
+                render.render_chapter(i, nil, ctx)
+                vim.schedule(function()
+                  if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
+                    if ctx.anchors[anchor] then
+                      vim.api.nvim_win_set_cursor(ctx.content_win, {ctx.anchors[anchor], 0})
+                      vim.cmd("normal! zz")
+                    end
+                  end
+                end)
+                return
+              end
+            end
+          end
+          -- Not found in any chapter
+          vim.notify("Anchor not found: " .. anchor, vim.log.levels.WARN)
+          return
+        end
+
+        -- For EPUB, try to show as footnote preview
+        if not render.show_footnote_preview(anchor, ctx) then
+          -- Preview failed, anchor doesn't exist
+          vim.notify("Anchor not found: " .. anchor, vim.log.levels.WARN)
+        end
         return
       end
       local target_href = href:match("^([^#]+)") or href

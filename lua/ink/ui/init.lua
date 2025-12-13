@@ -8,6 +8,7 @@ local search = require("ink.ui.search")
 local library_view = require("ink.ui.library_view")
 local bookmarks_ui = require("ink.ui.bookmarks")
 local book_loader = require("ink.ui.book_loader")
+local cache_ui = require("ink.ui.cache")
 
 local M = {}
 
@@ -52,6 +53,11 @@ M.goto_next_bookmark = bookmarks_ui.goto_next
 M.goto_prev_bookmark = bookmarks_ui.goto_prev
 M.show_all_bookmarks = bookmarks_ui.show_all_bookmarks
 M.show_book_bookmarks = bookmarks_ui.show_book_bookmarks
+
+-- Re-export Cache management
+M.show_clear_cache_ui = cache_ui.show_clear_cache_ui
+M.clear_book_cache = cache_ui.clear_book_cache
+M.clear_all_cache = cache_ui.clear_all_cache
 
 function M.open_book(epub_data)
   book_loader.open_book(epub_data)

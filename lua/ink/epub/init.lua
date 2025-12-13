@@ -78,6 +78,32 @@ function M.get_cache_info()
   }
 end
 
+-- Get list of all cached books with their slugs
+function M.get_cached_books()
+  local cache_root = get_cache_dir()
+  local books = {}
+
+  if not fs.dir_exists(cache_root) then
+    return books
+  end
+
+  local handle = vim.loop.fs_scandir(cache_root)
+  if handle then
+    while true do
+      local name, type = vim.loop.fs_scandir_next(handle)
+      if not name then break end
+      if type == "directory" then
+        table.insert(books, {
+          slug = name,
+          path = cache_root .. "/" .. name
+        })
+      end
+    end
+  end
+
+  return books
+end
+
 -- Build TOC from content headings (H1-H3)
 -- This is a lazy function that will be called only when TOC is first accessed
 function M.build_toc_from_content(spine, base_dir, class_styles)

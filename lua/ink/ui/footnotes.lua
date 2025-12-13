@@ -7,7 +7,7 @@ function M.show_footnote_preview(anchor_id, ctx)
     if not ctx then return false end
     local anchor_line = ctx.anchors[anchor_id]
     if not anchor_line then
-        vim.notify("Footnote not found: " .. anchor_id, vim.log.levels.WARN)
+        -- Don't show warning here, let the caller handle it
         return false
     end
 

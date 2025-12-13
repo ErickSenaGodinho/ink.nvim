@@ -105,4 +105,20 @@ function M.open_note_input(initial_note, callback)
   })
 end
 
+-- URL confirmation prompt
+function M.open_url_confirmation(url, callback)
+  local display_url = url
+  local max_url_length = 60
+  if #url > max_url_length then
+    display_url = url:sub(1, max_url_length - 3) .. "..."
+  end
+
+  local msg = "Link to " .. display_url .. "\nOpen in browser?"
+  local choice = vim.fn.confirm(msg, "&Yes\n&No", 2, "Question")
+
+  if callback then
+    callback(choice == 1)
+  end
+end
+
 return M

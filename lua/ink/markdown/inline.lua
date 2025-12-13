@@ -9,23 +9,32 @@ function M.process_inline(text)
     return ""
   end
 
+  -- Store HTML tags to protect them from markdown processing
+  local protected_tags = {}
+  local tag_counter = 0
+
   -- Images: ![alt](url) - must be before links (before escaping)
   text = text:gsub("!%[([^%]]*)%]%(([^%)]+)%)", function(alt, url)
     -- Escape alt text but not the tag itself
     alt = util.escape_html(alt)
-    return string.format('<img src="%s" alt="%s" />', url, alt)
+    local tag = string.format('<img src="%s" alt="%s" />', url, alt)
+    tag_counter = tag_counter + 1
+    -- Use a simple placeholder that won't be matched by markdown patterns
+    local placeholder = "{{MDPROTECTED:" .. tag_counter .. "}}"
+    protected_tags[placeholder] = tag
+    return placeholder
   end)
 
   -- Links: [text](url) (before escaping)
   text = text:gsub("%[([^%]]-)%]%(([^%)]+)%)", function(link_text, url)
     -- Escape link text but not the tag itself
     link_text = util.escape_html(link_text)
-    -- Check if it's an anchor link
-    if url:match("^#") then
-      return string.format('<a href="%s" id="%s">%s</a>', url, url:gsub("#", ""), link_text)
-    else
-      return string.format('<a href="%s">%s</a>', url, link_text)
-    end
+    -- All links just need href, not id
+    local tag = string.format('<a href="%s">%s</a>', url, link_text)
+    tag_counter = tag_counter + 1
+    local placeholder = "{{MDPROTECTED:" .. tag_counter .. "}}"
+    protected_tags[placeholder] = tag
+    return placeholder
   end)
 
   -- Bold + Italic: ***text*** or ___text___ (before individual bold/italic)
@@ -70,9 +79,10 @@ function M.process_inline(text)
     return "<del>" .. content .. "</del>"
   end)
 
-  -- Escape remaining text (parts that weren't markdown)
-  -- This needs special handling: escape only non-tag parts
-  -- For simplicity, we'll trust that all markdown has been processed
+  -- Restore protected tags
+  for placeholder, tag in pairs(protected_tags) do
+    text = text:gsub(util.escape_pattern(placeholder), tag)
+  end
 
   return text
 end

@@ -228,18 +228,28 @@ function M.setup(opts)
 
   -- Create Cache management commands
   vim.api.nvim_create_user_command("InkClearCache", function(args)
-    local slug = args.args
-    if slug == "" then slug = nil end
+    local arg = args.args
 
-    local success, message = epub.clear_cache(slug)
-    if success then
-      vim.notify(message, vim.log.levels.INFO)
+    if arg == "" then
+      -- No argument: show interactive UI
+      local cache_ui = require("ink.ui.cache")
+      cache_ui.show_clear_cache_ui()
+    elseif arg == "--all" then
+      -- --all flag: clear all cache with confirmation
+      local cache_ui = require("ink.ui.cache")
+      cache_ui.clear_all_cache()
     else
-      vim.notify(message, vim.log.levels.ERROR)
+      -- Specific slug provided
+      local success, message = epub.clear_cache(arg)
+      if success then
+        vim.notify(message, vim.log.levels.INFO)
+      else
+        vim.notify(message, vim.log.levels.ERROR)
+      end
     end
   end, {
     nargs = "?",
-    desc = "Clear EPUB cache (all or specific slug)"
+    desc = "Clear EPUB cache (interactive, --all, or specific slug)"
   })
 
   vim.api.nvim_create_user_command("InkCacheInfo", function()

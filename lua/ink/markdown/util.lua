@@ -6,10 +6,15 @@ function M.trim(s)
 end
 
 -- Convert string to slug (lowercase, replace spaces with dashes)
+-- Preserves unicode characters for better anchor support
 function M.slugify(str)
   str = str:lower()
   str = str:gsub("%s+", "-")
-  str = str:gsub("[^a-z0-9%-]", "")
+  -- Remove only problematic characters, keep unicode letters
+  str = str:gsub("[%c%p%s]", function(c)
+    if c == "-" then return c end
+    return ""
+  end)
   str = str:gsub("%-+", "-")
   str = str:gsub("^%-", "")
   str = str:gsub("%-$", "")
@@ -119,6 +124,11 @@ local id_counter = 0
 function M.generate_id(prefix)
   id_counter = id_counter + 1
   return (prefix or "id") .. "-" .. id_counter
+end
+
+-- Escape pattern special characters for use in string.gsub
+function M.escape_pattern(str)
+  return str:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
 end
 
 return M

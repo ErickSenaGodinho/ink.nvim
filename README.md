@@ -1,21 +1,35 @@
 # ink.nvim
 
-A minimalist, distraction-free EPUB reader for Neovim.
+A minimalist, distraction-free EPUB and Markdown reader for Neovim.
+
+Read books and documents without leaving your editor. Full support for EPUB files and Markdown documents with highlights, notes, bookmarks, and more.
+
+**Quick Start:**
+```vim
+:InkOpen book.epub          " Open EPUB
+:InkOpen document.md        " Open Markdown
+:InkLibrary                 " Browse your library
+```
 
 ## Features
-- Read EPUB files inside Neovim buffers
-- Continuous scrolling per chapter
-- Navigable table of contents
-- Telescope integration for searching chapters and content
-- Syntax-highlighted text rendered from HTML
-- Progress tracking and restoration
-- Image extraction and external viewing
-- User highlights with customizable colors (persistent across sessions)
-- Notes on highlights (add annotations to your highlights)
-- Bookmarks with navigation (jump between bookmarks across chapters)
-- Text justification (optional)
-- Footnote preview with floating windows
-- Library management (browse, search, track reading progress, search bookmarks)
+- **Multiple formats**: Read EPUB (.epub) and Markdown (.md) files inside Neovim
+- **Continuous scrolling** per chapter
+- **Navigable table of contents**
+- **Telescope integration** for searching chapters and content
+- **Syntax-highlighted text** rendered from HTML
+- **Progress tracking** and restoration
+- **Image extraction** and external viewing
+- **External links**: Open URLs in browser with confirmation dialog
+- **Internal links**: Navigate between sections and chapters (preview or jump)
+- **User highlights** with customizable colors (persistent across sessions)
+- **Notes on highlights** (add annotations to your highlights)
+- **Bookmarks** with navigation (jump between bookmarks across chapters)
+- **Text justification** (optional, toggle on/off)
+- **Footnote preview** with floating windows
+- **Library management** (browse, search, track reading progress)
+- **Export highlights** and bookmarks to Markdown or JSON
+- **Smart caching** for EPUBs with automatic invalidation
+- **Cache management** UI for cleaning up cached files
 
 ## Requirements
 
@@ -73,8 +87,8 @@ require("ink").setup({
     next_chapter = "]c",            -- Navigate to next chapter
     prev_chapter = "[c",            -- Navigate to previous chapter
     toggle_toc = "<leader>t",       -- Toggle table of contents sidebar
-    activate = "<CR>",              -- Preview footnote or open image/TOC entry
-    jump_to_link = "g<CR>",         -- Jump to link target (footnotes, cross-references)
+    activate = "<CR>",              -- Preview footnote/anchor or open image/URL/TOC entry
+    jump_to_link = "g<CR>",         -- Jump to link target (footnotes, anchors, cross-references)
 
     -- Search features (requires telescope.nvim)
     search_toc = "<leader>pit",           -- Search/filter chapters by name
@@ -85,6 +99,7 @@ require("ink").setup({
     width_increase = "<leader>+",   -- Increase text width
     width_decrease = "<leader>-",   -- Decrease text width
     width_reset = "<leader>=",      -- Reset text width to default
+    toggle_justify = "<leader>jt",  -- Toggle text justification
 
     -- Library (global keymaps)
     library = "<leader>eL",         -- Open library browser
@@ -128,7 +143,20 @@ require("ink").setup({
     list_all = "<leader>bl",      -- List all bookmarks (global)
     list_book = "<leader>bb",     -- List bookmarks in current book (global)
   },
-  bookmark_icon = "📑"             -- Bookmark icon
+  bookmark_icon = "📑",            -- Bookmark icon
+
+  -- Export keymaps
+  export_keymaps = {
+    current_book = "<leader>ex",  -- Export current book highlights/bookmarks
+  },
+
+  -- Export defaults
+  export_defaults = {
+    format = "markdown",          -- Export format: "markdown" | "json"
+    include_bookmarks = false,    -- Include bookmarks in export
+    include_context = false,      -- Include context around highlights
+    export_dir = "~/Documents",   -- Default export directory
+  },
 })
 
 -- Optional: Add a keymap to quickly open EPUB files
@@ -142,12 +170,18 @@ vim.keymap.set("n", "<leader>le", ":InkEditLibrary", { desc = "Edit you library 
 
 | Command | Description |
 |---------|-------------|
-| `:InkOpen <path>` | Open an EPUB file |
+| `:InkOpen <path>` | Open an EPUB (.epub) or Markdown (.md) file |
 | `:InkLibrary` | Browse library of previously opened books |
 | `:InkLast` | Reopen last read book at saved position |
 | `:InkEditLibrary` | Edit library.json file manually |
+| `:InkAddLibrary [dir]` | Scan directory for EPUBs and add to library |
 | `:InkBookmarks` | Browse all bookmarks (global) |
 | `:InkBookmarksBook` | Browse bookmarks in current book |
+| `:InkExport` | Export current book highlights/bookmarks |
+| `:InkClearCache` | Interactive cache management UI |
+| `:InkClearCache --all` | Clear all EPUB cache (with confirmation) |
+| `:InkClearCache <slug>` | Clear cache for specific book |
+| `:InkCacheInfo` | Show cache information (count, location) |
 
 ### Default Keymaps
 
@@ -155,18 +189,19 @@ vim.keymap.set("n", "<leader>le", ":InkEditLibrary", { desc = "Edit you library 
 - `]c` - Next chapter
 - `[c` - Previous chapter
 - `<leader>t` - Toggle table of contents
-- `<CR>` - Multiuse: Preview footnote (floating window), Open Image and go to TOC entry
-- `g<CR>` - Jump to link target (footnotes, cross-references)
+- `<CR>` - Multiuse: Preview footnote/anchor (floating), open image/URL, navigate TOC
+- `g<CR>` - Jump to link target (footnotes, anchors, cross-references)
 
 **Search (requires telescope.nvim):**
 - `<leader>pit` - Search/filter chapters by name (shows all chapters with preview)
 - `<leader>pif` - Search text within all chapters (live grep)
 - `<C-f>` - Toggle between chapter search and content search (preserves search text)
 
-**Width Adjustment:**
+**Width & Formatting:**
 - `<leader>+` - Increase text width
 - `<leader>-` - Decrease text width
 - `<leader>=` - Reset text width to default
+- `<leader>jt` - Toggle text justification
 
 **Highlighting:**
 - `<leader>hy` - Highlight selection in yellow (visual mode)
@@ -188,11 +223,28 @@ vim.keymap.set("n", "<leader>le", ":InkEditLibrary", { desc = "Edit you library 
 - `<leader>bl` - List all bookmarks (global keymap)
 - `<leader>bb` - List bookmarks in current book (global keymap)
 
+**Export:**
+- `<leader>ex` - Export current book highlights and bookmarks
+
 **Library (global):**
 - `<leader>eL` - Open library browser
 - `<leader>el` - Open last read book
 
 All keymaps can be customized in your configuration.
+
+### Links
+
+ink.nvim supports both internal and external links:
+
+**Internal Links (anchors, footnotes):**
+- `<CR>` - Preview in floating window (if in same chapter)
+- `<CR>` - Navigate to target (if in different chapter)
+- `g<CR>` - Jump directly to target
+
+**External Links (URLs):**
+- `<CR>` or `g<CR>` - Shows confirmation dialog: "Link to {URL}\nOpen in browser?"
+- Press `y` to open in browser (xdg-open, firefox, chromium, etc.)
+- Press `n` or `<Esc>` to cancel
 
 ### Footnotes
 
@@ -253,6 +305,85 @@ Notes allow you to annotate your highlights with additional text:
 3. Press `<leader>na` to add/edit a note
 4. Type your note and press `<Esc>` to save
 
+### Markdown Support
+
+ink.nvim provides full support for Markdown files with all EPUB features:
+
+**Features:**
+- Automatic chapter division by H1 headings (falls back to H2 if no H1)
+- Generated table of contents from headings
+- All reading features work: highlights, bookmarks, notes, search, export
+- Internal links navigate across chapters
+- Images and external links supported
+- Progress tracking and library management
+
+**Markdown-specific:**
+- Virtual chapters created from heading structure
+- TOC built from H1-H3 headings
+- Internal links work globally (e.g., `[link](#section)` jumps to section anywhere in file)
+- Images resolved relative to .md file location
+
+**Usage:**
+```vim
+:InkOpen ~/notes/book.md
+```
+
+All features (highlights, bookmarks, notes, export) work identically to EPUBs.
+
+### Export
+
+Export your highlights, notes, and bookmarks to share or archive:
+
+**Interactive Export:**
+```vim
+:InkExport
+```
+
+Prompts for:
+- Format: `md` (Markdown) or `json`
+- Options: `-b` (include bookmarks), `-c` (include context)
+- Output path (defaults to `~/Documents`)
+
+**Export Format Examples:**
+
+Command: `:InkExport md -bc ~/exports/`
+Result: `~/exports/book-title-2024-01-15.md`
+
+**Markdown Export includes:**
+- Book metadata (title, author, language, etc.)
+- Statistics (highlights count, notes count, bookmarks count)
+- Highlights grouped by chapter with color indication
+- Optional: Context lines around each highlight
+- Optional: Bookmarks with text previews
+- Notes displayed inline with highlights
+
+**JSON Export:**
+Structured data for programmatic use, includes all metadata and content.
+
+**Keymap:** `<leader>ex` opens export dialog for current book.
+
+### Cache Management
+
+EPUBs are extracted to cache for faster loading. Manage cache with:
+
+**Interactive UI:**
+```vim
+:InkClearCache
+```
+Shows list of cached books with Telescope or floating menu. Select a book to clear its cache, or press `<C-a>` (Telescope) or `a` (floating) to clear all.
+
+**Direct Commands:**
+```vim
+:InkClearCache --all          " Clear all cache (with confirmation)
+:InkClearCache book-slug      " Clear specific book
+:InkCacheInfo                 " Show cache stats
+```
+
+**Cache Features:**
+- Automatic invalidation when EPUB is modified
+- Extraction flag prevents incomplete cache usage
+- Per-book storage in `~/.local/share/nvim/ink.nvim/cache/{slug}/`
+
 ### Data Storage
 
 All plugin data is stored in `~/.local/share/nvim/ink.nvim/`:
@@ -261,17 +392,27 @@ All plugin data is stored in `~/.local/share/nvim/ink.nvim/`:
 ~/.local/share/nvim/ink.nvim/
 ├── library.json              # Library metadata (all books)
 ├── cache/                    # Extracted EPUB contents
-│   └── {book-slug}/          # Cached files per book
+│   └── {book-slug}/
+│       ├── .extracted        # Extraction flag (timestamp)
+│       └── ...               # Extracted files (HTML, images, CSS)
 └── books/                    # Per-book user data
     └── {book-slug}/
         ├── state.json        # Reading position (chapter, line)
         ├── highlights.json   # User highlights and notes
-        └── bookmarks.json    # Bookmarks for this book
+        ├── bookmarks.json    # Bookmarks for this book
+        └── toc_cache.json    # Cached TOC (for EPUBs without built-in TOC)
 ```
 
-- **library.json**: Tracks all opened books with metadata and last read position
-- **cache/{slug}/**: Extracted EPUB files (HTML, images, CSS)
-- **books/{slug}/**: User-specific data that persists across sessions
+**File Descriptions:**
+- **library.json**: Tracks all opened books (EPUB/Markdown) with metadata, format, and progress
+- **cache/{slug}/**: Extracted EPUB files (HTML, images, CSS) with automatic invalidation
+- **cache/{slug}/.extracted**: Timestamp flag to track cache freshness
+- **books/{slug}/state.json**: Reading position (chapter index and line number)
+- **books/{slug}/highlights.json**: User highlights with colors, notes, and context
+- **books/{slug}/bookmarks.json**: Bookmarks with names and text previews
+- **books/{slug}/toc_cache.json**: Generated TOC cache for performance
+
+**Note:** Markdown files don't use cache (no extraction needed). All user data (highlights, bookmarks, notes) is stored the same way for both EPUBs and Markdown files.
 
 ### Search Features
 
@@ -307,19 +448,14 @@ You can add unlimited highlight colors by adding entries to both `highlight_colo
 
 ## Testing
 
-A comprehensive test EPUB (`ink-test.epub`) is included to demonstrate all features:
+A comprehensive test EPUB (and MD) (`ink-test.epub(.md)`) is included to demonstrate all features:
 
 ```vim
 :InkOpen ink-test.epub
+:InkOpen ink-test.md
 ```
 
-The test book includes:
-- **Chapter 1**: Lists (ordered, unordered, nested), text formatting (bold, italic, underline, strikethrough), headings, horizontal rules
-- **Chapter 2**: Code blocks, inline code, blockquotes (nested), definition lists
-- **Chapter 3**: Links, anchors, images
-- **Chapter 4**: User highlights documentation and examples
-- **Chapter 5**: Notes feature documentation and examples
-- **Chapter 6**: Bookmarks feature documentation and examples
+All features (TOC, highlights, bookmarks, notes, search, export) work the same as EPUBs.
 
 ## License
 GPL-3.0

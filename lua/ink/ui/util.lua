@@ -69,6 +69,38 @@ function M.open_image(src, ctx)
   })
 end
 
+function M.open_url(url)
+  local cmd
+  if vim.fn.has("mac") == 1 then
+    cmd = {"open", url}
+  elseif vim.fn.has("unix") == 1 then
+    -- Check for common browsers and tools
+    local browsers = {"xdg-open", "firefox", "chromium", "google-chrome", "brave"}
+    for _, browser in ipairs(browsers) do
+      if vim.fn.executable(browser) == 1 then
+        cmd = {browser, url}
+        break
+      end
+    end
+  elseif vim.fn.has("win32") == 1 then
+    cmd = {"cmd", "/c", "start", "", url}
+  end
+
+  if not cmd then
+    vim.notify("Could not find browser to open URL", vim.log.levels.ERROR)
+    return
+  end
+
+  vim.fn.jobstart(cmd, {
+    detach = true,
+    on_exit = function(_, exit_code)
+      if exit_code ~= 0 then
+        vim.notify("Failed to open URL: " .. url, vim.log.levels.ERROR)
+      end
+    end
+  })
+end
+
 function M.get_full_text(lines)
   return table.concat(lines, "\n")
 end
