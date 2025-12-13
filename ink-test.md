@@ -204,7 +204,7 @@ This document demonstrates all the features supported by Ink.nvim's Markdown par
 Try opening it with:
 
 ```vim
-:InkOpen test-markdown.md
+:InkOpen ink-test.md
 ```
 
 Enjoy your reading experience!
