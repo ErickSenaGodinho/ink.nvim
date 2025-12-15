@@ -32,7 +32,9 @@ function M.render_toc(ctx)
       for _, item in ipairs(ctx.data.toc) do
         -- Level 0 (titles) = no indent, Level 1/2/3 (H1/H2/H3) = 1/2/3 spaces
         local indent = string.rep(" ", item.level or 0)
-        table.insert(lines, indent .. item.label)
+        -- Remove newlines from label (replace with spaces)
+        local label = item.label:gsub("[\r\n]+", " ")
+        table.insert(lines, indent .. label)
       end
       vim.api.nvim_buf_set_lines(ctx.toc_buf, 0, -1, false, lines)
       vim.api.nvim_set_option_value("modifiable", false, { buf = ctx.toc_buf })
@@ -49,7 +51,9 @@ function M.render_toc(ctx)
   for _, item in ipairs(ctx.data.toc) do
     -- Level 0 (titles) = no indent, Level 1/2/3 (H1/H2/H3) = 1/2/3 spaces
     local indent = string.rep(" ", item.level or 0)
-    table.insert(lines, indent .. item.label)
+    -- Remove newlines from label (replace with spaces)
+    local label = item.label:gsub("[\r\n]+", " ")
+    table.insert(lines, indent .. label)
   end
   vim.api.nvim_buf_set_lines(ctx.toc_buf, 0, -1, false, lines)
   vim.api.nvim_set_option_value("modifiable", false, { buf = ctx.toc_buf })
