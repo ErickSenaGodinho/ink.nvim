@@ -22,7 +22,8 @@ local default_config = {
     width_reset = "<leader>=",
     toggle_justify = "<leader>jt",  -- Toggle text justification
     library = "<leader>eL",  -- Open library
-    last_book = "<leader>el"  -- Open last book
+    last_book = "<leader>el",  -- Open last book
+    dashboard = "<leader>ed"  -- Open dashboard
   },
   max_width = 120,
   width_step = 10,  -- How much to change width per keypress
@@ -75,12 +76,22 @@ local default_config = {
     paragraph_spacing_increase = "<leader>p+",
     paragraph_spacing_decrease = "<leader>p-",
     paragraph_spacing_reset = "<leader>p=",
+  },
+  tracking = {
+    enabled = true,               -- Enable/disable reading session tracking
+    auto_save_interval = 300,     -- Update interval (seconds) - 5 minutes
+    cleanup_after_days = 365,     -- Clean up sessions older than N days (0 = never)
+    grace_period = 1,             -- Days of grace for streak (0 = no grace, 1 = 1 day)
   }
 }
 
 function M.setup(opts)
   M.config = vim.tbl_deep_extend("force", default_config, opts or {})
   ui.setup(M.config)
+
+  -- Setup reading sessions tracking
+  local reading_sessions = require("ink.reading_sessions")
+  reading_sessions.setup(M.config.tracking)
 
   -- Function to define highlights
   local function define_highlights()
@@ -240,6 +251,18 @@ function M.setup(opts)
     export_ui.show_export_dialog()
   end, {})
 
+  -- Create Dashboard command
+  vim.api.nvim_create_user_command("InkDashboard", function(args)
+    local dashboard = require("ink.dashboard")
+    local dashboard_type = args.args ~= "" and args.args or "library"
+    dashboard.show(dashboard_type)
+  end, {
+    nargs = "?",
+    complete = function()
+      return { "library", "stats" }
+    end,
+  })
+
   -- Create Cache management commands
   vim.api.nvim_create_user_command("InkClearCache", function(args)
     local arg = args.args
@@ -303,6 +326,16 @@ function M.setup(opts)
   local export_keymaps = M.config.export_keymaps
   if export_keymaps.current_book then
     vim.api.nvim_set_keymap("n", export_keymaps.current_book, ":InkExport<CR>", opts)
+  end
+
+  -- Global keymap for dashboard
+  if keymaps.dashboard then
+    vim.api.nvim_set_keymap("n", keymaps.dashboard, ":InkDashboard<CR>", opts)
+  end
+
+  -- Setup automatic tracking
+  if M.config.tracking and M.config.tracking.enabled then
+    require("ink.tracking").setup(M.config)
   end
 end
 

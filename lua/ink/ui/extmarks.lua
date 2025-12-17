@@ -7,23 +7,43 @@ local M = {}
 
 function M.apply_syntax_highlights(buf, highlights, ns_id, padding)
     padding = padding or 0
-    for _, hl in ipairs(highlights or {}) do
+    if not highlights or #highlights == 0 then return end
+
+    -- Get all lines once (batch read)
+    local line_count = vim.api.nvim_buf_line_count(buf)
+    local all_lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+
+    -- Prepare extmarks in batch
+    local extmarks_to_apply = {}
+
+    for _, hl in ipairs(highlights) do
         local line_idx = hl[1] - 1
         local start_col = hl[2]
         local end_col = hl[3]
-        if line_idx >= 0 then
-            local line_count = vim.api.nvim_buf_line_count(buf)
-            if line_idx < line_count then
-                local line_length = #vim.api.nvim_buf_get_lines(buf, line_idx, line_idx + 1, false)[1]
-                start_col = math.min(start_col, line_length)
-                end_col = math.min(end_col, line_length)
-                if start_col < end_col then
-                    vim.api.nvim_buf_set_extmark(buf, ns_id, line_idx, start_col, {
-                        end_col = end_col, hl_group = hl[4], priority = 1000, hl_mode = "combine"
-                    })
-                end
+
+        if line_idx >= 0 and line_idx < line_count then
+            local line_length = #all_lines[line_idx + 1]
+            start_col = math.min(start_col, line_length)
+            end_col = math.min(end_col, line_length)
+
+            if start_col < end_col then
+                table.insert(extmarks_to_apply, {
+                    line_idx = line_idx,
+                    col = start_col,
+                    opts = {
+                        end_col = end_col,
+                        hl_group = hl[4],
+                        priority = 1000,
+                        hl_mode = "combine"
+                    }
+                })
             end
         end
+    end
+
+    -- Apply all extmarks (still sequential but with pre-validated data)
+    for _, mark in ipairs(extmarks_to_apply) do
+        vim.api.nvim_buf_set_extmark(buf, ns_id, mark.line_idx, mark.col, mark.opts)
     end
 end
 

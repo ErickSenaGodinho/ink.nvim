@@ -1,33 +1,79 @@
-local html = require("ink.html")
-local fs = require("ink.fs")
-local state = require("ink.state")
-local user_highlights = require("ink.user_highlights")
-local bookmarks_data = require("ink.bookmarks")
-local library = require("ink.library")
-local context = require("ink.ui.context")
-local util = require("ink.ui.util")
-local parse = require("ink.html.parser")
-local toc = require("ink.ui.toc")
-local footnotes = require("ink.ui.footnotes")
-local extmarks = require("ink.ui.extmarks")
+-- Lazy-loaded modules for better startup performance
+local _html, _fs, _state, _user_highlights, _bookmarks_data, _library, _extmarks
+local context = require("ink.ui.context") -- Always needed
 
 local M = {}
 
--- Re-export TOC functions for backwards compatibility
-M.render_toc = toc.render_toc
-M.toggle_toc = toc.toggle_toc
+-- Lazy loaders
+local function get_html()
+  if not _html then _html = require("ink.html") end
+  return _html
+end
 
--- Re-export footnote function
-M.show_footnote_preview = footnotes.show_footnote_preview
+local function get_fs()
+  if not _fs then _fs = require("ink.fs") end
+  return _fs
+end
 
--- Get parsed chapter with caching
+local function get_state()
+  if not _state then _state = require("ink.state") end
+  return _state
+end
+
+local function get_user_highlights()
+  if not _user_highlights then _user_highlights = require("ink.user_highlights") end
+  return _user_highlights
+end
+
+local function get_bookmarks_data()
+  if not _bookmarks_data then _bookmarks_data = require("ink.bookmarks") end
+  return _bookmarks_data
+end
+
+local function get_library()
+  if not _library then _library = require("ink.library") end
+  return _library
+end
+
+local function get_extmarks()
+  if not _extmarks then _extmarks = require("ink.ui.extmarks") end
+  return _extmarks
+end
+
+-- Re-export TOC functions for backwards compatibility (lazy loaded)
+function M.render_toc(...)
+  return require("ink.ui.toc").render_toc(...)
+end
+
+function M.toggle_toc(...)
+  return require("ink.ui.toc").toggle_toc(...)
+end
+
+-- Re-export footnote function (lazy loaded)
+function M.show_footnote_preview(...)
+  return require("ink.ui.footnotes").show_footnote_preview(...)
+end
+
+-- Get parsed chapter with caching (using LRU cache)
 function M.get_parsed_chapter(chapter_idx, ctx)
   ctx = ctx or context.current()
   if not ctx then return nil end
 
-  -- Return from cache if exists
-  if ctx.parsed_chapters[chapter_idx] then
-    return ctx.parsed_chapters[chapter_idx]
+  -- Migrate old table-based cache to LRU cache (backward compatibility)
+  if type(ctx.parsed_chapters) == "table" and not ctx.parsed_chapters.get then
+    local lru_cache = require("ink.cache.lru")
+    local old_cache = ctx.parsed_chapters
+    ctx.parsed_chapters = lru_cache.new(15)
+    -- Migrate existing cached chapters
+    for idx, parsed in pairs(old_cache) do
+      ctx.parsed_chapters:put(idx, parsed)
+    end
+  end
+
+  -- Return from cache if exists (LRU cache)
+  local cached = ctx.parsed_chapters:get(chapter_idx)
+  if cached then
+    return cached
   end
 
   -- Get chapter/page from spine
@@ -42,7 +88,7 @@ function M.get_parsed_chapter(chapter_idx, ctx)
   elseif chapter.href then
     -- EPUB format: need to read from file
     local chapter_path = ctx.data.base_dir .. "/" .. chapter.href
-    content = fs.read_file(chapter_path)
+    content = get_fs().read_file(chapter_path)
     if not content then return nil end
   else
     return nil
@@ -59,10 +105,10 @@ function M.get_parsed_chapter(chapter_idx, ctx)
     list_indent = 2
   }
 
-  local parsed = html.parse(content, max_width, class_styles, justify_text, typography)
+  local parsed = get_html().parse(content, max_width, class_styles, justify_text, typography)
 
-  -- Cache parsed result
-  ctx.parsed_chapters[chapter_idx] = parsed
+  -- Cache parsed result (LRU cache)
+  ctx.parsed_chapters:put(chapter_idx, parsed)
 
   return parsed
 end
@@ -248,7 +294,7 @@ function M.render_chapter(idx, restore_line, ctx)
   end
 
   -- Apply syntax highlights using extmarks module
-  extmarks.apply_syntax_highlights(ctx.content_buf, final_highlights, context.ns_id, padding)
+  get_extmarks().apply_syntax_highlights(ctx.content_buf, final_highlights, context.ns_id, padding)
 
   ctx.images = final_images or {}
   ctx.links = final_links or {}
@@ -257,16 +303,17 @@ function M.render_chapter(idx, restore_line, ctx)
   ctx.rendered_lines = final_lines
 
   -- Apply user highlights using extmarks module
-  local chapter_highlights = user_highlights.get_chapter_highlights(ctx.data.slug, idx)
-  extmarks.apply_user_highlights(ctx.content_buf, chapter_highlights, context.ns_id, final_lines)
+  local chapter_highlights = get_user_highlights().get_chapter_highlights(ctx.data.slug, idx)
+  local extmarks_module = get_extmarks()
+  extmarks_module.apply_user_highlights(ctx.content_buf, chapter_highlights, context.ns_id, final_lines)
 
   -- Apply note indicators using extmarks module
-  extmarks.apply_note_indicators(ctx.content_buf, chapter_highlights, ctx.note_display_mode, padding, max_width, context.ns_id)
+  extmarks_module.apply_note_indicators(ctx.content_buf, chapter_highlights, ctx.note_display_mode, padding, max_width, context.ns_id)
 
   -- Render bookmarks using extmarks module
-  local chapter_bookmarks = bookmarks_data.get_chapter_bookmarks(ctx.data.slug, idx)
+  local chapter_bookmarks = get_bookmarks_data().get_chapter_bookmarks(ctx.data.slug, idx)
   local bookmark_icon = context.config.bookmark_icon or "󰃀"
-  extmarks.apply_bookmarks(ctx.content_buf, chapter_bookmarks, padding, bookmark_icon, context.ns_id, final_lines)
+  extmarks_module.apply_bookmarks(ctx.content_buf, chapter_bookmarks, padding, bookmark_icon, context.ns_id, final_lines)
 
   if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
     if restore_line then
@@ -277,8 +324,8 @@ function M.render_chapter(idx, restore_line, ctx)
   end
 
   M.update_statusline(ctx)
-  state.save(ctx.data.slug, { chapter = idx, line = restore_line or 1 })
-  library.update_progress(ctx.data.slug, idx, #ctx.data.spine)
+  get_state().save(ctx.data.slug, { chapter = idx, line = restore_line or 1 })
+  get_library().update_progress(ctx.data.slug, idx, #ctx.data.spine)
 end
 
 

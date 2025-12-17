@@ -42,20 +42,31 @@ function M.apply_justification(lines, highlights, links, images, no_justify, max
           local extra_spaces = math.floor(spaces_needed / gaps)
           local remainder = spaces_needed % gaps
 
-          local new_line = word_info[1].word
+          -- Build line using table for efficient concatenation
+          local parts = {}
+          local current_pos = 0
+
+          table.insert(parts, word_info[1].word)
           word_info[1].new_start = 0
           word_info[1].new_end = #word_info[1].word
+          current_pos = word_info[1].new_end
 
           for j = 2, #word_info do
             local space_count = base_spaces + extra_spaces
             if j - 1 <= remainder then
               space_count = space_count + 1
             end
-            new_line = new_line .. string.rep(" ", space_count)
-            word_info[j].new_start = #new_line
-            new_line = new_line .. word_info[j].word
-            word_info[j].new_end = #new_line
+
+            table.insert(parts, string.rep(" ", space_count))
+            current_pos = current_pos + space_count
+
+            word_info[j].new_start = current_pos
+            table.insert(parts, word_info[j].word)
+            current_pos = current_pos + #word_info[j].word
+            word_info[j].new_end = current_pos
           end
+
+          local new_line = table.concat(parts)
 
           justify_map[i] = word_info
 

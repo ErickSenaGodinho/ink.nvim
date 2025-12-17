@@ -223,6 +223,11 @@ function M.setup_book_autocmds(content_buf, slug)
       if current_ctx and current_ctx.default_max_width then
         context.config.max_width = current_ctx.default_max_width
       end
+
+      -- End reading session
+      local reading_sessions = require("ink.reading_sessions")
+      reading_sessions.end_session(slug)
+
       context.remove(content_buf)
     end,
   })
@@ -243,6 +248,10 @@ function M.open_book(book_data)
     chapter = 1,
     total_chapters = #book_data.spine
   })
+
+  -- Start reading session
+  local reading_sessions = require("ink.reading_sessions")
+  reading_sessions.start_session(book_data.slug, 1)
 
   -- Create buffers
   local content_buf, toc_buf = M.create_book_buffers(book_data.slug)

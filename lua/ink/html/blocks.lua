@@ -4,6 +4,7 @@
 local tokens = require("ink.html.tokens")
 local entities = require("ink.html.entities")
 local text = require("ink.html.text")
+local patterns = require("ink.html.patterns")
 
 local M = {}
 
@@ -166,10 +167,10 @@ function M.handle_opening_tag(state, tag_name, tag_content, start_tag, end_tag, 
     state.current_heading_level = tonumber(tag_name:match("h([1-6])"))
     state.current_heading_text = ""
     -- Try to extract ID from tag_content
-    local id = tag_content:match('id=["\']([^"\']+)["\']')
+    local id = tag_content:match(patterns.ID_PATTERN)
     state.current_heading_id = id
     -- Try to extract title attribute (for section titles)
-    local title_attr = tag_content:match('title=["\']([^"\']+)["\']')
+    local title_attr = tag_content:match(patterns.TITLE_PATTERN)
     state.current_heading_title_attr = title_attr
   elseif tokens.block_tags[tag_name] then
     text.paragraph_break(state)
@@ -177,13 +178,13 @@ function M.handle_opening_tag(state, tag_name, tag_content, start_tag, end_tag, 
 
   local href = nil
   if tag_name == "a" then
-    href = tag_content:match('href=["\']([^"\']+)["\']')
+    href = tag_content:match(patterns.HREF_PATTERN)
   end
 
   table.insert(state.style_stack, { tag = tag_name, href = href })
 
   if state.class_styles then
-    local class_attr = tag_content:match('class=["\']([^"\']+)["\']')
+    local class_attr = tag_content:match(patterns.CLASS_PATTERN)
     if class_attr then
       for class_name in class_attr:gmatch("%S+") do
         local style = state.class_styles[class_name]

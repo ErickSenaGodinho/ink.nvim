@@ -3,6 +3,7 @@ local tokens = require("ink.html.tokens")
 local formatter = require("ink.html.formatter")
 local utils = require("ink.html.utils")
 local table_module = require("ink.html.table")
+local patterns = require("ink.html.patterns")
 
 local M = {}
 
@@ -71,10 +72,10 @@ function M.parse(content, max_width, class_styles, justify_text, typography)
     typography = typography
   }
 
-  -- Main parsing loop
+  -- Main parsing loop (optimized with pattern caching)
   local pos = 1
   while pos <= #content do
-    local start_tag, end_tag = string.find(content, "<[^>]+>", pos)
+    local start_tag, end_tag = string.find(content, patterns.TAG_PATTERN, pos)
 
     if not start_tag then
       if not state.in_head or state.in_title then
@@ -91,12 +92,13 @@ function M.parse(content, max_width, class_styles, justify_text, typography)
 
     local tag_content = string.sub(content, start_tag + 1, end_tag - 1)
     local is_closing = string.sub(tag_content, 1, 1) == "/"
-    local tag_name = tag_content:match("^/?([%w]+)")
+    local tag_name = tag_content:match(patterns.TAG_NAME_PATTERN)
 
     if tag_name then
       tag_name = tag_name:lower()
 
-      local id = tag_content:match('id=["\']([^"\']+)["\']')
+      -- Extract id attribute and register anchor
+      local id = tag_content:match(patterns.ID_PATTERN)
       if id then
         anchors[id] = #lines + 1
       end

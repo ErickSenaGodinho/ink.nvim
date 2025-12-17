@@ -230,8 +230,15 @@ function M.open(epub_path, opts)
     end
   end
 
-  -- 4. CSS
-  local class_styles = css.parse_all_css_files(manifest, opf_dir, cache_dir)
+  -- 4. CSS - with caching
+  local css_cache = require("ink.css_cache")
+  local class_styles = css_cache.load(slug)
+
+  if not class_styles then
+    -- Parse CSS and cache it
+    class_styles = css.parse_all_css_files(manifest, opf_dir, cache_dir)
+    css_cache.save(slug, class_styles)
+  end
 
   -- 5. Build TOC from content headings (H1-H3) - with caching
   -- Try to load from cache first

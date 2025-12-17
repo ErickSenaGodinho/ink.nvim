@@ -8,6 +8,7 @@ local table_module = require("ink.html.table")
 local text = require("ink.html.text")
 local blocks = require("ink.html.blocks")
 local justification = require("ink.html.justification")
+local patterns = require("ink.html.patterns")
 
 local M = {}
 
@@ -47,7 +48,7 @@ function M.process_tag(state, tag_name, tag_content, is_closing, start_tag, end_
   end
 
   if tag_name == "img" then
-    local src = tag_content:match('src=["\']([^"\']+)["\']')
+    local src = tag_content:match(patterns.SRC_PATTERN)
     if src then
       local img_type, symbol = classify_image(src)
 

@@ -1,3 +1,5 @@
+local lru_cache = require("ink.cache.lru")
+
 local M = {}
 
 M.config = { max_width = 120 }
@@ -22,7 +24,7 @@ local function new_context()
     note_display_mode = "indicator",
     rendered_lines = {},
     default_max_width = nil,
-    parsed_chapters = {},
+    parsed_chapters = lru_cache.new(15),  -- LRU cache with max 15 chapters
     search_index = nil
   }
 end
