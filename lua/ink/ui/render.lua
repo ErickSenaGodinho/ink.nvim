@@ -54,6 +54,57 @@ function M.show_footnote_preview(...)
   return require("ink.ui.footnotes").show_footnote_preview(...)
 end
 
+-- Extract plain text from HTML (lightweight, for search indexing)
+function M.extract_plain_text(html_content)
+  if not html_content or html_content == "" then
+    return ""
+  end
+
+  local text = html_content
+
+  -- Remove script and style tags with their content
+  text = text:gsub("<script[^>]*>.-</script>", " ")
+  text = text:gsub("<style[^>]*>.-</style>", " ")
+  text = text:gsub("<head[^>]*>.-</head>", " ")
+
+  -- Remove all HTML tags
+  text = text:gsub("<[^>]+>", " ")
+
+  -- Decode HTML entities
+  local entities = require("ink.html.entities")
+  text = entities.decode_entities(text)
+
+  -- Normalize whitespace
+  text = text:gsub("%s+", " ")
+  text = text:gsub("^%s+", "")
+  text = text:gsub("%s+$", "")
+
+  return text
+end
+
+-- Get chapter HTML content (raw, without parsing)
+function M.get_chapter_content(chapter_idx, ctx)
+  ctx = ctx or context.current()
+  if not ctx then return nil end
+
+  local chapter = ctx.data.spine[chapter_idx]
+  if not chapter then return nil end
+
+  -- Get HTML content
+  local content
+  if chapter.content then
+    -- Markdown format: content is already HTML
+    content = chapter.content
+  elseif chapter.href then
+    -- EPUB format: need to read from file
+    local chapter_path = ctx.data.base_dir .. "/" .. chapter.href
+    content = get_fs().read_file(chapter_path)
+    if not content then return nil end
+  end
+
+  return content
+end
+
 -- Get parsed chapter with caching (using LRU cache)
 function M.get_parsed_chapter(chapter_idx, ctx)
   ctx = ctx or context.current()
@@ -76,23 +127,9 @@ function M.get_parsed_chapter(chapter_idx, ctx)
     return cached
   end
 
-  -- Get chapter/page from spine
-  local chapter = ctx.data.spine[chapter_idx]
-  if not chapter then return nil end
-
   -- Get HTML content
-  local content
-  if chapter.content then
-    -- Markdown format: content is already HTML
-    content = chapter.content
-  elseif chapter.href then
-    -- EPUB format: need to read from file
-    local chapter_path = ctx.data.base_dir .. "/" .. chapter.href
-    content = get_fs().read_file(chapter_path)
-    if not content then return nil end
-  else
-    return nil
-  end
+  local content = M.get_chapter_content(chapter_idx, ctx)
+  if not content then return nil end
 
   -- Parse HTML with current settings
   local max_width = context.config.max_width or 120

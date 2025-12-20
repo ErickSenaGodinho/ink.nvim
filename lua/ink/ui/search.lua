@@ -236,15 +236,33 @@ function M.search_content(initial_text)
   -- Enable live search for large indexes (more than 1000 entries expected)
   local use_live_search = total_chapters > 100
 
-  if use_async and not ctx.search_index then
-    -- Use async indexing for large books
-    search_index.get_or_build_index(ctx, function(search_entries)
-      open_search_picker(search_entries, initial_text, ctx, use_live_search)
-    end)
-  else
-    -- Use sync indexing or return cached
+  -- Check index status
+  local index_status = search_index.get_index_status(ctx)
+
+  if index_status == "ready" then
+    -- Index already in memory, open search immediately
+    open_search_picker(ctx.search_index, initial_text, ctx, use_live_search)
+  elseif index_status == "cached" then
+    -- Index cached on disk, load and open
+    vim.notify("Loading search index...", vim.log.levels.INFO)
     local search_entries = search_index.get_or_build_index(ctx)
     open_search_picker(search_entries, initial_text, ctx, use_live_search)
+  else
+    -- Need to build index
+    if use_async then
+      -- Show building notification with progress
+      vim.notify(string.format("Building search index for %d chapters...", total_chapters), vim.log.levels.INFO)
+
+      -- Build asynchronously
+      search_index.get_or_build_index(ctx, function(search_entries)
+        vim.notify("Search index ready!", vim.log.levels.INFO)
+        open_search_picker(search_entries, initial_text, ctx, use_live_search)
+      end)
+    else
+      -- Build synchronously for small books
+      local search_entries = search_index.get_or_build_index(ctx)
+      open_search_picker(search_entries, initial_text, ctx, use_live_search)
+    end
   end
 end
 

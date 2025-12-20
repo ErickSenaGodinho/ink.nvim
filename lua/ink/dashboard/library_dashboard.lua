@@ -16,6 +16,8 @@ local state = {
 	search_query = nil, -- nil or string for title search
 	-- Extmarks namespace for centering
 	ns_id = vim.api.nvim_create_namespace("ink_dashboard"),
+	-- Vertical padding for cursor calculations
+	vertical_offset = 0,
 }
 
 -- Cache system to avoid reloading data too frequently
@@ -190,6 +192,7 @@ function M.render()
 	local lines = {}
 	local line_paddings = {} -- Track padding for each line
 	local win_width = vim.api.nvim_win_get_width(0)
+	local win_height = vim.api.nvim_win_get_height(0)
 
 	-- Title
 	local title = "Ink.Nvim"
@@ -334,12 +337,27 @@ function M.render()
 	table.insert(lines, help3)
 	table.insert(line_paddings, help3_padding)
 
+	-- Calculate vertical centering
+	local content_height = #lines
+	local vertical_padding = math.max(0, math.floor((win_height - content_height) / 2))
+
+	-- Store vertical offset for cursor calculations
+	state.vertical_offset = vertical_padding
+
+	-- Add empty lines at the top for vertical centering
+	if vertical_padding > 0 then
+		for i = 1, vertical_padding do
+			table.insert(lines, 1, "")
+			table.insert(line_paddings, 1, 0)
+		end
+	end
+
 	-- Set buffer content
 	vim.api.nvim_buf_set_option(state.buffer, "modifiable", true)
 	vim.api.nvim_buf_set_lines(state.buffer, 0, -1, false, lines)
 	vim.api.nvim_buf_set_option(state.buffer, "modifiable", false)
 
-	-- Apply extmarks for centering
+	-- Apply extmarks for centering and highlighting
 	for i, padding in ipairs(line_paddings) do
 		if padding > 0 then
 			local pad_str = string.rep(" ", padding)
@@ -347,6 +365,72 @@ function M.render()
 				virt_text = { { pad_str, "Normal" } },
 				virt_text_pos = "inline",
 				priority = 100,
+			})
+		end
+	end
+
+	-- Apply syntax highlighting
+	M.apply_highlights(vertical_padding, lines, title, subtitle, subtitle_parts)
+end
+
+-- Apply syntax highlighting to dashboard
+-- @param vertical_offset: number - Vertical padding for centering
+-- @param lines_table: table - All buffer lines
+-- @param title: string - Title text
+-- @param subtitle: string - Full subtitle text
+-- @param subtitle_parts: table - Parts of the subtitle for highlighting
+function M.apply_highlights(vertical_offset, lines_table, title, subtitle, subtitle_parts)
+	-- Title line (line 0 after vertical offset)
+	local title_line = vertical_offset
+	local title_text = lines_table[title_line + 1]
+
+	vim.api.nvim_buf_set_extmark(state.buffer, state.ns_id, title_line, 0, {
+		end_line = title_line,
+		end_col = #title_text,
+		hl_group = "InkTitle",
+		priority = 200,
+	})
+
+	-- Subtitle line (line 1 after vertical offset)
+	local subtitle_line = vertical_offset + 1
+	local subtitle_text = lines_table[subtitle_line + 1]
+
+	-- Find positions in the actual buffer text (accounting for padding)
+	local collection_name = subtitle_parts[1]
+	local collection_start = subtitle_text:find(vim.pesc(collection_name), 1, true)
+
+	if collection_start then
+		vim.api.nvim_buf_set_extmark(state.buffer, state.ns_id, subtitle_line, collection_start - 1, {
+			end_col = collection_start - 1 + #collection_name,
+			hl_group = "InkBold",
+			priority = 200,
+		})
+	end
+
+	-- Highlight sort method value
+	local sort_part = subtitle_parts[2]
+	if sort_part then
+		local sort_label = "Sort: "
+		local sort_pos = subtitle_text:find(vim.pesc(sort_label), 1, true)
+		if sort_pos then
+			local sort_value = sort_part:gsub("^Sort: ", "")
+			local sort_value_start = sort_pos + #sort_label - 1
+			vim.api.nvim_buf_set_extmark(state.buffer, state.ns_id, subtitle_line, sort_value_start, {
+				end_col = sort_value_start + #sort_value,
+				hl_group = "InkBold",
+				priority = 200,
+			})
+		end
+	end
+
+	-- Highlight search query if present
+	if #subtitle_parts >= 3 and state.search_query and state.search_query ~= "" then
+		local search_start = subtitle_text:find('"' .. vim.pesc(state.search_query) .. '"', 1, true)
+		if search_start then
+			vim.api.nvim_buf_set_extmark(state.buffer, state.ns_id, subtitle_line, search_start, {
+				end_col = search_start + #state.search_query + 1,
+				hl_group = "InkBold",
+				priority = 200,
 			})
 		end
 	end
@@ -729,13 +813,16 @@ function M.get_book_at_cursor()
 	local cursor = vim.api.nvim_win_get_cursor(0)
 	local line_num = cursor[1]
 
-	-- Books start at line 6
-	if line_num < 6 then
+	-- Books start at line 6 (after vertical offset + title + subtitle + empty + top border + header)
+	-- Account for vertical centering offset
+	local books_start_line = state.vertical_offset + 6
+
+	if line_num < books_start_line then
 		return nil
 	end
 
-	-- Calculate book offset
-	local book_line_offset = line_num - 5
+	-- Calculate book offset (line_num is 1-indexed)
+	local book_line_offset = line_num - books_start_line + 1
 
 	-- Calculate absolute book index
 	local start_idx = (state.current_page - 1) * state.items_per_page + 1

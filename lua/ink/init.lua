@@ -28,10 +28,10 @@ local default_config = {
   max_width = 120,
   width_step = 10,  -- How much to change width per keypress
   highlight_colors = {
-    yellow = { bg = "#f9e2af", fg = "#000000" },
-    green = { bg = "#a6e3a1", fg = "#000000" },
-    red = { bg = "#f38ba8", fg = "#000000" },
-    blue = { bg = "#89b4fa", fg = "#000000" },
+    yellow = { bg = "#E8C89F", fg = "#000000" },
+    green = { bg = "#8BB894", fg = "#000000" },
+    red = { bg = "#D97B73", fg = "#000000" },
+    blue = { bg = "#7BA3D0", fg = "#000000" },
   },
   highlight_keymaps = {
     yellow = "<leader>hy",
@@ -263,6 +263,31 @@ function M.setup(opts)
     end,
   })
 
+  -- Create Reset Statistics command
+  vim.api.nvim_create_user_command("InkResetStats", function(args)
+    local force = args.bang
+
+    if force then
+      -- Force reset without confirmation
+      local sessions = require("ink.reading_sessions")
+      sessions.reset_all_statistics()
+      vim.notify("All reading statistics have been reset", vim.log.levels.WARN)
+    else
+      -- Ask for confirmation
+      local confirm = vim.fn.input("Reset all reading statistics? This cannot be undone. (y/N): ")
+      if confirm:lower() == "y" or confirm:lower() == "yes" then
+        local sessions = require("ink.reading_sessions")
+        sessions.reset_all_statistics()
+        vim.notify("All reading statistics have been reset", vim.log.levels.WARN)
+      else
+        vim.notify("Reset cancelled", vim.log.levels.INFO)
+      end
+    end
+  end, {
+    bang = true,
+    desc = "Reset all reading statistics (use ! to skip confirmation)"
+  })
+
   -- Create Cache management commands
   vim.api.nvim_create_user_command("InkClearCache", function(args)
     local arg = args.args
@@ -287,6 +312,32 @@ function M.setup(opts)
   end, {
     nargs = "?",
     desc = "Clear EPUB cache (interactive, --all, or specific slug)"
+  })
+
+  -- Create Clear Search Index command
+  vim.api.nvim_create_user_command("InkClearSearchIndex", function(args)
+    local context = require("ink.ui.context")
+    local search_index = require("ink.ui.search_index")
+
+    local slug = args.args
+
+    if slug == "" then
+      -- Clear for current book
+      local ctx = context.current()
+      if not ctx or not ctx.data then
+        vim.notify("No book currently open", vim.log.levels.WARN)
+        return
+      end
+
+      slug = ctx.data.slug
+      ctx.search_index = nil  -- Clear in-memory cache too
+    end
+
+    search_index.clear_cached_index(slug)
+    vim.notify(string.format("Search index cleared for: %s", slug), vim.log.levels.INFO)
+  end, {
+    nargs = "?",
+    desc = "Clear search index cache for current book or specified slug"
   })
 
   vim.api.nvim_create_user_command("InkCacheInfo", function()

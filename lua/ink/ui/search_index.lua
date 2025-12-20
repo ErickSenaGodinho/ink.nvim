@@ -1,10 +1,88 @@
 -- lua/ink/ui/search_index.lua
--- Responsabilidade: Construção de índice de busca
+-- Responsabilidade: Construção de índice de busca com cache persistente
 
 local context = require("ink.ui.context")
 local render = require("ink.ui.render")
 
 local M = {}
+
+-- Get path to persistent search index cache
+local function get_index_cache_path(slug)
+	local data = require("ink.data")
+	return data.get_book_dir(slug) .. "/search_index.json"
+end
+
+-- Load search index from disk cache
+function M.load_cached_index(slug, total_chapters)
+	local path = get_index_cache_path(slug)
+	local fs = require("ink.fs")
+
+	if not fs.exists(path) then
+		return nil
+	end
+
+	local content = fs.read_file(path)
+	if not content or content == "" then
+		return nil
+	end
+
+	local ok, cached = pcall(vim.json.decode, content)
+	if not ok or not cached then
+		-- Corrupted cache, delete it
+		os.remove(path)
+		return nil
+	end
+
+	-- Validate cache
+	if cached.version ~= 1 or cached.total_chapters ~= total_chapters then
+		-- Cache is invalid (different version or chapter count)
+		return nil
+	end
+
+	return cached.entries
+end
+
+-- Save search index to disk cache
+function M.save_index_to_cache(slug, entries, total_chapters)
+	local path = get_index_cache_path(slug)
+	local data = require("ink.data")
+
+	-- Ensure book directory exists
+	local book_dir = data.get_book_dir(slug)
+	local fs = require("ink.fs")
+	fs.ensure_dir(book_dir)
+
+	-- Create cache data
+	local cache_data = {
+		version = 1,
+		created_at = os.time(),
+		total_chapters = total_chapters,
+		total_entries = #entries,
+		entries = entries,
+	}
+
+	-- Write to file
+	local json_content = data.json_encode(cache_data)
+	local file = io.open(path, "w")
+	if not file then
+		return false
+	end
+
+	file:write(json_content)
+	file:close()
+
+	return true
+end
+
+-- Clear cached index
+function M.clear_cached_index(slug)
+	local path = get_index_cache_path(slug)
+	local fs = require("ink.fs")
+
+	if fs.exists(path) then
+		os.remove(path)
+	end
+end
 
 -- Helper to get chapter name from TOC
 function M.get_chapter_name(chapter_idx, ctx)
@@ -27,26 +105,37 @@ function M.get_chapter_name(chapter_idx, ctx)
   return "Ch. " .. chapter_idx
 end
 
--- Build search index asynchronously for large books
-function M.build_search_index_async(ctx, callback)
+-- Build search index asynchronously for large books (optimized with plain text extraction)
+function M.build_search_index_async(ctx, callback, progress_callback)
   local entries = {}
   local chapter_idx = 1
   local total = #ctx.data.spine
 
-  vim.notify("Indexing book asynchronously...", vim.log.levels.INFO)
+  vim.notify("Building search index...", vim.log.levels.INFO)
 
   local function process_next()
     if chapter_idx > total then
+      -- Save to cache
+      M.save_index_to_cache(ctx.data.slug, entries, total)
       vim.notify(string.format("Indexed %d lines from %d chapters", #entries, total), vim.log.levels.INFO)
       callback(entries)
       return
     end
 
-    local parsed = render.get_parsed_chapter(chapter_idx, ctx)
-    if parsed and parsed.lines then
+    -- Report progress
+    if progress_callback then
+      progress_callback(chapter_idx, total)
+    end
+
+    -- Get chapter content and extract plain text (fast, no full HTML parsing)
+    local content = render.get_chapter_content(chapter_idx, ctx)
+    if content then
+      local plain_text = render.extract_plain_text(content)
       local chapter_name = M.get_chapter_name(chapter_idx, ctx)
 
-      for line_num, line_text in ipairs(parsed.lines) do
+      -- Split into lines for search
+      local lines = vim.split(plain_text, "\n", { plain = true })
+      for line_num, line_text in ipairs(lines) do
         local trimmed = line_text:match("^%s*(.-)%s*$")
         if trimmed and #trimmed > 0 then
           local display_text = trimmed
@@ -72,7 +161,7 @@ function M.build_search_index_async(ctx, callback)
   process_next()
 end
 
--- Build search index from all chapters
+-- Build search index from all chapters (synchronous, optimized with plain text)
 function M.build_search_index(ctx)
   local entries = {}
   local total_chapters = #ctx.data.spine
@@ -80,17 +169,19 @@ function M.build_search_index(ctx)
   -- Show progress for large books
   local large_book = total_chapters > 20
   if large_book then
-    vim.notify("Indexing book for search...", vim.log.levels.INFO)
+    vim.notify("Building search index...", vim.log.levels.INFO)
   end
 
   for chapter_idx = 1, total_chapters do
-    local parsed = render.get_parsed_chapter(chapter_idx, ctx)
-    if parsed and parsed.lines then
-
-      -- Get chapter name from TOC
+    -- Get chapter content and extract plain text (fast, no full HTML parsing)
+    local content = render.get_chapter_content(chapter_idx, ctx)
+    if content then
+      local plain_text = render.extract_plain_text(content)
       local chapter_name = M.get_chapter_name(chapter_idx, ctx)
 
-      for line_num, line_text in ipairs(parsed.lines) do
+      -- Split into lines for search
+      local lines = vim.split(plain_text, "\n", { plain = true })
+      for line_num, line_text in ipairs(lines) do
         -- Ignore empty lines or only spaces
         local trimmed = line_text:match("^%s*(.-)%s*$")
         if trimmed and #trimmed > 0 then
@@ -116,12 +207,15 @@ function M.build_search_index(ctx)
     vim.notify(string.format("Indexed %d lines from %d chapters", #entries, total_chapters), vim.log.levels.INFO)
   end
 
+  -- Save to cache
+  M.save_index_to_cache(ctx.data.slug, entries, total_chapters)
+
   return entries
 end
 
--- Get or build search index with caching
+-- Get or build search index with persistent caching
 function M.get_or_build_index(ctx, callback)
-  -- Return cached index if exists
+  -- Return in-memory cached index if exists
   if ctx.search_index then
     if callback then
       callback(ctx.search_index)
@@ -132,13 +226,34 @@ function M.get_or_build_index(ctx, callback)
   end
 
   local total_chapters = #ctx.data.spine
+  local slug = ctx.data.slug
+
+  -- Try to load from persistent cache
+  local cached_index = M.load_cached_index(slug, total_chapters)
+  if cached_index then
+    ctx.search_index = cached_index
+    vim.notify("Search index loaded from cache", vim.log.levels.INFO)
+    if callback then
+      callback(cached_index)
+    else
+      return cached_index
+    end
+    return
+  end
+
+  -- No cache found, need to build
   local use_async = total_chapters > 50  -- Use async for books with more than 50 chapters
 
   if use_async and callback then
-    -- Build asynchronously
+    -- Build asynchronously with progress
     M.build_search_index_async(ctx, function(entries)
       ctx.search_index = entries
       callback(entries)
+    end, function(current, total)
+      -- Progress callback (can be used for UI updates)
+      if current % 10 == 0 then
+        vim.notify(string.format("Indexing... %d/%d chapters", current, total), vim.log.levels.INFO)
+      end
     end)
   else
     -- Build synchronously
@@ -149,6 +264,23 @@ function M.get_or_build_index(ctx, callback)
       return ctx.search_index
     end
   end
+end
+
+-- Get indexing status
+function M.get_index_status(ctx)
+  if ctx.search_index then
+    return "ready"
+  end
+
+  local slug = ctx.data.slug
+  local total_chapters = #ctx.data.spine
+  local cached_index = M.load_cached_index(slug, total_chapters)
+
+  if cached_index then
+    return "cached"
+  end
+
+  return "none"
 end
 
 return M

@@ -568,6 +568,60 @@ function M.get_statistics()
 	}
 end
 
+-- === RESET FUNCTIONS ===
+
+function M.reset_statistics(slug)
+	if not config.enabled then
+		return false
+	end
+
+	-- End active session if exists
+	if active_sessions[slug] then
+		M.end_session(slug)
+	end
+
+	-- Reset sessions data
+	local data = {
+		sessions = {},
+		total_time = 0,
+		last_session = nil,
+	}
+
+	-- Save to file
+	local success = save_sessions(slug, data)
+
+	if success then
+		vim.notify("Reading statistics reset for book", vim.log.levels.INFO)
+	end
+
+	return success
+end
+
+function M.reset_all_statistics()
+	if not config.enabled then
+		return false
+	end
+
+	-- End all active sessions first
+	for slug, _ in pairs(active_sessions) do
+		M.end_session(slug)
+	end
+
+	local library = require("ink.library")
+	local books = library.get_books()
+
+	local count = 0
+	for _, book in ipairs(books) do
+		if M.reset_statistics(book.slug) then
+			count = count + 1
+		end
+	end
+
+	vim.notify(string.format("Reset statistics for %d books", count), vim.log.levels.INFO)
+
+	return true
+end
+
 -- === CONFIGURATION ===
 
 function M.setup(opts)
