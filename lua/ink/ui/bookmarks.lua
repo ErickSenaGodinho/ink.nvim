@@ -19,6 +19,27 @@ local function get_all_bookmarks()
   return all
 end
 
+local function find_bookmark_line(bm, lines)
+  if not lines then return nil end
+  local util = require("ink.ui.util")
+
+  -- New bookmarks with text-matching
+  if bm.paragraph_text then
+    local start_line = util.find_text_position(
+      lines,
+      bm.paragraph_text,
+      bm.context_before,
+      bm.context_after
+    )
+    return start_line
+  -- Legacy bookmarks with line-based positioning
+  elseif bm.paragraph_line then
+    return bm.paragraph_line
+  end
+
+  return nil
+end
+
 local function find_paragraph_line(lines, cursor_line)
   local line_content = lines[cursor_line] or ""
 
@@ -48,8 +69,8 @@ local function find_paragraph_line(lines, cursor_line)
   return 1
 end
 
-local function get_paragraph_preview(lines, start_line, max_chars)
-  max_chars = max_chars or 100
+local function get_paragraph_text(lines, start_line, max_chars)
+  max_chars = max_chars or 200
   local text = ""
   for i = start_line, #lines do
     local line = lines[i]
@@ -60,9 +81,44 @@ local function get_paragraph_preview(lines, start_line, max_chars)
     if #text >= max_chars then break end
   end
   if #text > max_chars then
+    text = text:sub(1, max_chars)
+  end
+  return text
+end
+
+local function get_paragraph_preview(lines, start_line, max_chars)
+  max_chars = max_chars or 100
+  local text = get_paragraph_text(lines, start_line, max_chars)
+  if #text > max_chars then
     text = text:sub(1, max_chars - 3) .. "..."
   end
   return text
+end
+
+local function get_paragraph_context(lines, start_line, context_len)
+  context_len = context_len or 30
+  local util = require("ink.ui.util")
+
+  local paragraph_text = get_paragraph_text(lines, start_line, 200)
+  local full_text = util.get_full_text(lines)
+  local start_offset = util.line_col_to_offset(lines, start_line, 0)
+
+  local context_before = ""
+  if start_offset > 0 then
+    local ctx_start = math.max(0, start_offset - context_len)
+    context_before = full_text:sub(ctx_start + 1, start_offset)
+  end
+
+  local context_after = ""
+  local para_end_offset = start_offset + #paragraph_text
+  if para_end_offset < #full_text then
+    local ctx_end = math.min(#full_text, para_end_offset + context_len)
+    context_after = full_text:sub(para_end_offset + 1, ctx_end)
+  end
+
+  return util.normalize_whitespace(paragraph_text),
+         util.normalize_whitespace(context_before),
+         util.normalize_whitespace(context_after)
 end
 
 
@@ -80,8 +136,27 @@ function M.add_bookmark()
   local lines = ctx.rendered_lines or {}
   local paragraph_line = find_paragraph_line(lines, cursor_line)
 
-  -- Check if bookmark already exists at this line
-  local existing = bookmarks.find_at_line(ctx.data.slug, ctx.current_chapter_idx, paragraph_line)
+  -- Extract paragraph text and context
+  local paragraph_text, context_before, context_after = get_paragraph_context(lines, paragraph_line, 30)
+  local preview = get_paragraph_preview(lines, paragraph_line, 100)
+
+  -- Check if bookmark already exists at this paragraph
+  local util = require("ink.ui.util")
+  local chapter_bookmarks = bookmarks.get_chapter_bookmarks(ctx.data.slug, ctx.current_chapter_idx)
+  local existing = nil
+  for _, bm in ipairs(chapter_bookmarks) do
+    if bm.paragraph_text then
+      local bm_line = util.find_text_position(lines, bm.paragraph_text, bm.context_before, bm.context_after)
+      if bm_line == paragraph_line then
+        existing = bm
+        break
+      end
+    elseif bm.paragraph_line == paragraph_line then
+      existing = bm
+      break
+    end
+  end
+
   if existing then
     -- Edit existing bookmark
     modals.open_bookmark_input(existing.name, function(name)
@@ -94,8 +169,6 @@ function M.add_bookmark()
     return
   end
 
-  local preview = get_paragraph_preview(lines, paragraph_line, 100)
-
   modals.open_bookmark_input("", function(name)
     if name and name ~= "" then
       local bookmark = {
@@ -104,7 +177,9 @@ function M.add_bookmark()
         book_title = ctx.data.title,
         book_author = ctx.data.author,
         chapter = ctx.current_chapter_idx,
-        paragraph_line = paragraph_line,
+        paragraph_text = paragraph_text,
+        context_before = context_before,
+        context_after = context_after,
         text_preview = preview,
       }
       bookmarks.add(ctx.data.slug, bookmark)
@@ -128,8 +203,23 @@ function M.remove_bookmark()
   local lines = ctx.rendered_lines or {}
   local paragraph_line = find_paragraph_line(lines, cursor_line)
 
-  -- Find bookmark at paragraph
-  local found = bookmarks.find_at_line(ctx.data.slug, ctx.current_chapter_idx, paragraph_line)
+  -- Find bookmark at current paragraph
+  local util = require("ink.ui.util")
+  local chapter_bookmarks = bookmarks.get_chapter_bookmarks(ctx.data.slug, ctx.current_chapter_idx)
+  local found = nil
+
+  for _, bm in ipairs(chapter_bookmarks) do
+    if bm.paragraph_text then
+      local bm_line = util.find_text_position(lines, bm.paragraph_text, bm.context_before, bm.context_after)
+      if bm_line == paragraph_line then
+        found = bm
+        break
+      end
+    elseif bm.paragraph_line == paragraph_line then
+      found = bm
+      break
+    end
+  end
 
   if not found then
     vim.notify("No bookmark in this paragraph", vim.log.levels.WARN)
@@ -157,9 +247,19 @@ function M.goto_next()
   end
 
   if next_bm.chapter ~= ctx.current_chapter_idx then
-    render.render_chapter(next_bm.chapter, next_bm.paragraph_line, ctx)
+    -- Render chapter, then find bookmark position
+    render.render_chapter(next_bm.chapter, 1, ctx)
+    vim.defer_fn(function()
+      local line = find_bookmark_line(next_bm, ctx.rendered_lines)
+      if line and ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
+        vim.api.nvim_win_set_cursor(ctx.content_win, {line, 0})
+      end
+    end, 10)
   else
-    vim.api.nvim_win_set_cursor(ctx.content_win, {next_bm.paragraph_line, 0})
+    local line = find_bookmark_line(next_bm, ctx.rendered_lines)
+    if line then
+      vim.api.nvim_win_set_cursor(ctx.content_win, {line, 0})
+    end
   end
 end
 
@@ -179,9 +279,19 @@ function M.goto_prev()
   end
 
   if prev_bm.chapter ~= ctx.current_chapter_idx then
-    render.render_chapter(prev_bm.chapter, prev_bm.paragraph_line, ctx)
+    -- Render chapter, then find bookmark position
+    render.render_chapter(prev_bm.chapter, 1, ctx)
+    vim.defer_fn(function()
+      local line = find_bookmark_line(prev_bm, ctx.rendered_lines)
+      if line and ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
+        vim.api.nvim_win_set_cursor(ctx.content_win, {line, 0})
+      end
+    end, 10)
   else
-    vim.api.nvim_win_set_cursor(ctx.content_win, {prev_bm.paragraph_line, 0})
+    local line = find_bookmark_line(prev_bm, ctx.rendered_lines)
+    if line then
+      vim.api.nvim_win_set_cursor(ctx.content_win, {line, 0})
+    end
   end
 end
 
@@ -378,7 +488,16 @@ function M.goto_bookmark(bm)
       if ok then
         ui.open_book(book_data)
         vim.defer_fn(function()
-          render.render_chapter(bm.chapter, bm.paragraph_line)
+          local new_ctx = context.current()
+          if new_ctx then
+            render.render_chapter(bm.chapter, 1, new_ctx)
+            vim.defer_fn(function()
+              local line = find_bookmark_line(bm, new_ctx.rendered_lines)
+              if line and new_ctx.content_win and vim.api.nvim_win_is_valid(new_ctx.content_win) then
+                vim.api.nvim_win_set_cursor(new_ctx.content_win, {line, 0})
+              end
+            end, 10)
+          end
         end, 100)
       else
         vim.notify("Failed to open book: " .. tostring(book_data), vim.log.levels.ERROR)
@@ -391,9 +510,18 @@ function M.goto_bookmark(bm)
 
   -- Same book, just navigate
   if bm.chapter ~= ctx.current_chapter_idx then
-    render.render_chapter(bm.chapter, bm.paragraph_line, ctx)
+    render.render_chapter(bm.chapter, 1, ctx)
+    vim.defer_fn(function()
+      local line = find_bookmark_line(bm, ctx.rendered_lines)
+      if line and ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
+        vim.api.nvim_win_set_cursor(ctx.content_win, {line, 0})
+      end
+    end, 10)
   else
-    vim.api.nvim_win_set_cursor(ctx.content_win, {bm.paragraph_line, 0})
+    local line = find_bookmark_line(bm, ctx.rendered_lines)
+    if line then
+      vim.api.nvim_win_set_cursor(ctx.content_win, {line, 0})
+    end
   end
 end
 

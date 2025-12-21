@@ -118,8 +118,27 @@ end
 
 function M.apply_bookmarks(buf, chapter_bookmarks, padding, bookmark_icon, ns_id, lines)
     for _, bm in ipairs(chapter_bookmarks) do
-        local line_idx = bm.paragraph_line - 1
-        if line_idx >= 0 and line_idx < #lines then
+        local line_idx = nil
+
+        -- New bookmarks use text-matching for position independence
+        if bm.paragraph_text then
+            local start_line = util.find_text_position(
+                lines,
+                bm.paragraph_text,
+                bm.context_before,
+                bm.context_after
+            )
+            if start_line then
+                line_idx = start_line - 1
+                bm._line_idx = start_line  -- Cache for navigation
+            end
+        -- Legacy bookmarks use line-based positioning
+        elseif bm.paragraph_line then
+            line_idx = bm.paragraph_line - 1
+            bm._line_idx = bm.paragraph_line
+        end
+
+        if line_idx and line_idx >= 0 and line_idx < #lines then
             local pad = string.rep(" ", padding)
             vim.api.nvim_buf_set_extmark(buf, ns_id, line_idx, 0, {
                 virt_lines = { { { pad .. bookmark_icon .. " " .. bm.name, "InkBookmark" } } },
