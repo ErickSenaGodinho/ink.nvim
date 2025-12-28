@@ -140,35 +140,7 @@ function M.add_bookmark()
   local paragraph_text, context_before, context_after = get_paragraph_context(lines, paragraph_line, 30)
   local preview = get_paragraph_preview(lines, paragraph_line, 100)
 
-  -- Check if bookmark already exists at this paragraph
-  local util = require("ink.ui.util")
-  local chapter_bookmarks = bookmarks.get_chapter_bookmarks(ctx.data.slug, ctx.current_chapter_idx)
-  local existing = nil
-  for _, bm in ipairs(chapter_bookmarks) do
-    if bm.paragraph_text then
-      local bm_line = util.find_text_position(lines, bm.paragraph_text, bm.context_before, bm.context_after)
-      if bm_line == paragraph_line then
-        existing = bm
-        break
-      end
-    elseif bm.paragraph_line == paragraph_line then
-      existing = bm
-      break
-    end
-  end
-
-  if existing then
-    -- Edit existing bookmark
-    modals.open_bookmark_input(existing.name, function(name)
-      if name and name ~= "" then
-        bookmarks.update(ctx.data.slug, existing.id, name)
-        render.render_chapter(ctx.current_chapter_idx, cursor_line, ctx)
-        vim.notify("Bookmark updated", vim.log.levels.INFO)
-      end
-    end)
-    return
-  end
-
+  -- Always create a new bookmark (multiple bookmarks per paragraph allowed)
   modals.open_bookmark_input("", function(name)
     if name and name ~= "" then
       local bookmark = {
@@ -177,6 +149,7 @@ function M.add_bookmark()
         book_title = ctx.data.title,
         book_author = ctx.data.author,
         chapter = ctx.current_chapter_idx,
+        paragraph_line = paragraph_line,  -- For legacy compatibility and sorting
         paragraph_text = paragraph_text,
         context_before = context_before,
         context_after = context_after,
@@ -203,32 +176,129 @@ function M.remove_bookmark()
   local lines = ctx.rendered_lines or {}
   local paragraph_line = find_paragraph_line(lines, cursor_line)
 
-  -- Find bookmark at current paragraph
+  -- Find all bookmarks at current paragraph
   local util = require("ink.ui.util")
   local chapter_bookmarks = bookmarks.get_chapter_bookmarks(ctx.data.slug, ctx.current_chapter_idx)
-  local found = nil
+  local found_bookmarks = {}
 
   for _, bm in ipairs(chapter_bookmarks) do
     if bm.paragraph_text then
       local bm_line = util.find_text_position(lines, bm.paragraph_text, bm.context_before, bm.context_after)
       if bm_line == paragraph_line then
-        found = bm
-        break
+        table.insert(found_bookmarks, bm)
       end
     elseif bm.paragraph_line == paragraph_line then
-      found = bm
-      break
+      table.insert(found_bookmarks, bm)
     end
   end
 
-  if not found then
+  if #found_bookmarks == 0 then
     vim.notify("No bookmark in this paragraph", vim.log.levels.WARN)
     return
   end
 
-  bookmarks.remove(ctx.data.slug, found.id)
-  render.render_chapter(ctx.current_chapter_idx, cursor_line, ctx)
-  vim.notify("Bookmark removed", vim.log.levels.INFO)
+  -- If only one bookmark, remove it directly
+  if #found_bookmarks == 1 then
+    bookmarks.remove(ctx.data.slug, found_bookmarks[1].id)
+    render.render_chapter(ctx.current_chapter_idx, cursor_line, ctx)
+    vim.notify("Bookmark removed", vim.log.levels.INFO)
+    return
+  end
+
+  -- Multiple bookmarks: show picker
+  local choices = {}
+  for i, bm in ipairs(found_bookmarks) do
+    table.insert(choices, string.format("%d. %s", i, bm.name))
+  end
+
+  vim.ui.select(choices, {
+    prompt = "Select bookmark to remove:",
+  }, function(choice, idx)
+    if idx then
+      bookmarks.remove(ctx.data.slug, found_bookmarks[idx].id)
+      render.render_chapter(ctx.current_chapter_idx, cursor_line, ctx)
+      vim.notify("Bookmark removed: " .. found_bookmarks[idx].name, vim.log.levels.INFO)
+    end
+  end)
+end
+
+function M.edit_bookmark()
+  local ctx = context.current()
+  if not ctx then return end
+  local buf = vim.api.nvim_get_current_buf()
+  if buf ~= ctx.content_buf then
+    vim.notify("Bookmarks can only be edited in the content buffer", vim.log.levels.WARN)
+    return
+  end
+
+  local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
+  local cursor_line = cursor[1]
+  local lines = ctx.rendered_lines or {}
+  local paragraph_line = find_paragraph_line(lines, cursor_line)
+
+  -- Find all bookmarks at current paragraph
+  local util = require("ink.ui.util")
+  local chapter_bookmarks = bookmarks.get_chapter_bookmarks(ctx.data.slug, ctx.current_chapter_idx)
+  local found_bookmarks = {}
+
+  for _, bm in ipairs(chapter_bookmarks) do
+    if bm.paragraph_text then
+      local bm_line = util.find_text_position(lines, bm.paragraph_text, bm.context_before, bm.context_after)
+      if bm_line == paragraph_line then
+        table.insert(found_bookmarks, bm)
+      end
+    elseif bm.paragraph_line == paragraph_line then
+      table.insert(found_bookmarks, bm)
+    end
+  end
+
+  if #found_bookmarks == 0 then
+    vim.notify("No bookmark in this paragraph", vim.log.levels.WARN)
+    return
+  end
+
+  -- If only one bookmark, edit it directly
+  if #found_bookmarks == 1 then
+    modals.open_bookmark_input(found_bookmarks[1].name, function(name)
+      if name == "" or name == nil then
+        -- Empty name = delete bookmark
+        bookmarks.remove(ctx.data.slug, found_bookmarks[1].id)
+        render.render_chapter(ctx.current_chapter_idx, cursor_line, ctx)
+        vim.notify("Bookmark deleted", vim.log.levels.INFO)
+      elseif name ~= found_bookmarks[1].name then
+        bookmarks.update(ctx.data.slug, found_bookmarks[1].id, name)
+        render.render_chapter(ctx.current_chapter_idx, cursor_line, ctx)
+        vim.notify("Bookmark updated", vim.log.levels.INFO)
+      end
+    end)
+    return
+  end
+
+  -- Multiple bookmarks: show picker
+  local choices = {}
+  for i, bm in ipairs(found_bookmarks) do
+    table.insert(choices, string.format("%d. %s", i, bm.name))
+  end
+
+  vim.ui.select(choices, {
+    prompt = "Select bookmark to edit (empty = delete):",
+  }, function(choice, idx)
+    if idx then
+      local selected_bm = found_bookmarks[idx]
+      modals.open_bookmark_input(selected_bm.name, function(name)
+        if name == "" or name == nil then
+          -- Empty name = delete bookmark
+          bookmarks.remove(ctx.data.slug, selected_bm.id)
+          render.render_chapter(ctx.current_chapter_idx, cursor_line, ctx)
+          vim.notify("Bookmark deleted: " .. selected_bm.name, vim.log.levels.INFO)
+        elseif name ~= selected_bm.name then
+          bookmarks.update(ctx.data.slug, selected_bm.id, name)
+          render.render_chapter(ctx.current_chapter_idx, cursor_line, ctx)
+          vim.notify("Bookmark updated: " .. selected_bm.name .. " → " .. name, vim.log.levels.INFO)
+        end
+      end)
+    end
+  end)
 end
 
 function M.goto_next()
@@ -393,7 +463,16 @@ function M.show_bookmarks_telescope(book_slug, switch_callback)
       map("i", "<C-d>", function()
         local entry = action_state.get_selected_entry()
         if entry then
-          bookmarks.remove(entry.value.book_slug, entry.value.id)
+          local bm = entry.value
+          bookmarks.remove(bm.book_slug, bm.id)
+
+          -- Re-render if bookmark is from current book/chapter
+          local ctx = context.current()
+          if ctx and ctx.data and ctx.data.slug == bm.book_slug and ctx.current_chapter_idx == bm.chapter then
+            local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
+            render.render_chapter(ctx.current_chapter_idx, cursor[1], ctx)
+          end
+
           actions.close(prompt_bufnr)
           M.show_bookmarks_telescope(book_slug, switch_callback)
         end
@@ -401,7 +480,16 @@ function M.show_bookmarks_telescope(book_slug, switch_callback)
       map("n", "<C-d>", function()
         local entry = action_state.get_selected_entry()
         if entry then
-          bookmarks.remove(entry.value.book_slug, entry.value.id)
+          local bm = entry.value
+          bookmarks.remove(bm.book_slug, bm.id)
+
+          -- Re-render if bookmark is from current book/chapter
+          local ctx = context.current()
+          if ctx and ctx.data and ctx.data.slug == bm.book_slug and ctx.current_chapter_idx == bm.chapter then
+            local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
+            render.render_chapter(ctx.current_chapter_idx, cursor[1], ctx)
+          end
+
           actions.close(prompt_bufnr)
           M.show_bookmarks_telescope(book_slug, switch_callback)
         end
@@ -461,6 +549,14 @@ function M.show_bookmarks_floating(book_slug)
     local bm = bm_map[cursor[1]]
     if bm then
       bookmarks.remove(bm.book_slug, bm.id)
+
+      -- Re-render if bookmark is from current book/chapter
+      local ctx = context.current()
+      if ctx and ctx.data and ctx.data.slug == bm.book_slug and ctx.current_chapter_idx == bm.chapter then
+        local content_cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
+        render.render_chapter(ctx.current_chapter_idx, content_cursor[1], ctx)
+      end
+
       vim.api.nvim_win_close(win, true)
       M.show_bookmarks_floating(book_slug)
     end

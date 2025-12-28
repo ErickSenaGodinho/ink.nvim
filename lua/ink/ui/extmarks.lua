@@ -116,7 +116,10 @@ function M.apply_note_indicators(buf, chapter_highlights, note_display_mode, pad
     end
 end
 
-function M.apply_bookmarks(buf, chapter_bookmarks, padding, bookmark_icon, ns_id, lines)
+function M.apply_bookmarks(buf, chapter_bookmarks, padding, bookmark_icon, ns_id, lines, max_width)
+    -- Group bookmarks by line
+    local bookmarks_by_line = {}
+
     for _, bm in ipairs(chapter_bookmarks) do
         local line_idx = nil
 
@@ -139,9 +142,76 @@ function M.apply_bookmarks(buf, chapter_bookmarks, padding, bookmark_icon, ns_id
         end
 
         if line_idx and line_idx >= 0 and line_idx < #lines then
-            local pad = string.rep(" ", padding)
+            if not bookmarks_by_line[line_idx] then
+                bookmarks_by_line[line_idx] = {}
+            end
+            table.insert(bookmarks_by_line[line_idx], bm)
+        end
+    end
+
+    -- Render bookmarks (multiple per line if needed)
+    for line_idx, bms in pairs(bookmarks_by_line) do
+        local pad = string.rep(" ", padding)
+
+        -- If single bookmark, use simple format
+        if #bms == 1 then
             vim.api.nvim_buf_set_extmark(buf, ns_id, line_idx, 0, {
-                virt_lines = { { { pad .. bookmark_icon .. " " .. bm.name, "InkBookmark" } } },
+                virt_lines = { { { pad .. bookmark_icon .. " " .. bms[1].name, "InkBookmark" } } },
+                virt_lines_above = true,
+                priority = 4000,
+            })
+        else
+            -- Multiple bookmarks: join with " | " separator
+            max_width = max_width or 120
+            local available_width = max_width - 10  -- Reserve some margin
+            local separator = " | "
+            local prefix = bookmark_icon .. " "
+
+            -- Calculate how much space each bookmark can use
+            local separator_total = vim.fn.strwidth(separator) * (#bms - 1)
+            local prefix_width = vim.fn.strwidth(prefix)
+            local space_for_names = available_width - prefix_width - separator_total
+            local max_name_width = math.floor(space_for_names / #bms)
+
+            -- Ensure minimum width of 15 chars per bookmark
+            if max_name_width < 15 then
+                max_name_width = 15
+            end
+
+            -- Build bookmark text with truncation
+            local bookmark_text = prefix
+            for i, bm in ipairs(bms) do
+                local name = bm.name
+                local name_width = vim.fn.strwidth(name)
+
+                -- Truncate if needed
+                if name_width > max_name_width then
+                    -- Truncate to fit with "..." (3 chars)
+                    local target_width = max_name_width - 3
+                    local truncated = ""
+                    local current_width = 0
+
+                    for j = 1, vim.fn.strchars(name) do
+                        local char = vim.fn.strcharpart(name, j - 1, 1)
+                        local char_width = vim.fn.strwidth(char)
+                        if current_width + char_width > target_width then
+                            break
+                        end
+                        truncated = truncated .. char
+                        current_width = current_width + char_width
+                    end
+
+                    name = truncated .. "..."
+                end
+
+                bookmark_text = bookmark_text .. name
+                if i < #bms then
+                    bookmark_text = bookmark_text .. separator
+                end
+            end
+
+            vim.api.nvim_buf_set_extmark(buf, ns_id, line_idx, 0, {
+                virt_lines = { { { pad .. bookmark_text, "InkBookmark" } } },
                 virt_lines_above = true,
                 priority = 4000,
             })

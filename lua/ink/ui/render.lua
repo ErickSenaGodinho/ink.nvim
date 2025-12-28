@@ -368,7 +368,7 @@ function M.render_chapter(idx, restore_line, ctx)
   -- Render bookmarks using extmarks module
   local chapter_bookmarks = get_bookmarks_data().get_chapter_bookmarks(ctx.data.slug, idx)
   local bookmark_icon = context.config.bookmark_icon or "󰃀"
-  extmarks_module.apply_bookmarks(ctx.content_buf, chapter_bookmarks, padding, bookmark_icon, context.ns_id, final_lines)
+  extmarks_module.apply_bookmarks(ctx.content_buf, chapter_bookmarks, padding, bookmark_icon, context.ns_id, final_lines, max_width)
 
   if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
     if restore_line then

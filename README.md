@@ -25,7 +25,7 @@ Read books and documents without leaving your editor. Full support for EPUB file
 - **Internal links**: Navigate between sections and chapters (preview or jump)
 - **User highlights** with customizable colors (persistent across sessions)
 - **Notes on highlights** (add annotations to your highlights)
-- **Bookmarks** with navigation (jump between bookmarks across chapters)
+- **Bookmarks** with navigation (multiple bookmarks per paragraph, jump between bookmarks across chapters)
 - **Text justification** (optional, toggle on/off)
 - **Footnote preview** with floating windows
 - **Library management** (browse, search, track reading progress)
@@ -134,6 +134,7 @@ require("ink").setup({
 
   bookmark_keymaps = {
     add = "<leader>ba",
+    edit = "<leader>be",
     remove = "<leader>bd",
     next = "<leader>bn",
     prev = "<leader>bp",
@@ -215,8 +216,9 @@ vim.keymap.set("n", "<leader>le", ":InkEditLibrary", { desc = "Edit you library 
 - `<leader>nt` - Toggle note display mode (off/indicator/expanded)
 
 **Bookmarks:**
-- `<leader>ba` - Add/edit bookmark at current paragraph
-- `<leader>bd` - Remove bookmark at current paragraph
+- `<leader>ba` - Add bookmark at current paragraph (multiple per paragraph supported)
+- `<leader>be` - Edit bookmark (shows picker if multiple, empty name = delete)
+- `<leader>bd` - Remove bookmark (shows picker if multiple)
 - `<leader>bn` - Go to next bookmark (across chapters)
 - `<leader>bp` - Go to previous bookmark (across chapters)
 - `<leader>bl` - List all bookmarks (global keymap)
@@ -275,11 +277,18 @@ The library tracks all books you've opened with metadata and reading progress:
 Bookmarks allow you to mark important passages and navigate between them:
 
 **Features:**
-- Add bookmarks to any paragraph in a book
+- Add **multiple bookmarks** to the same paragraph
 - Custom names for each bookmark
 - Navigate between bookmarks across chapters
 - Global search across all books or within current book
 - Visual indicator above bookmarked paragraphs
+  - Single bookmark: `📑 Name`
+  - Multiple: `📑 Name1 | Name2 | Name3` (horizontal display)
+
+**Editing & Deleting:**
+- Edit bookmark name with `<leader>be` (shows picker if multiple)
+- Delete by leaving name empty when editing
+- Or use `<leader>bd` for direct deletion (shows picker if multiple)
 
 **Telescope keymaps (in bookmarks picker):**
 - `<CR>` - Jump to bookmark location

@@ -184,6 +184,9 @@ function M.setup_book_keymaps(content_buf, toc_buf)
   if bookmark_keymaps.add then
     vim.api.nvim_buf_set_keymap(content_buf, "n", bookmark_keymaps.add, ":lua require('ink.ui').add_bookmark()<CR>", keymap_opts)
   end
+  if bookmark_keymaps.edit then
+    vim.api.nvim_buf_set_keymap(content_buf, "n", bookmark_keymaps.edit, ":lua require('ink.ui').edit_bookmark()<CR>", keymap_opts)
+  end
   if bookmark_keymaps.remove then
     vim.api.nvim_buf_set_keymap(content_buf, "n", bookmark_keymaps.remove, ":lua require('ink.ui').remove_bookmark()<CR>", keymap_opts)
   end

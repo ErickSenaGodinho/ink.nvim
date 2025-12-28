@@ -56,6 +56,7 @@ M.show_library = library_view.show_library
 
 -- Re-export Bookmarks
 M.add_bookmark = bookmarks_ui.add_bookmark
+M.edit_bookmark = bookmarks_ui.edit_bookmark
 M.remove_bookmark = bookmarks_ui.remove_bookmark
 M.goto_next_bookmark = bookmarks_ui.goto_next
 M.goto_prev_bookmark = bookmarks_ui.goto_prev

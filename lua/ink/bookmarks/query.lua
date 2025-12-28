@@ -9,7 +9,15 @@ function M.get_by_book(slug)
     if a.chapter ~= b.chapter then
       return a.chapter < b.chapter
     end
-    return a.paragraph_line < b.paragraph_line
+    -- For bookmarks in the same chapter, sort by ID (chronological order)
+    -- This works because IDs are timestamp-based
+    local a_line = a.paragraph_line or 0
+    local b_line = b.paragraph_line or 0
+    if a_line ~= b_line and (a_line > 0 or b_line > 0) then
+      return a_line < b_line
+    end
+    -- Fallback to ID-based sorting (timestamp)
+    return (a.id or "") < (b.id or "")
   end)
   return bookmarks
 end
@@ -50,8 +58,12 @@ function M.get_next(slug, current_chapter, current_line)
   for _, bm in ipairs(bookmarks) do
     if bm.chapter > current_chapter then
       return bm
-    elseif bm.chapter == current_chapter and bm.paragraph_line > current_line then
-      return bm
+    elseif bm.chapter == current_chapter then
+      -- Use cached _line_idx if available, otherwise paragraph_line
+      local bm_line = bm._line_idx or bm.paragraph_line
+      if bm_line and bm_line > current_line then
+        return bm
+      end
     end
   end
   return nil
@@ -63,8 +75,14 @@ function M.get_prev(slug, current_chapter, current_line)
   for _, bm in ipairs(bookmarks) do
     if bm.chapter < current_chapter then
       prev = bm
-    elseif bm.chapter == current_chapter and bm.paragraph_line < current_line then
-      prev = bm
+    elseif bm.chapter == current_chapter then
+      -- Use cached _line_idx if available, otherwise paragraph_line
+      local bm_line = bm._line_idx or bm.paragraph_line
+      if bm_line and bm_line < current_line then
+        prev = bm
+      else
+        break
+      end
     else
       break
     end
