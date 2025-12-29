@@ -34,28 +34,20 @@ function M.create_book_buffers(slug, book_data)
   end
   local toc_name = content_name .. " [TOC]"
 
-  -- Delete existing buffers if they exist
-  local existing_toc = find_buf_by_name(toc_name)
-  if existing_toc then
-    context.remove(existing_toc)
-    vim.api.nvim_buf_delete(existing_toc, { force = true })
+  -- Create buffers if they don't exist
+  local content_buf = find_buf_by_name(content_name)
+  if not content_buf then
+    content_buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_name(content_buf, content_name)
+    vim.api.nvim_set_option_value("filetype", "ink_content", { buf = content_buf })
+    vim.api.nvim_set_option_value("syntax", "off", { buf = content_buf })
   end
-  local existing_content = find_buf_by_name(content_name)
-  if existing_content then
-    context.remove(existing_content)
-    vim.api.nvim_buf_delete(existing_content, { force = true })
+  local toc_buf = find_buf_by_name(toc_name)
+  if not toc_buf then
+    toc_buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_name(toc_buf, toc_name)
+    vim.api.nvim_set_option_value("filetype", "ink_toc", { buf = toc_buf })
   end
-
-  -- Create content buffer
-  local content_buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_name(content_buf, content_name)
-  vim.api.nvim_set_option_value("filetype", "ink_content", { buf = content_buf })
-  vim.api.nvim_set_option_value("syntax", "off", { buf = content_buf })
-
-  -- Create TOC buffer
-  local toc_buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_name(toc_buf, toc_name)
-  vim.api.nvim_set_option_value("filetype", "ink_toc", { buf = toc_buf })
 
   return content_buf, toc_buf
 end
@@ -286,7 +278,12 @@ function M.open_book(book_data)
   -- Create new tab and set content window
   vim.cmd("tabnew")
   ctx.content_win = vim.api.nvim_get_current_win()
+  local empty_buf = vim.api.nvim_get_current_buf()
   vim.api.nvim_win_set_buf(ctx.content_win, content_buf)
+
+  if empty_buf and vim.api.nvim_buf_is_valid(empty_buf) then
+    vim.api.nvim_buf_delete(empty_buf, { force = true })
+  end
 
   -- Render TOC and toggle it open
   render.render_toc(ctx)

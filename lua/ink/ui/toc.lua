@@ -66,7 +66,7 @@ function M.toggle_toc(ctx)
     vim.api.nvim_win_close(ctx.toc_win, true)
     ctx.toc_win = nil
   else
-    vim.cmd("topleft vsplit")
+    vim.cmd("leftabove vsplit")
     ctx.toc_win = vim.api.nvim_get_current_win()
     vim.api.nvim_win_set_buf(ctx.toc_win, ctx.toc_buf)
     vim.api.nvim_win_set_width(ctx.toc_win, 30)

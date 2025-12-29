@@ -68,13 +68,19 @@ function M.show(opts)
 
 	-- Open in new tab or current window
 	local win
+	local empty_buf
+
 	if in_new_tab then
 		vim.cmd("tabnew")
-		win = vim.api.nvim_get_current_win()
-	else
-		win = vim.api.nvim_get_current_win()
+		empty_buf = vim.api.nvim_get_current_buf()
 	end
+
+	win = vim.api.nvim_get_current_win()
 	vim.api.nvim_win_set_buf(win, buf)
+
+	if empty_buf and vim.api.nvim_buf_is_valid(empty_buf) then
+		vim.api.nvim_buf_delete(empty_buf, { force = true })
+	end
 
 	-- Store state
 	state.buffer = buf
