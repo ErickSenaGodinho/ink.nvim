@@ -12,6 +12,7 @@ local default_config = {
         next_chapter = "]c",
         prev_chapter = "[c",
         toggle_toc = "<leader>t",
+        toggle_floating_toc = "<leader>T", -- Floating TOC (experimental)
         activate = "<CR>",
         jump_to_link = "g<CR>", -- Jump to link target (footnotes, cross-references)
         search_toc = "<leader>pit",
@@ -305,6 +306,12 @@ function M.setup(opts)
     vim.api.nvim_create_user_command("InkNotesBook", function()
         local notes = require("ink.notes")
         notes.show_book_notes()
+    end, {})
+
+    -- Create Floating TOC command (experimental)
+    vim.api.nvim_create_user_command("InkTocFloat", function()
+        local floating_toc = require("ink.ui.floating_toc")
+        floating_toc.toggle_floating_toc()
     end, {})
 
     -- Create Glossary commands

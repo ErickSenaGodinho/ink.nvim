@@ -143,6 +143,12 @@ function M.setup_book_keymaps(content_buf, toc_buf)
     vim.api.nvim_buf_set_keymap(toc_buf, "n", keymaps.toggle_toc, ":lua require('ink.ui').toggle_toc()<CR>", keymap_opts)
   end
 
+  -- Floating TOC keymap (experimental)
+  if keymaps.toggle_floating_toc then
+    vim.api.nvim_buf_set_keymap(content_buf, "n", keymaps.toggle_floating_toc, ":lua require('ink.ui.floating_toc').toggle_floating_toc()<CR>", keymap_opts)
+    vim.api.nvim_buf_set_keymap(toc_buf, "n", keymaps.toggle_floating_toc, ":lua require('ink.ui.floating_toc').toggle_floating_toc()<CR>", keymap_opts)
+  end
+
   -- Highlight keymaps (content buffer only)
   local highlight_keymaps = context.config.highlight_keymaps or {}
   for color_name, keymap in pairs(highlight_keymaps) do
