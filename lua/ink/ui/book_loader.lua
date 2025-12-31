@@ -268,14 +268,96 @@ function M.setup_book_autocmds(content_buf, slug)
     end,
   })
 
-  -- Buffer delete handler
-  vim.api.nvim_create_autocmd("BufDelete", {
+  -- Periodic save on cursor hold (after 4 seconds of inactivity)
+  vim.api.nvim_create_autocmd("CursorHold", {
     group = augroup,
     buffer = content_buf,
     callback = function()
       local current_ctx = context.get(content_buf)
-      if current_ctx and current_ctx.default_max_width then
-        context.config.max_width = current_ctx.default_max_width
+      if not current_ctx or current_ctx._is_initializing or not current_ctx.rendered_lines then
+        return
+      end
+
+      if not current_ctx.content_win or not vim.api.nvim_win_is_valid(current_ctx.content_win) then
+        return
+      end
+
+      -- Only save from content buffer
+      local win_buf = vim.api.nvim_win_get_buf(current_ctx.content_win)
+      if win_buf ~= content_buf then
+        return
+      end
+      local cursor = vim.api.nvim_win_get_cursor(current_ctx.content_win)
+      local cursor_line = cursor[1]
+
+      local get_position_ctx = render.get_current_position_context
+      if get_position_ctx then
+        local position_ctx = get_position_ctx(current_ctx, cursor_line)
+        local state_module = require("ink.state")
+        local library_module = require("ink.library")
+
+        local state_data = { chapter = current_ctx.current_chapter_idx }
+        if position_ctx then
+          state_data.text = position_ctx.text
+          state_data.context_before = position_ctx.context_before
+          state_data.context_after = position_ctx.context_after
+          state_data.line = position_ctx.line_fallback
+        else
+          state_data.line = cursor_line
+        end
+
+        state_module.save(current_ctx.data.slug, state_data)
+        library_module.update_progress(current_ctx.data.slug, current_ctx.current_chapter_idx, #current_ctx.data.spine)
+      end
+    end,
+  })
+
+  -- Buffer delete handler for content buffer
+  vim.api.nvim_create_autocmd("BufDelete", {
+    group = augroup,
+    buffer = content_buf,
+    callback = function(ev)
+      -- Only process if the buffer being deleted is the content buffer
+      if ev.buf ~= content_buf then
+        return
+      end
+
+      local current_ctx = context.get(content_buf)
+      if current_ctx then
+        -- Save current reading position before closing (only from content buffer)
+        if current_ctx.content_win and vim.api.nvim_win_is_valid(current_ctx.content_win) and current_ctx.rendered_lines then
+          -- Verify the window is still showing the content buffer (not switched to TOC)
+          local win_buf = vim.api.nvim_win_get_buf(current_ctx.content_win)
+          if win_buf == content_buf then
+            local cursor = vim.api.nvim_win_get_cursor(current_ctx.content_win)
+            local cursor_line = cursor[1]
+
+            -- Extract position with text context
+            local get_position_ctx = render.get_current_position_context
+            if get_position_ctx then
+              local position_ctx = get_position_ctx(current_ctx, cursor_line)
+              local state_module = require("ink.state")
+              local library_module = require("ink.library")
+
+              local state_data = { chapter = current_ctx.current_chapter_idx }
+              if position_ctx then
+                state_data.text = position_ctx.text
+                state_data.context_before = position_ctx.context_before
+                state_data.context_after = position_ctx.context_after
+                state_data.line = position_ctx.line_fallback
+              else
+                state_data.line = cursor_line
+              end
+
+              state_module.save(current_ctx.data.slug, state_data)
+              library_module.update_progress(current_ctx.data.slug, current_ctx.current_chapter_idx, #current_ctx.data.spine)
+            end
+          end
+        end
+
+        if current_ctx.default_max_width then
+          context.config.max_width = current_ctx.default_max_width
+        end
       end
 
       -- End reading session
@@ -283,6 +365,57 @@ function M.setup_book_autocmds(content_buf, slug)
       reading_sessions.end_session(slug)
 
       context.remove(content_buf)
+    end,
+  })
+
+  -- Buffer delete handler for TOC buffer (cleanup only, no state saving)
+  vim.api.nvim_create_autocmd("BufDelete", {
+    group = augroup,
+    buffer = toc_buf,
+    callback = function(ev)
+      -- Only process if the buffer being deleted is the TOC buffer
+      if ev.buf ~= toc_buf then return end
+      -- TOC buffer cleanup - don't save state here
+    end,
+  })
+
+  -- VimLeavePre: Save position before Vim closes (safety net)
+  vim.api.nvim_create_autocmd("VimLeavePre", {
+    group = augroup,
+    callback = function()
+      local current_ctx = context.get(content_buf)
+      if not current_ctx or not current_ctx.content_win or not current_ctx.rendered_lines then
+        return
+      end
+
+      -- Only save if the content window is still valid and showing content buffer
+      if vim.api.nvim_win_is_valid(current_ctx.content_win) then
+        local win_buf = vim.api.nvim_win_get_buf(current_ctx.content_win)
+        if win_buf == content_buf then
+          local cursor = vim.api.nvim_win_get_cursor(current_ctx.content_win)
+          local cursor_line = cursor[1]
+
+          local get_position_ctx = render.get_current_position_context
+          if get_position_ctx then
+            local position_ctx = get_position_ctx(current_ctx, cursor_line)
+            local state_module = require("ink.state")
+            local library_module = require("ink.library")
+
+            local state_data = { chapter = current_ctx.current_chapter_idx }
+            if position_ctx then
+              state_data.text = position_ctx.text
+              state_data.context_before = position_ctx.context_before
+              state_data.context_after = position_ctx.context_after
+              state_data.line = position_ctx.line_fallback
+            else
+              state_data.line = cursor_line
+            end
+
+            state_module.save(current_ctx.data.slug, state_data)
+            library_module.update_progress(current_ctx.data.slug, current_ctx.current_chapter_idx, #current_ctx.data.spine)
+          end
+        end
+      end
     end,
   })
 end
@@ -313,6 +446,9 @@ function M.open_book(book_data)
   -- Setup context
   local ctx = M.setup_book_context(content_buf, toc_buf, book_data)
 
+  -- Flag to prevent state saving during book initialization
+  ctx._is_initializing = true
+
   -- Create new tab and set content window
   vim.cmd("tabnew")
   ctx.content_win = vim.api.nvim_get_current_win()
@@ -322,16 +458,41 @@ function M.open_book(book_data)
   render.render_toc(ctx)
   render.toggle_toc(ctx)
 
-  -- Load saved position or render first chapter
-  local saved = state.load(book_data.slug)
-  if saved then
-    render.render_chapter(saved.chapter, saved.line, ctx)
-    if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
-      vim.api.nvim_set_current_win(ctx.content_win)
+  -- Schedule chapter rendering to ensure window has been resized after TOC toggle
+  -- This prevents glossary marks from being calculated with incorrect window width
+  vim.schedule(function()
+    -- Load saved position or render first chapter
+    local saved = state.load(book_data.slug)
+    if saved then
+      -- First render the chapter
+      render.render_chapter(saved.chapter, saved.line, ctx)
+
+      -- If we have text-based position data, find the exact position
+      if saved.text and saved.text ~= "" and ctx.rendered_lines then
+        local util = require("ink.ui.util")
+        local start_line = util.find_text_position(
+          ctx.rendered_lines,
+          saved.text,
+          saved.context_before,
+          saved.context_after
+        )
+
+        -- If found, update cursor to exact position
+        if start_line and ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
+          vim.api.nvim_win_set_cursor(ctx.content_win, {start_line, 0})
+        end
+      end
+
+      if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
+        vim.api.nvim_set_current_win(ctx.content_win)
+      end
+    else
+      render.render_chapter(1, nil, ctx)
     end
-  else
-    render.render_chapter(1, nil, ctx)
-  end
+
+    -- Book initialization complete, allow state saving
+    ctx._is_initializing = false
+  end)
 
   -- Setup keymaps and autocmds
   M.setup_book_keymaps(content_buf, toc_buf)

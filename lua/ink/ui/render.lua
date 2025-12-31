@@ -54,6 +54,73 @@ function M.show_footnote_preview(...)
   return require("ink.ui.footnotes").show_footnote_preview(...)
 end
 
+-- Extract current position as text + context for text-based position saving
+local function get_current_position_context(ctx, cursor_line)
+  if not ctx.rendered_lines or #ctx.rendered_lines == 0 then
+    return nil
+  end
+
+  local lines = ctx.rendered_lines
+  local util = require("ink.ui.util")
+
+  -- Get the line text (or find next non-empty line)
+  local line_text = lines[cursor_line] or ""
+  local actual_line = cursor_line
+
+  -- If on empty line, find next non-empty line
+  if line_text:match("^%s*$") then
+    for i = cursor_line + 1, #lines do
+      if not lines[i]:match("^%s*$") then
+        actual_line = i
+        line_text = lines[i]
+        break
+      end
+    end
+  end
+
+  -- Still empty? Use first non-empty line
+  if line_text:match("^%s*$") then
+    for i = 1, #lines do
+      if not lines[i]:match("^%s*$") then
+        actual_line = i
+        line_text = lines[i]
+        break
+      end
+    end
+  end
+
+  -- Truncate line text to reasonable length
+  local max_text_len = 200
+  if #line_text > max_text_len then
+    line_text = line_text:sub(1, max_text_len)
+  end
+
+  -- Get context before and after
+  local full_text = util.get_full_text(lines)
+  local start_offset = util.line_col_to_offset(lines, actual_line, 0)
+  local context_len = 30
+
+  local context_before = ""
+  if start_offset > 0 then
+    local ctx_start = math.max(0, start_offset - context_len)
+    context_before = full_text:sub(ctx_start + 1, start_offset)
+  end
+
+  local context_after = ""
+  local text_end_offset = start_offset + #line_text
+  if text_end_offset < #full_text then
+    local ctx_end = math.min(#full_text, text_end_offset + context_len)
+    context_after = full_text:sub(text_end_offset + 1, ctx_end)
+  end
+
+  return {
+    text = util.normalize_whitespace(line_text),
+    context_before = util.normalize_whitespace(context_before),
+    context_after = util.normalize_whitespace(context_after),
+    line_fallback = actual_line  -- Fallback for old format or if text not found
+  }
+end
+
 -- Extract plain text from HTML (lightweight, for search indexing)
 function M.extract_plain_text(html_content)
   if not html_content or html_content == "" then
@@ -188,6 +255,17 @@ function M.render_chapter(idx, restore_line, ctx)
   if not ctx or idx < 1 or idx > #ctx.data.spine then return end
   ctx.current_chapter_idx = idx
   ctx.last_statusline_percent = 0
+
+  -- Ensure glossary fields are initialized (for backward compatibility with old contexts)
+  if not ctx.glossary_matches or type(ctx.glossary_matches) ~= "table" then
+    ctx.glossary_matches = {}
+  end
+  if not ctx.glossary_matches_cache then
+    ctx.glossary_matches_cache = { version = nil, chapters = {} }
+  end
+  if ctx.glossary_visible == nil then
+    ctx.glossary_visible = true
+  end
 
   if not ctx.content_win or not vim.api.nvim_win_is_valid(ctx.content_win) then
     local found_win = nil
@@ -417,8 +495,8 @@ function M.render_chapter(idx, restore_line, ctx)
     -- Check chapter cache (Level 1 optimization)
     local cached_matches = ctx.glossary_matches_cache.chapters[idx]
 
-    if cached_matches then
-      -- Cache hit: use cached matches
+    if cached_matches and type(cached_matches) == "table" then
+      -- Cache hit: use cached matches (validate it's a table, not vim.NIL)
       ctx.glossary_matches = cached_matches
     else
       -- Cache miss: detect and store
@@ -428,6 +506,11 @@ function M.render_chapter(idx, restore_line, ctx)
       -- Persist cache to disk (Level 3 optimization)
       local glossary_cache = require("ink.glossary.cache")
       glossary_cache.save(ctx.data.slug, ctx.glossary_matches_cache)
+    end
+
+    -- Ensure glossary_matches is always a table (defensive check)
+    if type(ctx.glossary_matches) ~= "table" then
+      ctx.glossary_matches = {}
     end
 
     -- Only apply glossary marks if glossary_visible is true
@@ -464,8 +547,36 @@ function M.render_chapter(idx, restore_line, ctx)
   end
 
   M.update_statusline(ctx)
-  get_state().save(ctx.data.slug, { chapter = idx, line = restore_line or 1 })
-  get_library().update_progress(ctx.data.slug, idx, #ctx.data.spine)
+
+  -- Don't save state during book initialization to prevent overwriting saved position
+  if not ctx._is_initializing then
+    -- Get current cursor position
+    local cursor_line = 1
+    if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
+      local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
+      cursor_line = cursor[1]
+    elseif type(restore_line) == "number" then
+      cursor_line = restore_line
+    elseif type(restore_line) == "table" then
+      cursor_line = restore_line[1]
+    end
+
+    -- Extract position with text context for robust restoration
+    local position_ctx = get_current_position_context(ctx, cursor_line)
+
+    local state_data = { chapter = idx }
+    if position_ctx then
+      state_data.text = position_ctx.text
+      state_data.context_before = position_ctx.context_before
+      state_data.context_after = position_ctx.context_after
+      state_data.line = position_ctx.line_fallback
+    else
+      state_data.line = cursor_line
+    end
+
+    get_state().save(ctx.data.slug, state_data)
+    get_library().update_progress(ctx.data.slug, idx, #ctx.data.spine)
+  end
 end
 
 
@@ -525,5 +636,8 @@ function M.invalidate_glossary_cache(ctx)
     glossary_cache.clear(ctx.data.slug)
   end
 end
+
+-- Export for use in other modules
+M.get_current_position_context = get_current_position_context
 
 return M
