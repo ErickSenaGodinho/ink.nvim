@@ -242,20 +242,23 @@ function M.open(epub_path, opts)
     css_cache.save(slug, class_styles)
   end
 
-  -- 5. Build TOC from content headings (H1-H3) - with caching
-  -- Try to load from cache first
-  local toc_cache = require("ink.toc_cache")
-  local cached_toc = toc_cache.load(slug)
+  -- 5. Build TOC from content headings (H1-H3) - ONLY if no official TOC exists
+  -- Official TOC (NCX/NAV) always takes priority
+  if #toc == 0 then
+    -- No official TOC found, try to build from content
+    local toc_cache = require("ink.toc_cache")
+    local cached_toc = toc_cache.load(slug)
 
-  if cached_toc and #cached_toc > 0 then
-    -- Use cached TOC
-    toc = cached_toc
-  elseif not skip_toc_generation then
-    -- Build TOC and cache it
-    local content_toc = M.build_toc_from_content(spine, opf_dir, class_styles)
-    if #content_toc > 0 then
-      toc = content_toc
-      toc_cache.save(slug, toc)
+    if cached_toc and #cached_toc > 0 then
+      -- Use cached TOC
+      toc = cached_toc
+    elseif not skip_toc_generation then
+      -- Build TOC and cache it
+      local content_toc = M.build_toc_from_content(spine, opf_dir, class_styles)
+      if #content_toc > 0 then
+        toc = content_toc
+        toc_cache.save(slug, toc)
+      end
     end
   end
 
