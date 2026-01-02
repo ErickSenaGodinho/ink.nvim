@@ -16,12 +16,14 @@ function M.save(slug, entries, custom_types)
     custom_types = custom_types or {}
   })
   local file = io.open(path, "w")
-  if file then
-    file:write(json)
-    file:close()
-    return true
+  if not file then
+    return false
   end
-  return false
+
+  -- Ensure file is always closed, even on error
+  local ok = pcall(file.write, file, json)
+  file:close()
+  return ok
 end
 
 function M.load(slug)

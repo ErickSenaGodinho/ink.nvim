@@ -56,6 +56,11 @@ function M.create_book_buffers(slug, book_data)
   local toc_buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_name(toc_buf, toc_name)
   vim.api.nvim_set_option_value("filetype", "ink_toc", { buf = toc_buf })
+  -- Prevent Neovim from adding blank lines when buffer is attached to window
+  vim.api.nvim_set_option_value("fixendofline", false, { buf = toc_buf })
+  vim.api.nvim_set_option_value("endofline", false, { buf = toc_buf })
+  -- Initialize with placeholder line to prevent modifiable errors
+  vim.api.nvim_buf_set_lines(toc_buf, 0, -1, false, { "Loading table of contents..." })
 
   return content_buf, toc_buf
 end
@@ -250,12 +255,14 @@ function M.setup_book_autocmds(content_buf, slug)
     group = augroup,
     callback = function()
       local current_ctx = context.get(content_buf)
-      if current_ctx and current_ctx.content_win and vim.api.nvim_win_is_valid(current_ctx.content_win) then
-        -- Skip during book initialization to prevent premature rendering/caching
-        if current_ctx._is_initializing then
-          return
-        end
 
+      -- Check initialization status first (fast check, no API calls)
+      if not current_ctx or current_ctx._is_initializing then
+        return
+      end
+
+      -- Now check window validity (safer order)
+      if current_ctx.content_win and vim.api.nvim_win_is_valid(current_ctx.content_win) then
         local resized_wins = vim.v.event.windows or {}
         for _, win_id in ipairs(resized_wins) do
           if win_id == current_ctx.content_win then

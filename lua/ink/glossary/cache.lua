@@ -62,10 +62,10 @@ function M.save(slug, cache_data)
     return false
   end
 
-  file:write(json_content)
+  -- Ensure file is always closed, even on error
+  local ok = pcall(file.write, file, json_content)
   file:close()
-
-  return true
+  return ok
 end
 
 -- Clear cache for a book
