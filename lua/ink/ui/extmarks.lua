@@ -23,20 +23,25 @@ function M.apply_syntax_highlights(buf, highlights, ns_id, padding)
 
         if line_idx >= 0 and line_idx < line_count then
             local line_length = #all_lines[line_idx + 1]
-            start_col = math.min(start_col, line_length)
-            end_col = math.min(end_col, line_length)
+            -- Columns are 0-indexed: valid range is [0, line_length)
+            -- Skip highlight if start position is beyond line length (invalid data)
+            if start_col < line_length then
+                -- Clamp valid positions to line bounds
+                start_col = math.max(0, start_col)
+                end_col = math.min(end_col, line_length)
 
-            if start_col < end_col then
-                table.insert(extmarks_to_apply, {
-                    line_idx = line_idx,
-                    col = start_col,
-                    opts = {
-                        end_col = end_col,
-                        hl_group = hl[4],
-                        priority = 1000,
-                        hl_mode = "combine"
-                    }
-                })
+                if start_col < end_col then
+                    table.insert(extmarks_to_apply, {
+                        line_idx = line_idx,
+                        col = start_col,
+                        opts = {
+                            end_col = end_col,
+                            hl_group = hl[4],
+                            priority = 1000,
+                            hl_mode = "combine"
+                        }
+                    })
+                end
             end
         end
     end

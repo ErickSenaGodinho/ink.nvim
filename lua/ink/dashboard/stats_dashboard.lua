@@ -98,9 +98,17 @@ function M.load_data(force_reload)
 	end
 
 	-- Load fresh data
-	local library = require("ink.library")
-	local sessions = require("ink.reading_sessions")
-	local collections = require("ink.collections")
+	local ok_lib, library = pcall(require, "ink.library")
+	local ok_sess, sessions = pcall(require, "ink.reading_sessions")
+	local ok_coll, collections = pcall(require, "ink.collections")
+
+	if not ok_lib or not ok_sess or not ok_coll then
+		vim.notify("Failed to load required modules for stats dashboard", vim.log.levels.ERROR)
+		state.data = M.get_default_stats()
+		cache.data = state.data
+		cache.timestamp = now
+		return
+	end
 
 	-- Validation
 	local books = library.get_books() or {}
@@ -135,19 +143,19 @@ function M.load_data(force_reload)
 	local week_time = 0
 	local month_time = 0
 	local today = os.time()
-	local week_cutoff = os.date("%Y-%m-%d", today - (7 * 86400))
+	local week_cutoff = os.date("%Y-%m-%d", today - (7 * 86400))  -- ISO date format allows lexicographic comparison
 	local days_with_reading = 0
 
 	for date, minutes in pairs(month_sessions) do
 		month_time = month_time + minutes
 		days_with_reading = days_with_reading + 1
-		if date >= week_cutoff then
+		if date >= week_cutoff then  -- String comparison works because YYYY-MM-DD is lexicographically sortable
 			week_time = week_time + minutes
 		end
 	end
 
-	-- Calculate daily average (only count days with actual reading)
-	local daily_avg = days_with_reading > 0 and (month_time / days_with_reading) or 0
+	-- Calculate daily average (total reading time / 30 days)
+	local daily_avg = month_time / 30
 
 	-- Progress statistics
 	local total_chapters = 0
@@ -190,6 +198,15 @@ function M.load_data(force_reload)
 		table.insert(week_graph, month_sessions[day] or 0)
 	end
 
+	-- Check if week graph is all zeros for better UI feedback
+	local has_week_activity = false
+	for _, minutes in ipairs(week_graph) do
+		if minutes > 0 then
+			has_week_activity = true
+			break
+		end
+	end
+
 	-- Collections
 	local all_collections = collections.get_all() or {}
 	local collection_stats = {}
@@ -218,6 +235,7 @@ function M.load_data(force_reload)
 		longest_streak = longest_streak,
 		top_books = top_5_books,
 		week_graph = week_graph,
+		has_week_activity = has_week_activity,
 		collections = collection_stats,
 	}
 
@@ -277,6 +295,7 @@ function M.get_default_stats()
 		longest_streak = 0,
 		top_books = {},
 		week_graph = {0, 0, 0, 0, 0, 0, 0},
+		has_week_activity = false,
 		collections = {},
 	}
 end
@@ -540,7 +559,12 @@ function M.render_time_stats(lines, line_paddings, box_width, box_padding)
 
 	-- Weekly reading sparkline
 	local sparkline = M.create_sparkline(state.data.week_graph)
-	local sparkline_label = "Last 7 days: " .. sparkline
+	local sparkline_label
+	if state.data.has_week_activity then
+		sparkline_label = "Last 7 days: " .. sparkline
+	else
+		sparkline_label = "Last 7 days: " .. sparkline .. " (no reading activity)"
+	end
 	local sparkline_padding = math.floor((box_width - 2 - vim.fn.strwidth(sparkline_label)) / 2)
 	local sparkline_line = "│" .. string.rep(" ", sparkline_padding) .. sparkline_label .. string.rep(" ", box_width - 2 - sparkline_padding - vim.fn.strwidth(sparkline_label)) .. "│"
 	table.insert(lines, sparkline_line)
@@ -728,7 +752,7 @@ function M.render_collections(lines, line_paddings, box_width, box_padding)
 		local name_width = box_width - 2 - vim.fn.strwidth(count_text) - 4
 		local name = coll.name
 		if vim.fn.strwidth(name) > name_width then
-			name = name:sub(1, name_width - 3) .. "..."
+			name = vim.fn.strcharpart(name, 0, name_width - 3) .. "..."
 		end
 		local spacing = box_width - 2 - vim.fn.strwidth(name) - vim.fn.strwidth(count_text) - 2
 		local line = "│ " .. name .. string.rep(" ", spacing) .. count_text .. " │"

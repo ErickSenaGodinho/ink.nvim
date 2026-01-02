@@ -4,10 +4,12 @@ local formatter = require("ink.html.formatter")
 local utils = require("ink.html.utils")
 local table_module = require("ink.html.table")
 local patterns = require("ink.html.patterns")
+local pool = require("ink.html.pool")
 
 local M = {}
 
 function M.parse(content, max_width, class_styles, justify_text, typography)
+  -- These tables are returned to caller, so don't pool them
   local lines = {}
   local highlights = {}
   local links = {}

@@ -243,7 +243,7 @@ function M.increase_width()
   context.config.max_width = current + step
 
   -- Invalidate cache and re-render
-  ctx.parsed_chapters = {}
+  ctx.parsed_chapters:clear()
   ctx.search_index = nil
   render.invalidate_glossary_cache(ctx)
   local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
@@ -261,7 +261,7 @@ function M.decrease_width()
   context.config.max_width = new_width
 
   -- Invalidate cache and re-render
-  ctx.parsed_chapters = {}
+  ctx.parsed_chapters:clear()
   ctx.search_index = nil
   render.invalidate_glossary_cache(ctx)
   local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
@@ -277,7 +277,7 @@ function M.reset_width()
     context.config.max_width = ctx.default_max_width
 
     -- Invalidate cache since parsing depends on max_width
-    ctx.parsed_chapters = {}
+    ctx.parsed_chapters:clear()
     ctx.search_index = nil
     render.invalidate_glossary_cache(ctx)
     local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
@@ -293,7 +293,7 @@ function M.toggle_justify()
   context.config.justify_text = not context.config.justify_text
 
   -- Invalidate cache since parsing depends on justify_text
-  ctx.parsed_chapters = {}
+  ctx.parsed_chapters:clear()
   ctx.search_index = nil
   render.invalidate_glossary_cache(ctx)
   local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
@@ -319,7 +319,7 @@ function M.increase_line_spacing()
   context.config.typography.line_spacing = new_spacing
 
   -- Invalidate cache since parsing depends on typography
-  ctx.parsed_chapters = {}
+  ctx.parsed_chapters:clear()
   ctx.search_index = nil
   render.invalidate_glossary_cache(ctx)
   local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
@@ -345,7 +345,7 @@ function M.decrease_line_spacing()
   context.config.typography.line_spacing = new_spacing
 
   -- Invalidate cache since parsing depends on typography
-  ctx.parsed_chapters = {}
+  ctx.parsed_chapters:clear()
   ctx.search_index = nil
   render.invalidate_glossary_cache(ctx)
   local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
@@ -371,7 +371,7 @@ function M.increase_paragraph_spacing()
   context.config.typography.paragraph_spacing = new_spacing
 
   -- Invalidate cache since parsing depends on typography
-  ctx.parsed_chapters = {}
+  ctx.parsed_chapters:clear()
   ctx.search_index = nil
   render.invalidate_glossary_cache(ctx)
   local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
@@ -397,7 +397,7 @@ function M.decrease_paragraph_spacing()
   context.config.typography.paragraph_spacing = new_spacing
 
   -- Invalidate cache since parsing depends on typography
-  ctx.parsed_chapters = {}
+  ctx.parsed_chapters:clear()
   ctx.search_index = nil
   render.invalidate_glossary_cache(ctx)
   local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
@@ -421,7 +421,7 @@ function M.reset_line_spacing()
   context.config.typography.line_spacing = 1
 
   -- Invalidate cache since parsing depends on typography
-  ctx.parsed_chapters = {}
+  ctx.parsed_chapters:clear()
   ctx.search_index = nil
   render.invalidate_glossary_cache(ctx)
   local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
@@ -445,7 +445,7 @@ function M.reset_paragraph_spacing()
   context.config.typography.paragraph_spacing = 1
 
   -- Invalidate cache since parsing depends on typography
-  ctx.parsed_chapters = {}
+  ctx.parsed_chapters:clear()
   ctx.search_index = nil
   render.invalidate_glossary_cache(ctx)
   local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)

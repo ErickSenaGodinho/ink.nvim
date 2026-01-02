@@ -4,6 +4,9 @@ local migrate = require("ink.data.migrate")
 
 local M = {}
 
+-- In-memory cache for highlights: slug -> { highlights = {...}, by_chapter = {...} }
+local highlights_cache = {}
+
 local function get_highlights_path(slug)
   migrate.migrate_book(slug)
   return data.get_book_dir(slug) .. "/highlights.json"
@@ -14,33 +17,66 @@ function M.save(slug, highlights)
   local json = data.json_encode({ highlights = highlights })
 
   local file = io.open(path, "w")
-  if file then
-    file:write(json)
-    file:close()
-    return true
+  if not file then
+    return false
   end
-  return false
+
+  -- Ensure file is always closed, even on error
+  local ok = pcall(file.write, file, json)
+  file:close()
+
+  -- Invalidate cache on save
+  if ok then
+    highlights_cache[slug] = nil
+  end
+
+  return ok
 end
 
--- Load highlights from disk
+-- Load highlights from disk (or cache)
 function M.load(slug)
+  -- Check cache first
+  if highlights_cache[slug] then
+    return highlights_cache[slug].data
+  end
+
   local path = get_highlights_path(slug)
 
   if not fs.exists(path) then
-    return { highlights = {} }
+    local empty = { highlights = {} }
+    highlights_cache[slug] = { data = empty, by_chapter = {} }
+    return empty
   end
 
   local content = fs.read_file(path)
   if not content then
-    return { highlights = {} }
+    local empty = { highlights = {} }
+    highlights_cache[slug] = { data = empty, by_chapter = {} }
+    return empty
   end
 
-  local ok, data = pcall(vim.json.decode, content)
-  if not ok or not data then
-    return { highlights = {} }
+  local ok, loaded = pcall(vim.json.decode, content)
+  if not ok or not loaded then
+    local empty = { highlights = {} }
+    highlights_cache[slug] = { data = empty, by_chapter = {} }
+    return empty
   end
 
-  return data
+  -- Build chapter index for fast lookup
+  local by_chapter = {}
+  for _, hl in ipairs(loaded.highlights or {}) do
+    if hl.chapter then
+      if not by_chapter[hl.chapter] then
+        by_chapter[hl.chapter] = {}
+      end
+      table.insert(by_chapter[hl.chapter], hl)
+    end
+  end
+
+  -- Cache loaded data with chapter index
+  highlights_cache[slug] = { data = loaded, by_chapter = by_chapter }
+
+  return loaded
 end
 
 -- Add a new highlight
@@ -72,18 +108,24 @@ function M.remove_highlight_by_text(slug, highlight)
   return new_highlights
 end
 
--- Get highlights for a specific chapter
+-- Get highlights for a specific chapter (optimized with cache)
 function M.get_chapter_highlights(slug, chapter)
-  local data = M.load(slug)
-  local chapter_highlights = {}
+  -- Load will use cache if available
+  M.load(slug)
 
-  for _, hl in ipairs(data.highlights) do
-    if hl.chapter == chapter then
-      table.insert(chapter_highlights, hl)
-    end
+  -- Use cached chapter index if available
+  local cache = highlights_cache[slug]
+  if cache and cache.by_chapter[chapter] then
+    return cache.by_chapter[chapter]
   end
 
-  return chapter_highlights
+  -- Return empty if chapter has no highlights
+  return {}
+end
+
+-- Get cached highlights (for benchmark testing)
+function M.get_cached(slug, chapter)
+  return M.get_chapter_highlights(slug, chapter)
 end
 
 -- Update note on a highlight (match by text)

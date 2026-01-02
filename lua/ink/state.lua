@@ -9,10 +9,14 @@ function M.save(slug, state)
   local path = data.get_book_dir(slug) .. "/state.json"
 
   local file = io.open(path, "w")
-  if file then
-    file:write(vim.json.encode(state))
-    file:close()
+  if not file then
+    return false
   end
+
+  -- Ensure file is always closed, even on error
+  local ok = pcall(file.write, file, vim.json.encode(state))
+  file:close()
+  return ok
 end
 
 function M.load(slug)
