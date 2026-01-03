@@ -125,6 +125,19 @@ local default_config = {
     --toc_keymaps = {
     --    rebuild = "<leader>tr", -- Rebuild TOC from content headings
     --}
+    -- Padnotes configuration
+    padnotes = {
+        enabled = true,
+        path = "default",  -- "default" or custom path. Support {slug}, {author} and {title} Exemple: "~/Documents/ink-notes/{author}/{slug}"
+        auto_save_interval = 120,  -- seconds (2 minutes)
+        template = "default",
+    },
+    padnotes_keymaps = {
+        toggle = "<leader>pn",   -- Toggle padnote (smart: create/open/close/switch)
+        open = "<leader>po",     -- Force open padnote
+        close = "<leader>pc",    -- Force close padnote
+        list_all = "<leader>pa", -- List all padnotes in floating window
+    },
 }
 
 function M.setup(opts)
@@ -563,6 +576,26 @@ function M.setup(opts)
     -- Global keymap for dashboard
     if keymaps.dashboard then
         vim.api.nvim_set_keymap("n", keymaps.dashboard, ":InkDashboard<CR>", opts)
+    end
+
+    -- Setup padnotes
+    if M.config.padnotes and M.config.padnotes.enabled then
+        local padnotes = require("ink.padnotes")
+        padnotes.setup(M.config.padnotes)
+
+        local pk = M.config.padnotes_keymaps
+        if pk.toggle then
+            vim.keymap.set("n", pk.toggle, function() padnotes.toggle() end, { noremap = true, silent = true, desc = "Toggle padnote" })
+        end
+        if pk.open then
+            vim.keymap.set("n", pk.open, function() padnotes.open() end, { noremap = true, silent = true, desc = "Open padnote" })
+        end
+        if pk.close then
+            vim.keymap.set("n", pk.close, function() padnotes.close(true) end, { noremap = true, silent = true, desc = "Close padnote" })
+        end
+        if pk.list_all then
+            vim.keymap.set("n", pk.list_all, function() padnotes.list_all() end, { noremap = true, silent = true, desc = "List all padnotes" })
+        end
     end
 
     -- Setup automatic tracking

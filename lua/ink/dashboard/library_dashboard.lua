@@ -1,6 +1,8 @@
 -- lua/ink/dashboard/library_dashboard.lua
 -- Main library-focused dashboard
 
+local utils = require("ink.utils")
+
 local M = {}
 
 local state = {
@@ -45,7 +47,15 @@ end
 -- @param opts table|nil - Options: { in_new_tab = true/false }
 function M.show(opts)
 	opts = opts or {}
-	local in_new_tab = opts.in_new_tab ~= false -- default true
+	-- Auto-detect if we should create a new tab:
+	-- - If explicitly set in opts, respect that
+	-- - Otherwise, only create new tab if current buffer is not empty
+	local in_new_tab
+	if opts.in_new_tab ~= nil then
+		in_new_tab = opts.in_new_tab
+	else
+		in_new_tab = not utils.is_current_buffer_empty()
+	end
 
 	local buf_name = "ink://dashboard/library"
 
