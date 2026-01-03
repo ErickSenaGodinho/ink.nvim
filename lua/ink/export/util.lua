@@ -64,4 +64,53 @@ function M.sanitize_filename(filename)
   return sanitized ~= "" and sanitized or "export"
 end
 
+-- Convert text to URL-safe slug for Markdown anchors
+function M.slugify(text)
+  if not text or text == "" then
+    return ""
+  end
+
+  local slug = text:lower()
+  
+  -- Replace Portuguese characters (UTF-8 aware)
+  local replacements = {
+    ["à"] = "a", ["á"] = "a", ["â"] = "a", ["ã"] = "a", ["ä"] = "a",
+    ["è"] = "e", ["é"] = "e", ["ê"] = "e", ["ë"] = "e",
+    ["ì"] = "i", ["í"] = "i", ["î"] = "i", ["ï"] = "i",
+    ["ò"] = "o", ["ó"] = "o", ["ô"] = "o", ["õ"] = "o", ["ö"] = "o",
+    ["ù"] = "u", ["ú"] = "u", ["û"] = "u", ["ü"] = "u",
+    ["ç"] = "c", ["ñ"] = "n"
+  }
+  
+  for char, replacement in pairs(replacements) do
+    slug = slug:gsub(char, replacement)
+  end
+  
+  -- Remove special characters except spaces, hyphens, and alphanumeric
+  slug = slug:gsub("[^%w%s%-]", "")
+  
+  -- Replace spaces with hyphens
+  slug = slug:gsub("%s+", "-")
+  
+  -- Collapse multiple hyphens
+  slug = slug:gsub("%-+", "-")
+  
+  -- Remove leading/trailing hyphens
+  slug = slug:gsub("^%-+", ""):gsub("%-+$", "")
+  
+  return slug
+end
+
+-- Get Unicode symbol for highlight color
+function M.get_color_symbol(color)
+  local symbols = {
+    yellow = "■",  -- Black Square
+    green = "●",   -- Black Circle
+    red = "▲",     -- Black Up-Pointing Triangle
+    blue = "◆",    -- Black Diamond
+  }
+  
+  return symbols[color] or "■"
+end
+
 return M

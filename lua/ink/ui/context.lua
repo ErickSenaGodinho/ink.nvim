@@ -34,18 +34,24 @@ local function new_context()
     glossary_matches_cache = {       -- Versioned cache: { version = "hash", chapters = { [idx] = matches } }
       version = nil,
       chapters = {}
-    }
+    },
+    -- Padnotes fields
+    padnote_buf = nil,               -- Buffer of current padnote (if open)
+    padnote_win = nil,               -- Window of current padnote
+    padnote_chapter = nil,           -- Chapter index of open padnote
+    padnote_auto_save_timer = nil,   -- Auto-save timer
   }
 end
 
--- Get context for a buffer (content or toc)
+-- Get context for a buffer (content, toc, or padnote)
 function M.get(buf)
   buf = buf or vim.api.nvim_get_current_buf()
   -- Direct match on content_buf
   if contexts[buf] then return contexts[buf] end
-  -- Check if buf is a toc_buf
+  -- Check if buf is a toc_buf or padnote_buf
   for _, ctx in pairs(contexts) do
     if ctx.toc_buf == buf then return ctx end
+    if ctx.padnote_buf == buf then return ctx end
   end
   return nil
 end

@@ -5,6 +5,7 @@ local library = require("ink.library")
 local state = require("ink.state")
 local context = require("ink.ui.context")
 local render = require("ink.ui.render")
+local utils = require("ink.utils")
 
 local M = {}
 
@@ -352,6 +353,12 @@ function M.setup_book_autocmds(content_buf, slug)
 
       local current_ctx = context.get(content_buf)
       if current_ctx then
+        -- Cleanup padnote before closing book
+        if current_ctx.padnote_buf and vim.api.nvim_buf_is_valid(current_ctx.padnote_buf) then
+          local padnotes = require("ink.padnotes")
+          padnotes.close(true)  -- Save before closing
+        end
+        
         -- Save current reading position before closing (only from content buffer)
         if current_ctx.content_win and vim.api.nvim_win_is_valid(current_ctx.content_win) and current_ctx.rendered_lines then
           -- Verify the window is still showing the content buffer (not switched to TOC)
@@ -477,8 +484,10 @@ function M.open_book(book_data)
   -- Flag to prevent state saving during book initialization
   ctx._is_initializing = true
 
-  -- Create new tab and set content window
-  vim.cmd("tabnew")
+  -- Create new tab only if current buffer is not empty
+  if not utils.is_current_buffer_empty() then
+    vim.cmd("tabnew")
+  end
   ctx.content_win = vim.api.nvim_get_current_win()
   vim.api.nvim_win_set_buf(ctx.content_win, content_buf)
 
