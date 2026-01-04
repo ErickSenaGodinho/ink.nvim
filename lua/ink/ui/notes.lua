@@ -200,12 +200,19 @@ function M.change_highlight_color(color)
 
   local old_color = hl.color
 
+  -- Save cursor position before update
+  local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
+
   -- Update color
   user_highlights.update_color(ctx.data.slug, hl, color)
 
   -- Re-render to show new color
-  local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
   render.render_chapter(ctx.current_chapter_idx, cursor[1], ctx)
+
+  -- Restore cursor position
+  if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
+    vim.api.nvim_win_set_cursor(ctx.content_win, cursor)
+  end
 
   vim.notify("Changed highlight from " .. old_color .. " to " .. color, vim.log.levels.INFO)
 end

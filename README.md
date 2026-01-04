@@ -11,28 +11,53 @@ Read books and documents without leaving your editor. Full support for EPUB file
 :InkOpen book.epub          " Open EPUB
 :InkOpen document.md        " Open Markdown
 :InkLibrary                 " Browse your library
+:InkDashboard               " View reading statistics
 ```
 
 ## Features
-- **Multiple formats**: Read EPUB (.epub) and Markdown (.md) files inside Neovim
-- **Continuous scrolling** per chapter
-- **Navigable table of contents**
-- **Telescope integration** for searching chapters and content
-- **Syntax-highlighted text** rendered from HTML
-- **Progress tracking** and restoration
-- **Image extraction** and external viewing
-- **External links**: Open URLs in browser with confirmation dialog
-- **Internal links**: Navigate between sections and chapters (preview or jump)
-- **User highlights** with customizable colors (persistent across sessions)
-- **Notes on highlights** (add annotations to your highlights)
-- **Bookmarks** with navigation (multiple bookmarks per paragraph, jump between bookmarks across chapters)
-- **Glossary system** with auto-detection, relationships, and graph visualization
+
+### Reading
+- **Multiple formats**: EPUB (.epub) and Markdown (.md) files
+- **Continuous scrolling** per chapter with table of contents navigation
+- **Smart caching**: EPUBs extracted once, automatically invalidated on file changes
+- **Syntax highlighting** for code blocks and formatted text
 - **Text justification** (optional, toggle on/off)
-- **Footnote preview** with floating windows
-- **Library management** (browse, search, track reading progress)
-- **Export highlights** and bookmarks to Markdown or JSON
-- **Smart caching** for EPUBs with automatic invalidation
-- **Cache management** UI for cleaning up cached files
+- **Adjustable width** for comfortable reading
+- **Progress tracking** with automatic session restoration
+
+### Annotations
+- **Highlights** with customizable colors (yellow, green, red, blue by default)
+- **Change highlight colors** without recreating (preserves notes)
+- **Notes on highlights** with timestamps and multiple display modes
+- **Bookmarks** with custom names (multiple per paragraph)
+- **Glossary system** with terms, definitions, aliases, and relationships
+- **Parallel notes (padnotes)**: Chapter-specific markdown files with auto-save
+
+### Organization
+- **Library management**: Browse, search, and track reading progress
+- **Collections**: Organize books into themed groups
+- **Dashboard**: Minimalist interface showing library and statistics
+- **Reading sessions**: Track time spent reading with detailed statistics
+- **Status tracking**: Auto-categorize books (to-read, reading, completed)
+
+### Navigation & Search
+- **Telescope integration** for searching chapters and content
+- **Internal links**: Navigate between sections with preview or jump
+- **External links**: Open URLs in browser with confirmation
+- **Footnote preview**: Floating windows for footnotes and anchors
+- **Full-text search**: Live grep across all chapters
+
+### Export & Sharing
+- **Export to Markdown or JSON**: Highlights, notes, bookmarks, and glossary
+- **Context inclusion**: Optional surrounding text for highlights
+- **Glossary export**: Include terms and relationships
+- **Timestamped filenames**: Organized export history
+
+### Advanced
+- **Image extraction** and external viewing
+- **TOC rebuild**: Generate table of contents from headings
+- **Relationship graphs**: Visualize glossary term connections (ASCII/HTML)
+- **Cache management**: Interactive UI for cleaning up cached files
 
 ## Requirements
 
@@ -72,9 +97,7 @@ use {
 
 ## Configuration
 
-Create a configuration file (e.g., `~/.config/nvim/after/plugin/ink.lua`) with your settings.
-
-Default configuration:
+Default configuration with all available options:
 
 ```lua
 require("ink").setup({
@@ -84,11 +107,12 @@ require("ink").setup({
   max_width = 120,
   width_step = 10,
 
+  -- All keymaps are customizable
   keymaps = {
     next_chapter = "]c",
     prev_chapter = "[c",
     toggle_toc = "<leader>t",
-    activate = "<CR>",
+    activate = "<CR>",              -- Preview/open: footnote, link, image, TOC
     jump_to_link = "g<CR>",
     search_toc = "<leader>pit",
     search_content = "<leader>pif",
@@ -99,6 +123,7 @@ require("ink").setup({
     toggle_justify = "<leader>jt",
     library = "<leader>eL",
     last_book = "<leader>el",
+    dashboard = "<leader>ed",
   },
 
   highlight_colors = {
@@ -106,8 +131,7 @@ require("ink").setup({
     green = { bg = "#a6e3a1", fg = "#000000" },
     red = { bg = "#f38ba8", fg = "#000000" },
     blue = { bg = "#89b4fa", fg = "#000000" },
-    -- Add more colors: purple, orange, pink, etc.
-    -- purple = { bg = "#cba6f7", fg = "#000000" },
+    -- Add custom colors: purple, orange, pink, etc.
   },
 
   highlight_keymaps = {
@@ -115,7 +139,6 @@ require("ink").setup({
     green = "<leader>hg",
     red = "<leader>hr",
     blue = "<leader>hb",
-    -- purple = "<leader>hp",    -- Highlight with your custom highlight
     remove = "<leader>hd"
   },
 
@@ -123,7 +146,6 @@ require("ink").setup({
     yellow = "<leader>hcy",
     green = "<leader>hcg",
     red = "<leader>hcr",
-    -- purple = "<leader>hcp",    -- Change to your custom color
     blue = "<leader>hcb"
   },
 
@@ -149,9 +171,10 @@ require("ink").setup({
   },
 
   export_defaults = {
-    format = "markdown",
+    format = "markdown",              -- "markdown" | "json"
     include_bookmarks = false,
     include_context = false,
+    include_glossary = false,
     export_dir = "~/Documents",
   },
 
@@ -166,390 +189,160 @@ require("ink").setup({
     show_graph = "<leader>gG",
     toggle_display = "<leader>gt",
   },
-})
 
--- Optional: Add a keymap to quickly open EPUB files
-vim.keymap.set("n", "<leader>eo", ":InkOpen ", { desc = "Open EPUB file" })
-vim.keymap.set("n", "<leader>le", ":InkEditLibrary", { desc = "Edit you library JSON file" })
+  padnotes_keymaps = {
+    toggle = "<leader>pn",
+    open = "<leader>po",
+    close = "<leader>pc",
+    list = "<leader>pa",
+  },
+
+  dashboard_keymaps = {
+    open = "<leader>ed",
+  },
+})
 ```
 
 ## Usage
 
 ### Commands
 
-| Command | Description |
-|---------|-------------|
-| `:InkOpen <path>` | Open an EPUB (.epub) or Markdown (.md) file |
-| `:InkLibrary` | Browse library of previously opened books |
-| `:InkLast` | Reopen last read book at saved position |
-| `:InkEditLibrary` | Edit library.json file manually |
-| `:InkAddLibrary [dir]` | Scan directory for EPUBs and add to library |
-| `:InkBookmarks` | Browse all bookmarks (global) |
-| `:InkBookmarksBook` | Browse bookmarks in current book |
-| `:InkExport` | Export current book highlights/bookmarks |
-| `:InkClearCache` | Interactive cache management UI |
-| `:InkClearCache --all` | Clear all EPUB cache (with confirmation) |
-| `:InkClearCache <slug>` | Clear cache for specific book |
-| `:InkCacheInfo` | Show cache information (count, location) |
+**Book Management:**
+- `:InkOpen <path>` - Open EPUB or Markdown file
+- `:InkLibrary` - Browse library with search and filters
+- `:InkLast` - Reopen last read book at saved position
+- `:InkAddLibrary [dir]` - Scan directory for EPUBs (async)
+- `:InkEditLibrary` - Edit library.json manually
+- `:InkDashboard [type]` - Open dashboard (library or stats)
 
-### Default Keymaps
+**Annotations:**
+- `:InkBookmarks` - Browse all bookmarks globally
+- `:InkBookmarksBook` - Browse bookmarks in current book
+- `:InkExport` - Export highlights, notes, bookmarks, glossary
+- `:InkRebuildTOC` - Rebuild table of contents from headings
 
-**Navigation:**
-- `]c` - Next chapter
-- `[c` - Previous chapter
-- `<leader>t` - Toggle table of contents
-- `<CR>` - Multiuse: Preview footnote/anchor (floating), open image/URL, navigate TOC
-- `g<CR>` - Jump to link target (footnotes, anchors, cross-references)
+**Cache Management:**
+- `:InkClearCache` - Interactive cache management UI
+- `:InkClearCache --all` - Clear all cache (with confirmation)
+- `:InkClearCache <slug>` - Clear specific book cache
+- `:InkCacheInfo` - Show cache statistics
 
-**Search (requires telescope.nvim):**
-- `<leader>pit` - Search/filter chapters by name (shows all chapters with preview)
-- `<leader>pif` - Search text within all chapters (live grep)
-- `<C-f>` - Toggle between chapter search and content search (preserves search text)
+See the [default configuration](#configuration) above for all keymaps and options.
 
-**Width & Formatting:**
-- `<leader>+` - Increase text width
-- `<leader>-` - Decrease text width
-- `<leader>=` - Reset text width to default
-- `<leader>jt` - Toggle text justification
+### Features in Detail
 
-**Highlighting:**
-- `<leader>hy` - Highlight selection in yellow (visual mode)
-- `<leader>hg` - Highlight selection in green (visual mode)
-- `<leader>hr` - Highlight selection in red (visual mode)
-- `<leader>hb` - Highlight selection in blue (visual mode)
-- `<leader>hd` - Remove highlight under cursor (normal mode)
-- `<leader>hcy` - Change highlight to yellow (normal mode)
-- `<leader>hcg` - Change highlight to green (normal mode)
-- `<leader>hcr` - Change highlight to red (normal mode)
-- `<leader>hcb` - Change highlight to blue (normal mode)
+#### Highlights & Notes
+1. Select text in visual mode
+2. Press `<leader>hy` (or hg/hr/hb) to highlight
+3. Press `<leader>na` to add a note on the highlight
+4. Change color with `<leader>hcy` (preserves notes)
+5. Toggle display modes: off, indicator (•), expanded
 
-**Notes (on highlights):**
-- `<leader>na` - Add/edit note on highlight under cursor
-- `<leader>nd` - Remove note from highlight
-- `<leader>nt` - Toggle note display mode (off/indicator/expanded)
+#### Bookmarks
+- Add multiple bookmarks per paragraph with `<leader>ba`
+- Navigate with `<leader>bn` and `<leader>bp` across chapters
+- Edit or remove with `<leader>be` and `<leader>bd`
+- Visual indicator shows bookmark names above paragraphs
 
-**Bookmarks:**
-- `<leader>ba` - Add bookmark at current paragraph (multiple per paragraph supported)
-- `<leader>be` - Edit bookmark (shows picker if multiple, empty name = delete)
-- `<leader>bd` - Remove bookmark (shows picker if multiple)
-- `<leader>bn` - Go to next bookmark (across chapters)
-- `<leader>bp` - Go to previous bookmark (across chapters)
-- `<leader>bl` - List all bookmarks (global keymap)
-- `<leader>bb` - List bookmarks in current book (global keymap)
+#### Glossary
+- Add terms with `<leader>ga` on any word
+- Auto-detection underlines terms in text
+- Preview definitions with `<leader>gp`
+- Define relationships: see_also, contrast, broader, narrower
+- Visualize with ASCII or HTML graphs (`<leader>gG`)
 
-**Glossary:**
-- `<leader>ga` - Add glossary term under cursor
-- `<leader>ge` - Edit glossary term under cursor
-- `<leader>gd` - Remove glossary term under cursor
-- `<leader>gp` - Preview term definition (floating window)
-- `<leader>gl` - Browse all glossary terms (Telescope)
-- `<leader>gg` - Show related terms
-- `<leader>gG` - Show relationship graph (ASCII or HTML)
-- `<leader>gt` - Toggle glossary term visibility
+#### Parallel Notes (Padnotes)
+- `<leader>pn` - Smart toggle (create/open/close/switch chapters)
+- One markdown file per chapter with auto-save (2min interval)
+- `<leader>pa` - Browse all padnotes with preview
+- Perfect for reading journals and study notes
 
-**Export:**
-- `<leader>ex` - Export current book highlights and bookmarks
+#### Collections & Dashboard
+- Organize books into themed collections
+- Dashboard shows library table with pagination (15 books/page)
+- Filter by collection, view statistics, manage collections
+- Track reading time, completion rates, and progress
 
-**Library (global):**
-- `<leader>eL` - Open library browser
-- `<leader>el` - Open last read book
+#### Export
+```vim
+:InkExport md -bcg ~/exports/
+```
+- Formats: `md` (Markdown) or `json`
+- Flags: `-b` (bookmarks), `-c` (context), `-g` (glossary)
+- Timestamped filenames: `book-title-2024-01-15.md`
 
-All keymaps can be customized in your configuration.
+#### Markdown Support
+- Full support for `.md` files with all EPUB features
+- Automatic chapter division by H1 headings (or H2 fallback)
+- Generated table of contents from heading structure
+- All features work: highlights, bookmarks, notes, glossary, search
 
-### Links
-
-ink.nvim supports both internal and external links:
+### Links & Navigation
 
 **Internal Links (anchors, footnotes):**
-- `<CR>` - Preview in floating window (if in same chapter)
-- `<CR>` - Navigate to target (if in different chapter)
+- `<CR>` - Preview in floating window or navigate to different chapter
 - `g<CR>` - Jump directly to target
 
 **External Links (URLs):**
-- `<CR>` or `g<CR>` - Shows confirmation dialog: "Link to {URL}\nOpen in browser?"
-- Press `y` to open in browser (xdg-open, firefox, chromium, etc.)
-- Press `n` or `<Esc>` to cancel
+- `<CR>` or `g<CR>` - Confirmation dialog to open in browser
 
-### Footnotes
+### Search
 
-ink.nvim supports footnotes in two ways:
+**Chapter Search (`<leader>pit`):**
+- Shows all chapters with previews
+- Type to filter by name
+- `<C-f>` to switch to content search
 
-1. **Preview** (`<CR>`): Shows footnote content in a floating window without leaving your place
-2. **Jump** (`g<CR>`): Jumps to the footnote location; use `g<CR>` on the back-link to return
-
-Footnotes are also displayed at the end of each chapter for reference.
-
-### Library
-
-The library tracks all books you've opened with metadata and reading progress:
-
-**Features:**
-- Browse all previously opened books
-- Search by title or author (with Telescope)
-- See reading progress and last opened time
-- Preview shows: title, author, language, date, description, progress, path
-
-**Telescope keymaps (in library picker):**
-- `<CR>` - Open selected book
-- `<C-d>` - Delete book from library
-- `<C-e>` - Edit library.json file
-- `<C-b>` - Switch to bookmarks view
-
-### Bookmarks
-
-Bookmarks allow you to mark important passages and navigate between them:
-
-**Features:**
-- Add **multiple bookmarks** to the same paragraph
-- Custom names for each bookmark
-- Navigate between bookmarks across chapters
-- Global search across all books or within current book
-- Visual indicator above bookmarked paragraphs
-  - Single bookmark: `📑 Name`
-  - Multiple: `📑 Name1 | Name2 | Name3` (horizontal display)
-
-**Editing & Deleting:**
-- Edit bookmark name with `<leader>be` (shows picker if multiple)
-- Delete by leaving name empty when editing
-- Or use `<leader>bd` for direct deletion (shows picker if multiple)
-
-**Telescope keymaps (in bookmarks picker):**
-- `<CR>` - Jump to bookmark location
-- `<C-d>` - Delete bookmark
-- `<C-e>` - Edit bookmarks.json file
-- `<C-f>` - Toggle between all bookmarks and current book bookmarks
-- `<C-b>` - Switch to library view
-
-### Notes
-
-Notes allow you to annotate your highlights with additional text:
-
-**Features:**
-- Add notes to any highlight
-- Three display modes: off, indicator (shows dot), expanded (shows full note)
-- Notes persist across sessions
-- Dynamic input window that resizes as you type
-
-**Usage:**
-1. Create a highlight on some text
-2. Place cursor on the highlight
-3. Press `<leader>na` to add/edit a note
-4. Type your note and press `<Esc>` to save
-
-### Glossary
-
-Build a wiki-like glossary of terms for your book with automatic detection and visualization:
-
-**Features:**
-- Define terms with aliases for flexible matching
-- Auto-detect terms in text (underline + icon indicator)
-- Preview definitions in floating window
-- Define relationships between terms (see-also, contrast, broader/narrower)
-- Bidirectional relationship sync
-- ASCII graph visualization in Neovim
-- Interactive HTML graph with D3.js (exported to browser)
-- Toggle visibility to focus on reading
-- 3-level caching for performance (memory, versioned, persistent)
-- Export glossary with `-g` flag
-
-**Usage:**
-1. Place cursor on a word and press `<leader>ga` to add to glossary
-2. Enter term, definition, and optional aliases
-3. Terms are automatically detected and marked in text
-4. Press `<leader>gp` on a term to preview definition
-5. Use `<leader>gl` to browse all terms (Telescope)
-6. Define relationships with `<leader>gg`
-7. Visualize network with `<leader>gG`
-
-**Relationships:**
-- `see_also`: Related concepts
-- `contrast`: Opposing concepts
-- `broader`: Parent concept
-- `narrower`: Child concept
-- All relationships sync bidirectionally
-
-**Graph Visualization:**
-- ASCII graph: Shows in split window, navigable
-- HTML graph: Interactive D3.js force-directed graph, exported to `/tmp/glossary_graph.html`
-
-**Performance:**
-Glossary uses 3-level caching to detect terms efficiently across large books without impacting navigation speed.
-
-### Markdown Support
-
-ink.nvim provides full support for Markdown files with all EPUB features:
-
-**Features:**
-- Automatic chapter division by H1 headings (falls back to H2 if no H1)
-- Generated table of contents from headings
-- All reading features work: highlights, bookmarks, notes, glossary, search, export
-- Internal links navigate across chapters
-- Images and external links supported
-- Progress tracking and library management
-
-**Markdown-specific:**
-- Virtual chapters created from heading structure
-- TOC built from H1-H3 headings
-- Internal links work globally (e.g., `[link](#section)` jumps to section anywhere in file)
-- Images resolved relative to .md file location
-
-**Usage:**
-```vim
-:InkOpen ~/notes/book.md
-```
-
-All features (highlights, bookmarks, notes, glossary, export) work identically to EPUBs.
-
-### Export
-
-Export your highlights, notes, and bookmarks to share or archive:
-
-**Interactive Export:**
-```vim
-:InkExport
-```
-
-Prompts for:
-- Format: `md` (Markdown) or `json`
-- Options: `-b` (include bookmarks), `-c` (include context), `-g` (include glossary)
-- Output path (defaults to `~/Documents`)
-
-**Export Format Examples:**
-
-Command: `:InkExport md -bc ~/exports/`
-Result: `~/exports/book-title-2024-01-15.md`
-
-**Markdown Export includes:**
-- Book metadata (title, author, language, etc.)
-- Statistics (highlights count, notes count, bookmarks count)
-- Highlights grouped by chapter with color indication
-- Optional: Context lines around each highlight
-- Optional: Bookmarks with text previews
-- Optional: Glossary terms with definitions and relationships
-- Notes displayed inline with highlights
-
-**JSON Export:**
-Structured data for programmatic use, includes all metadata and content.
-
-**Keymap:** `<leader>ex` opens export dialog for current book.
-
-### Cache Management
-
-EPUBs are extracted to cache for faster loading. Manage cache with:
-
-**Interactive UI:**
-```vim
-:InkClearCache
-```
-Shows list of cached books with Telescope or floating menu. Select a book to clear its cache, or press `<C-a>` (Telescope) or `a` (floating) to clear all.
-
-**Direct Commands:**
-```vim
-:InkClearCache --all          " Clear all cache (with confirmation)
-:InkClearCache book-slug      " Clear specific book
-:InkCacheInfo                 " Show cache stats
-```
-
-**Cache Features:**
-- Automatic invalidation when EPUB is modified
-- Organized structure: EPUB files in `epub/` subdirectory, cache files in root
-- Clear separation: `cache/` = deletable, `books/` = user data
-- Per-book storage in `~/.local/share/nvim/ink.nvim/cache/{slug}/`
-- Automatic migration from old structure on first run
+**Content Search (`<leader>pif`):**
+- Live grep across all chapters
+- Results as you type
+- `<C-f>` to switch to chapter search
 
 ### Data Storage
 
-All plugin data is stored in `~/.local/share/nvim/ink.nvim/`:
+All plugin data stored in `~/.local/share/nvim/ink.nvim/`:
 
 ```
 ~/.local/share/nvim/ink.nvim/
 ├── library.json              # Library metadata (all books)
 ├── collections.json          # Book collections
 │
-├── cache/                    # ⚡ Temporary cache (safe to delete)
+├── cache/                    # ⚡ Temporary (safe to delete)
 │   └── {book-slug}/
 │       ├── epub/             # Extracted EPUB files
-│       │   ├── .extracted    # Extraction timestamp
-│       │   ├── META-INF/
-│       │   └── OEBPS/
-│       ├── toc.json          # Generated TOC from headings
-│       ├── css.json          # Parsed CSS styles
-│       ├── search_index.json # Full-text search index
-│       └── glossary_matches.json  # Detected glossary terms
+│       ├── toc.json          # Generated TOC
+│       ├── css.json          # Parsed styles
+│       ├── search_index.json # Search index
+│       └── glossary_matches.json  # Term detection cache
 │
-└── books/                    # 💾 User data (never delete)
+└── books/                    # 💾 User data (permanent)
     └── {book-slug}/
-        ├── state.json        # Reading position (chapter, line)
-        ├── highlights.json   # User highlights and notes
-        ├── bookmarks.json    # Bookmarks for this book
-        ├── glossary.json     # Glossary terms and relationships
-        └── sessions.json     # Reading session history
+        ├── state.json        # Reading position
+        ├── highlights.json   # Highlights and notes
+        ├── bookmarks.json    # Bookmarks
+        ├── glossary.json     # Terms and relationships
+        ├── padnotes/         # Chapter-specific notes
+        └── sessions.json     # Reading history
 ```
-
-**File Descriptions:**
-
-*Root Level:*
-- **library.json**: Tracks all opened books (EPUB/Markdown) with metadata and progress
-- **collections.json**: Book collections/groups defined by user
-
-*Cache Directory (Temporary):*
-- **cache/{slug}/epub/**: Extracted EPUB contents (HTML, images, CSS, META-INF)
-- **cache/{slug}/epub/.extracted**: Extraction timestamp for cache validation
-- **cache/{slug}/toc.json**: Generated table of contents from headings
-- **cache/{slug}/css.json**: Parsed CSS class styles
-- **cache/{slug}/search_index.json**: Full-text search index
-- **cache/{slug}/glossary_matches.json**: Detected glossary term locations (3-level cache)
-
-*Books Directory (User Data):*
-- **books/{slug}/state.json**: Reading position (chapter index and line number)
-- **books/{slug}/highlights.json**: User highlights with colors, notes, and context
-- **books/{slug}/bookmarks.json**: Bookmarks with names and text previews
-- **books/{slug}/glossary.json**: Glossary terms, definitions, aliases, and relationships
-- **books/{slug}/sessions.json**: Reading session history and statistics
-
-**Note:** Markdown files don't use cache (no extraction needed). All user data (highlights, bookmarks, notes, glossary) is stored the same way for both EPUBs and Markdown files.
-
-### Search Features
-
-The search features integrate with Telescope to provide powerful book navigation:
-
-**Chapter Search (`<leader>pit`):**
-- Shows all chapters immediately with previews
-- Type to filter by chapter name
-- Press `<CR>` to jump to selected chapter
-- Press `<C-f>` to switch to content search
-
-**Content Search (`<leader>pif`):**
-- Live grep across all chapter content
-- Type to search for text (shows results as you type)
-- Press `<CR>` to jump to the exact line in that chapter
-- Press `<C-f>` to switch back to chapter search
-
-### Using Highlights
-
-1. Enter visual mode (`v` or `V`)
-2. Select text you want to highlight
-3. Press a highlight keymap (e.g., `<leader>hy` for yellow)
-4. To change color, place cursor on highlight and press change keymap (e.g., `<leader>hcr` for red)
-5. To remove a highlight, place cursor on highlighted text and press `<leader>hd`
-
-**Highlight Features:**
-- **Persistent**: Saved across sessions
-- **Book-specific**: Each EPUB has its own highlights
-- **Non-destructive**: Don't modify the original EPUB file
-- **Customizable**: Add unlimited colors in config
-- **Color changing**: Change highlight color without recreating (preserves notes)
 
 ## Testing
 
-A comprehensive test EPUB (and MD) (`ink-test.epub(.md)`) is included to demonstrate all features:
+A comprehensive test file (`ink-test.epub` and `ink-test.md`) demonstrates all features:
 
 ```vim
 :InkOpen ink-test.epub
 :InkOpen ink-test.md
 ```
 
-All features (TOC, highlights, bookmarks, notes, search, export) work the same as EPUBs.
+The test file includes examples of:
+- Text formatting and lists
+- Code blocks and blockquotes
+- Highlights, notes, and bookmarks
+- Glossary usage
+- Padnotes documentation
+- Collections and dashboard
+- Export functionality
+- Cache management
 
 ## Author
 

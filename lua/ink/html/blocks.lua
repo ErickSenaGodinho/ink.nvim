@@ -8,6 +8,12 @@ local patterns = require("ink.html.patterns")
 
 local M = {}
 
+-- Helper function to strip HTML tags from text
+local function strip_html_tags(text)
+  -- Remove all HTML tags but preserve the content
+  return text:gsub("<[^>]+>", "")
+end
+
 function M.handle_closing_tag(state, tag_name)
   if tag_name == "head" then
     state.in_head = false
@@ -145,6 +151,8 @@ function M.handle_opening_tag(state, tag_name, tag_content, start_tag, end_tag, 
       -- Process pre content inline without adding to style_stack
       state.in_pre = true
       local pre_content = string.sub(content, pre_content_start, pre_close_start - 1)
+      -- Strip HTML tags (like <code>) from pre content before processing
+      pre_content = strip_html_tags(pre_content)
       text.add_text(state, entities.decode_entities(pre_content))
       state.in_pre = false
       text.new_line(state)
