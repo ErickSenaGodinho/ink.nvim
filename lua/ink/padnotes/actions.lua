@@ -144,22 +144,96 @@ function M.open(force_chapter_idx)
     end
   end
   
+  -- Get padnote configuration
+  local config = require("ink.padnotes").config
+  local position = config.position or "right"
+  local size = config.size or 0.5
+
+  -- Validate and normalize position
+  local valid_positions = { right = true, left = true, top = true, bottom = true }
+  if not valid_positions[position] then
+    vim.notify(string.format("Invalid padnote position '%s', using 'right'", position), vim.log.levels.WARN)
+    position = "right"
+  end
+
+  -- Validate size (must be positive)
+  if type(size) ~= "number" or size <= 0 then
+    vim.notify(string.format("Invalid padnote size '%s', using 0.5", tostring(size)), vim.log.levels.WARN)
+    size = 0.5
+  end
+
+  -- Determine split orientation AFTER normalizing position
+  local is_vertical = (position == "left" or position == "right")
   local content_width = vim.api.nvim_win_get_width(ctx.content_win)
-  local split_width = math.floor(content_width / 2)
-  
-  -- Open in vsplit (50% of content buffer width)
+  local content_height = vim.api.nvim_win_get_height(ctx.content_win)
+
+  -- Calculate split size
+  local split_size
+  if is_vertical then
+    -- For vertical splits, use width
+    if size < 1 then
+      -- Percentage mode: size between 0 and 1 (exclusive)
+      split_size = math.floor(content_width * size + 0.5)
+    else
+      -- Absolute mode: size >= 1
+      split_size = math.floor(size)
+    end
+    -- Enforce minimum and maximum, handling small windows
+    local min_size = 10
+    local max_size = content_width - 10
+    if max_size < min_size then
+      -- Window too small for minimum requirement, use 50% as fallback
+      split_size = math.floor(content_width * 0.5 + 0.5)
+      vim.notify("Content window too small for padnote minimum size, using 50%", vim.log.levels.WARN)
+    else
+      split_size = math.max(min_size, math.min(split_size, max_size))
+    end
+  else
+    -- For horizontal splits, use height
+    if size < 1 then
+      -- Percentage mode: size between 0 and 1 (exclusive)
+      split_size = math.floor(content_height * size + 0.5)
+    else
+      -- Absolute mode: size >= 1
+      split_size = math.floor(size)
+    end
+    -- Enforce minimum and maximum, handling small windows
+    local min_size = 5
+    local max_size = content_height - 5
+    if max_size < min_size then
+      -- Window too small for minimum requirement, use 50% as fallback
+      split_size = math.floor(content_height * 0.5 + 0.5)
+      vim.notify("Content window too small for padnote minimum size, using 50%", vim.log.levels.WARN)
+    else
+      split_size = math.max(min_size, math.min(split_size, max_size))
+    end
+  end
+
   -- First, focus content window
   vim.api.nvim_set_current_win(ctx.content_win)
-  
-  -- Create vsplit to the right
-  vim.cmd("rightbelow vsplit")
+
+  -- Create split based on position (now guaranteed to be valid)
+  if position == "right" then
+    vim.cmd("rightbelow vsplit")
+  elseif position == "left" then
+    vim.cmd("leftabove vsplit")
+  elseif position == "bottom" then
+    vim.cmd("rightbelow split")
+  else -- position == "top"
+    vim.cmd("leftabove split")
+  end
+
   local padnote_win = vim.api.nvim_get_current_win()
-  
+
   -- Set buffer in new window
   vim.api.nvim_win_set_buf(padnote_win, buf)
-  
-  -- Set window width (resize content window to maintain 50/50 split)
-  vim.api.nvim_win_set_width(padnote_win, split_width)
+
+  -- Set window size (now guaranteed to match split orientation)
+  if is_vertical then
+    vim.api.nvim_win_set_width(padnote_win, split_size)
+  else
+    vim.api.nvim_win_set_height(padnote_win, split_size)
+  end
   
   -- Update context
   ctx.padnote_buf = buf
