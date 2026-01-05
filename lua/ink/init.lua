@@ -131,6 +131,12 @@ local default_config = {
         path = "default",         -- "default" or custom path. Support {slug}, {author} and {title} Exemple: "~/Documents/ink-notes/{author}/{slug}"
         auto_save_interval = 120, -- seconds (2 minutes)
         template = "default",
+        position = "right",       -- "right" | "left" | "top" | "bottom" - where to open padnote window
+        size = 0.5,               -- Window size with two modes:
+                                  --   < 1: percentage mode (0.5 = 50%, 0.3 = 30%, etc.)
+                                  --   >= 1: absolute mode (80 = 80 columns/lines, 15 = 15 lines, etc.)
+                                  -- Minimums enforced: 10 columns for left/right, 5 lines for top/bottom
+                                  -- For very small windows (< 20 cols or < 10 lines), falls back to 50%
     },
     padnotes_keymaps = {
         toggle = "<leader>pa",   -- Add a new padnote. (Smart Toggle: create/open/close/switch)
