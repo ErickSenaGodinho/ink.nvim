@@ -190,11 +190,18 @@ require("ink").setup({
     toggle_display = "<leader>gt",
   },
 
+  padnotes = {
+    enabled = true,
+    auto_save_interval = 120,         -- Auto-save every 2 minutes
+    position = "right",                -- "right" | "left" | "top" | "bottom"
+    size = 0.5,                        -- < 1 for percentage (0.5 = 50%), >= 1 for absolute (80 = 80 cols)
+  },
+
   padnotes_keymaps = {
-    toggle = "<leader>pn",
+    toggle = "<leader>pa",
     open = "<leader>po",
     close = "<leader>pc",
-    list = "<leader>pa",
+    list_all = "<leader>pl",
   },
 
   dashboard_keymaps = {
@@ -252,9 +259,10 @@ See the [default configuration](#configuration) above for all keymaps and option
 - Visualize with ASCII or HTML graphs (`<leader>gG`)
 
 #### Parallel Notes (Padnotes)
-- `<leader>pn` - Smart toggle (create/open/close/switch chapters)
+- `<leader>pa` - Smart toggle (create/open/close/switch chapters)
 - One markdown file per chapter with auto-save (2min interval)
-- `<leader>pa` - Browse all padnotes with preview
+- `<leader>pl` - Browse all padnotes with preview
+- Configurable position (right/left/top/bottom) and size
 - Perfect for reading journals and study notes
 
 #### Collections & Dashboard
