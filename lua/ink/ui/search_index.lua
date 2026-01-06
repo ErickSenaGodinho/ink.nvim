@@ -3,6 +3,7 @@
 
 local context = require("ink.ui.context")
 local render = require("ink.ui.render")
+local data = require("ink.data")
 
 local M = {}
 
