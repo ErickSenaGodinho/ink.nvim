@@ -22,6 +22,9 @@ function M.add_note()
     user_highlights.update_note(ctx.data.slug, hl, text)
     local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
     render.render_chapter(ctx.current_chapter_idx, cursor[1], ctx)
+    if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
+      vim.api.nvim_win_set_cursor(ctx.content_win, cursor)
+    end
     if text and text ~= "" then
       if existing_note ~= "" then vim.notify("Note updated", vim.log.levels.INFO)
       else vim.notify("Note added", vim.log.levels.INFO) end
