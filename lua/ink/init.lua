@@ -34,7 +34,7 @@ local default_config = {
         last_book = "<leader>el",
         dashboard = "<leader>ed",
         related_resources = "<leader>er",   -- List related books
-    }
+    },
     -- Highlight colors (add custom colors: purple, orange, pink, etc.)
     highlight_colors = {
         yellow = { bg = "#E8C89F", fg = "#000000" },
