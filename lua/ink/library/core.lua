@@ -72,6 +72,7 @@ function M.add_book(book_info)
 		book_info.author = book_info.author or "Unknown"
 		book_info.format = book_info.format or "epub"
 		book_info.tag = book_info.tag or ""
+		book_info.related_resources = book_info.related_resources or {}
 
 		table.insert(library.books, book_info)
 		library.last_book_path = book_info.path
@@ -146,6 +147,70 @@ function M.set_book_tag(slug, tag)
 	end
 
 	return false
+end
+
+-- Add a linked resource to a book
+-- @param book_slug: slug of the book to add link to
+-- @param link_info: table with {slug, title, url, type} where type is "local" or "web"
+-- @return boolean success
+function M.add_related_resource(book_slug, related_info)
+	local library = data.load()
+
+	for i, book in ipairs(library.books) do
+		if book.slug == book_slug then
+			book.related_resources = book.related_resources or {}
+			-- Check if link already exists
+			for _, existing in ipairs(book.related_resources) do
+				if existing.slug == related_info.slug then
+					return false, "Link already exists"
+				end
+			end
+			table.insert(book.related_resources, related_info)
+			data.save(library)
+			return true
+		end
+	end
+
+	return false, "Book not found"
+end
+
+-- Remove a linked resource from a book
+-- @param book_slug: slug of the book
+-- @param related_slug: slug of the related resource to remove
+-- @return boolean success
+function M.remove_related_resource(book_slug, related_slug)
+	local library = data.load()
+
+	for i, book in ipairs(library.books) do
+		if book.slug == book_slug then
+			local new_links = {}
+			for _, link in ipairs(book.related_resources or {}) do
+				if link.slug ~= link_slug then
+					table.insert(new_links, link)
+				end
+			end
+			book.related_resources = new_links
+			data.save(library)
+			return true
+		end
+	end
+
+	return false, "Book or link not found"
+end
+
+-- Get linked resources for a book
+-- @param book_slug: slug of the book
+-- @return table of linked resources or empty table
+function M.get_related_resources(book_slug)
+	local library = data.load()
+
+	for _, book in ipairs(library.books) do
+		if book.slug == book_slug then
+			return book.related_resources or {}
+		end
+	end
+
+	return {}
 end
 
 -- Open a book with automatic format detection

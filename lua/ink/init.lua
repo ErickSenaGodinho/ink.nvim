@@ -25,7 +25,8 @@ local default_config = {
         toggle_justify = "<leader>jt", -- Toggle text justification
         library = "<leader>eL",        -- Open library
         last_book = "<leader>el",      -- Open last book
-        dashboard = "<leader>ed"       -- Open dashboard
+        dashboard = "<leader>ed",      -- Open dashboard
+        related_resources = "<leader>er" -- Show related resources
     },
     max_width = 120,
     width_step = 10, -- How much to change width per keypress
@@ -684,6 +685,50 @@ function M.setup(opts)
         end
     end, {})
 
+    vim.api.nvim_create_user_command("InkAddRelated", function()
+        local ui = require("ink.ui")
+        ui.add_related_resource()
+    end, {
+        desc = "Add a related resource to the current book via telescope picker"
+    })
+
+    vim.api.nvim_create_user_command("InkRemoveRelated", function(args)
+        local context = require("ink.ui.context")
+        local related = require("ink.data.related")
+
+        local ctx = context.current()
+        if not ctx or not ctx.data then
+            vim.notify("No book currently open", vim.log.levels.WARN)
+            return
+        end
+
+        local book_slug = ctx.data.slug
+        local related_slug = args.args
+
+        if related_slug == "" then
+            vim.notify("Usage: InkRemoveRelated <slug>", vim.log.levels.WARN)
+            return
+        end
+
+        local success = related.remove_related(book_slug, related_slug)
+
+        if success then
+            vim.notify("Related resource removed", vim.log.levels.INFO)
+        else
+            vim.notify("Failed to remove related resource", vim.log.levels.WARN)
+        end
+    end, {
+        nargs = 1,
+        desc = "Remove a related resource from the current book"
+    })
+
+    vim.api.nvim_create_user_command("InkListRelated", function()
+        local ui = require("ink.ui")
+        ui.show_related_resources()
+    end, {
+        desc = "Show related resources for the current book in telescope"
+    })
+
     -- Global keymaps for library features
     local keymaps = M.config.keymaps
     local opts = { noremap = true, silent = true }
@@ -747,6 +792,11 @@ function M.setup(opts)
             vim.keymap.set("n", pk.list_all, function() padnotes.list_all() end,
                 { noremap = true, silent = true, desc = "List all padnotes" })
         end
+     end
+
+    -- Global keymap for linked resources
+    if keymaps.related_resources then
+        vim.api.nvim_set_keymap("n", keymaps.related_resources, ":InkListRelated<CR>", opts)
     end
 
     -- Setup automatic tracking
