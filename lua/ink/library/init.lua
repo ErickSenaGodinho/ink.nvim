@@ -27,6 +27,15 @@ M.set_book_tag = core.set_book_tag
 -- Open a book with format detection
 M.open_book = core.open_book
 
+-- Add linked resource to a book
+M.add_linked_resource = core.add_linked_resource
+
+-- Remove linked resource from a book
+M.remove_linked_resource = core.remove_linked_resource
+
+-- Get linked resources for a book
+M.get_linked_resources = core.get_linked_resources
+
 -- === QUERIES ===
 
 -- Get all books

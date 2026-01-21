@@ -39,6 +39,7 @@ Read books and documents without leaving your editor. Full support for EPUB file
 - **Dashboard**: Minimalist interface showing library and statistics
 - **Reading sessions**: Track time spent reading with detailed statistics
 - **Status tracking**: Auto-categorize books (to-read, reading, completed)
+- **Related Resources**: Connect books with reciprocal relations (other books)
 
 ### Navigation & Search
 - **Telescope integration** for searching chapters and content
@@ -365,7 +366,30 @@ The test file includes examples of:
 - Padnotes documentation
 - Collections and dashboard
 - Export functionality
-- Cache management
+ - Cache management
+
+## Related Resources
+
+Connect books with reciprocal relations for enhanced reading experiences:
+
+**Adding Relations:**
+- `:InkAddRelated` - Open telescope picker to select and relate books
+- Relations are bidirectional and stored in a separate `related.json` file
+
+**Viewing Relations:**
+- `:InkListRelated` - Show related books in telescope picker
+- `<leader>er` - Quick access to related resources (configurable)
+
+**Features:**
+- **Reciprocal Relations**: Relating A to B automatically relates B back to A
+- **Telescope Integration**: Smooth selection and navigation
+- **Isolated Storage**: Relations stored separately from library metadata
+
+Example usage:
+```vim
+:InkAddRelated
+:InkListRelated
+```
 
 ## Author
 

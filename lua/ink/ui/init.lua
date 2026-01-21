@@ -70,6 +70,11 @@ M.show_clear_cache_ui = cache_ui.show_clear_cache_ui
 M.clear_book_cache = cache_ui.clear_book_cache
 M.clear_all_cache = cache_ui.clear_all_cache
 
+-- Re-export Related Resources
+local related_resources = require("ink.ui.linked_resources")
+M.show_related_resources = related_resources.show_related_resources
+M.add_related_resource = related_resources.add_related_resource
+
 -- Glossary functions
 function M.add_glossary_from_selection()
   local ctx = context.current()
