@@ -2,6 +2,18 @@ local entities = require("ink.html.entities")
 
 local M = {}
 
+-- Helper function to clean and normalize text
+-- Consolidates multiple gsub operations that are repeated throughout the code
+local function clean_text(text)
+  if not text then return nil end
+  -- Decode HTML entities, normalize whitespace, and trim in one pass
+  text = entities.decode_entities(text)
+  text = text:gsub("%s+", " ")  -- Normalize multiple whitespace to single space
+  text = text:gsub("^%s+", "")  -- Trim leading whitespace
+  text = text:gsub("%s+$", "")  -- Trim trailing whitespace
+  return text
+end
+
 -- Extract page number and year from URL or title
 local function extract_page_info(url, html)
   local year, number = url:match("/(%d%d%d%d)/lei/l(%d+)%.htm")
@@ -11,8 +23,7 @@ local function extract_page_info(url, html)
 
   local title = html:match("<title>([^<]+)</title>")
   if title then
-    title = entities.decode_entities(title) -- Decode HTML entities
-    title = title:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+    title = clean_text(title)
   end
 
   if title and not number then
@@ -37,110 +48,84 @@ end
 local function extract_ementa(html)
   local ementa = html:match('<p[^>]*class="ementa"[^>]*>(.-)</p>')
   if ementa then
-    ementa = ementa:gsub("<[^>]+>", "")
-    ementa = entities.decode_entities(ementa) -- Decode HTML entities
-    ementa = ementa:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
-    return ementa
+    ementa = ementa:gsub("<[^>]+>", "")  -- Remove HTML tags
+    return clean_text(ementa)
   end
   return nil
 end
 
 -- Normalize strikethrough: convert CSS text-decoration:line-through to <strike> tags
 -- This ensures consistent handling in both rendering and removal
+-- Optimized version using simpler pattern matching
 local function normalize_strikethrough(html)
   local result = html
+  local max_iterations = 1000  -- Safety limit to prevent infinite loops
+  local iterations = 0
 
-  -- Pattern to match any tag with text-decoration:line-through in style attribute
-  -- This handles multi-line styles and various spacing
-  local function wrap_in_strike(full_match)
-    -- Extract the tag name, attributes, content, and closing tag
-    local tag_name = full_match:match("^<([%w]+)")
-    if not tag_name then return full_match end
+  -- Process one tag at a time to avoid complex backtracking
+  while iterations < max_iterations do
+    iterations = iterations + 1
 
-    -- Find where the opening tag ends
-    local tag_end = full_match:find(">", 1, true)
-    if not tag_end then return full_match end
-
-    -- Find the closing tag
-    local close_pattern = "</" .. tag_name .. ">"
-    local close_start = full_match:find(close_pattern, tag_end, true)
-    if not close_start then return full_match end
-
-    -- Extract parts
-    local opening_tag = full_match:sub(1, tag_end)
-    local content = full_match:sub(tag_end + 1, close_start - 1)
-    local closing_tag = full_match:sub(close_start)
-
-    -- Don't double-wrap if already has <strike>
-    if content:match("^%s*<strike>") then
-      return full_match
-    end
-
-    -- Wrap content in <strike>
-    return opening_tag .. "<strike>" .. content .. "</strike>" .. closing_tag
-  end
-
-  -- Find all tags with text-decoration:line-through (case-insensitive, handles whitespace)
-  -- This pattern is more flexible to handle line breaks in the style attribute
-  local pos = 1
-  while true do
-    -- Find next occurrence of text-decoration followed by line-through
-    local style_start = result:find("text%-decoration", pos)
+    -- Find next occurrence of text-decoration:line-through
+    local style_start, style_end = result:find("text%-decoration%s*:%s*line%-through", 1)
     if not style_start then break end
 
-    -- Check if it's followed by line-through (with possible whitespace/colon)
-    local after_decoration = result:sub(style_start + 15, style_start + 40)
-    if after_decoration:match("^%s*:%s*line%-through") then
-      -- Found a match - now find the tag that contains this style attribute
-      -- Search backwards to find the opening <
-      local tag_start = style_start
-      while tag_start > 1 and result:sub(tag_start, tag_start) ~= '<' do
-        tag_start = tag_start - 1
+    -- Search backwards to find the opening tag
+    local tag_start = nil
+    for i = style_start, 1, -1 do
+      if result:sub(i, i) == '<' then
+        tag_start = i
+        break
       end
+    end
 
-      if result:sub(tag_start, tag_start) == '<' then
-        -- Now find the tag name and full tag
-        local tag_name = result:sub(tag_start + 1):match("^([%w]+)")
-        if tag_name then
-          -- Find the end of opening tag
-          local search_from = tag_start
-          local opening_end = result:find(">", search_from, true)
-          if opening_end then
-            -- Find the closing tag
-            local close_pattern = "</" .. tag_name .. ">"
-            local close_start, close_end = result:find(close_pattern, opening_end, true)
-            if close_start then
-              -- Extract and wrap
-              local full_tag = result:sub(tag_start, close_end)
-              local opening_tag = result:sub(tag_start, opening_end)
-              local content = result:sub(opening_end + 1, close_start - 1)
-              local closing_tag = result:sub(close_start, close_end)
+    if not tag_start then
+      -- Couldn't find opening tag, skip this occurrence
+      break
+    end
 
-              -- Don't double-wrap
-              if not content:match("^%s*<strike>") then
-                local replacement = opening_tag .. "<strike>" .. content .. "</strike>" .. closing_tag
-                result = result:sub(1, tag_start - 1) .. replacement .. result:sub(close_end + 1)
-                -- Update position to skip past this replacement
-                pos = tag_start + #replacement
-              else
-                pos = close_end + 1
-              end
-            else
-              pos = opening_end + 1
-            end
-          else
-            pos = style_start + 1
-          end
-        else
-          pos = style_start + 1
-        end
-      else
-        pos = style_start + 1
-      end
+    -- Extract tag name
+    local tag_name = result:sub(tag_start + 1):match("^([%w]+)")
+    if not tag_name then
+      break
+    end
+
+    -- Find end of opening tag
+    local opening_end = result:find(">", tag_start, true)
+    if not opening_end then
+      break
+    end
+
+    -- Find the matching closing tag using plain text search (more efficient)
+    local close_pattern = "</" .. tag_name .. ">"
+    local close_start = result:find(close_pattern, opening_end + 1, true)
+    if not close_start then
+      -- No closing tag found, skip
+      break
+    end
+
+    local close_end = close_start + #close_pattern - 1
+
+    -- Extract parts
+    local opening_tag = result:sub(tag_start, opening_end)
+    local content = result:sub(opening_end + 1, close_start - 1)
+    local closing_tag = result:sub(close_start, close_end)
+
+    -- Don't double-wrap if already has <strike>
+    if not content:match("^%s*<strike>") then
+      local replacement = opening_tag .. "<strike>" .. content .. "</strike>" .. closing_tag
+      result = result:sub(1, tag_start - 1) .. replacement .. result:sub(close_end + 1)
     else
-      pos = style_start + 1
+      -- Already wrapped, just move past it to avoid infinite loop
+      -- Replace the style portion to avoid matching it again
+      local before = result:sub(1, style_start - 1)
+      local after = result:sub(style_end + 1)
+      result = before .. "text-decoration-processed" .. after
     end
   end
+
+  -- Clean up the processed markers
+  result = result:gsub("text%-decoration%-processed", "text-decoration:line-through")
 
   return result
 end
@@ -166,25 +151,46 @@ local function fix_malformed_inline_tags(html)
   result = result:gsub("(</[pP]>)%s*\n?%s*(<[bB]>)%s*\n?%s*(<[pP])", "%1%3")
   result = result:gsub("(</[pP]>)%s*\n?%s*(<[bB]>)%s*$", "%1")
 
-  -- Same for </b> tags
+  -- Same for </b> tags - remove empty bold pairs
   result = result:gsub("(<[bB]>)%s*(</[bB]>)", "")
 
-  -- Remove <b> tags that are alone at the end (after </p>)
-  result = result:gsub("(</[pP]>.-)<[bB]>%s*$", "%1")
+  -- NOTE: Removed the problematic pattern that caused catastrophic backtracking:
+  -- "(</[pP]>.-)<[bB]>%s*$" - this pattern with .- followed by $ can freeze on large documents
+  -- The simpler patterns above handle the common cases without performance issues
 
   return result
 end
 
 -- Remove strike-through content (for compiled version)
 -- Uses non-greedy matching and handles potential malformed tags
+-- Optimized to avoid catastrophic backtracking
 local function remove_strikethrough(html)
-  -- Remove complete <strike>...</strike> pairs
-  local result = html:gsub("<[sS][tT][rR][iI][kK][eE]>.-</[sS][tT][rR][iI][kK][eE]>", "")
+  local result = html
 
-  -- Safety: remove any orphaned opening <strike> tags (shouldn't happen, but just in case)
-  result = result:gsub("<[sS][tT][rR][iI][kK][eE]>", "")
+  -- Use iterative approach instead of global pattern matching to avoid backtracking issues
+  -- This is safer for large HTML documents
+  local strike_pattern = "<[sS][tT][rR][iI][kK][eE]>"
+  local strike_end_pattern = "</[sS][tT][rR][iI][kK][eE]>"
 
-  -- Safety: remove any orphaned closing </strike> tags
+  while true do
+    local start_pos = result:find(strike_pattern)
+    if not start_pos then break end
+
+    local tag_end = result:find(">", start_pos, true)
+    if not tag_end then break end
+
+    local end_pos = result:find(strike_end_pattern, tag_end + 1, true)
+    if not end_pos then
+      -- Orphaned opening tag - remove it
+      result = result:sub(1, start_pos - 1) .. result:sub(tag_end + 1)
+    else
+      -- Found pair - remove everything from <strike> to </strike>
+      local close_tag_end = result:find(">", end_pos, true)
+      result = result:sub(1, start_pos - 1) .. result:sub(close_tag_end + 1)
+    end
+  end
+
+  -- Clean up any remaining orphaned closing tags
   result = result:gsub("</[sS][tT][rR][iI][kK][eE]>", "")
 
   return result
@@ -303,8 +309,7 @@ local function parse_articles(html)
 
     -- Extract title (first sentence without HTML tags)
     local text_only = compiled_content:gsub("<[^>]+>", "")
-    text_only = entities.decode_entities(text_only) -- Decode HTML entities
-    text_only = text_only:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+    text_only = clean_text(text_only)
 
     -- Remove the "Art. X" prefix from title if present
     -- Handles: Art. 1, Art. 1º, Art. 26-A, Art. 1º-AB, etc.
@@ -323,8 +328,7 @@ local function parse_articles(html)
     if text_only:match("^%s*$") or text_only == "" then
       -- Fallback: try to get content after the article marker more broadly
       text_only = compiled_content:gsub("<[^>]+>", "")
-      text_only = entities.decode_entities(text_only) -- Decode HTML entities
-      text_only = text_only:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+      text_only = clean_text(text_only)
       -- Try alternative patterns (greedy to handle edge cases)
       text_only = text_only:gsub("^.*Art%.%s*%d+[ºo°]?[%-–—]?[A-Z]*%.?%s*[%-–—]?%s*", "")
       -- Clean up any remaining replacement characters
@@ -342,8 +346,10 @@ local function parse_articles(html)
       end
     else
       -- Check if article is completely revoked (all content in strike)
-      local raw_text = raw_content:gsub("<[^>]+>", ""):gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
-      if raw_text ~= "" and (compiled_content:gsub("<[^>]+>", ""):gsub("%s+", ""):match("^%s*$")) then
+      local raw_text = raw_content:gsub("<[^>]+>", "")
+      raw_text = clean_text(raw_text)
+      local compiled_text = compiled_content:gsub("<[^>]+>", ""):gsub("%s+", "")
+      if raw_text ~= "" and compiled_text:match("^%s*$") then
         title = "Artigo " .. article_num .. " (Revogado)"
       else
         title = "Artigo " .. article_num
