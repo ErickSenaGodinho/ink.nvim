@@ -240,13 +240,14 @@ local function parse_articles(html)
   local current_pos = 1
 
   -- Find all article markers with their positions
-  -- Captures: Art. 1, Art. 1º, Art. 26-A, Art. 1º-B, Art. 26-ABC, etc.
-  -- Pattern: Art. + spaces + digits + optional ordinal + optional (hyphen/dash + letters) + optional dot
+  -- Captures: Art. 1, Art. 1º, Art. 26-A, Art. 1º-B, Art. 26-ABC, Art. 1.000, etc.
+  -- Pattern: Art. + spaces + digits (with optional thousand separators) + optional ordinal + optional (hyphen/dash + letters) + optional dot
   -- Note: [%-–—] matches hyphen, en-dash, and em-dash
+  -- Note: [%.%d]* captures thousand separators (e.g., 1.000, 10.500)
   -- This searches in the full HTML including text inside <strike> tags
-  for match_start, article_marker in body:gmatch("()Art%.%s*(%d+[ºo°]?[%-–—]?[A-Z]*%.?)") do
-    -- Remove ordinal indicators (º, o, °) but keep hyphen and letters
-    local article_num = article_marker:gsub("[ºo°]", ""):gsub("%.$", "")
+  for match_start, article_marker in body:gmatch("()Art%.%s*(%d+[%.%d]*[ºo°]?[%-–—]?[A-Z]*%.?)") do
+    -- Remove ordinal indicators (º, o, °) and all dots (thousand separators and trailing dot)
+    local article_num = article_marker:gsub("[ºo°]", ""):gsub("%.", "")
     table.insert(article_parts, {
       pos = match_start,
       num = article_num,
@@ -356,10 +357,11 @@ local function parse_articles(html)
     text_only = clean_text(text_only)
 
     -- Remove the "Art. X" prefix from title if present
-    -- Handles: Art. 1, Art. 1º, Art. 26-A, Art. 1º-AB, etc.
+    -- Handles: Art. 1, Art. 1º, Art. 26-A, Art. 1º-AB, Art. 1.000, etc.
     -- Also removes optional dash/en-dash/em-dash after article number
     -- Pattern matches hyphen (-), en-dash (–), and em-dash (—)
-    text_only = text_only:gsub("^Art%.%s*%d+[ºo°]?[%-–—]?[A-Z]*%.?%s*[%-–—]?%s*", "")
+    -- [%.%d]* captures thousand separators (e.g., 1.000, 10.500)
+    text_only = text_only:gsub("^Art%.%s*%d+[%.%d]*[ºo°]?[%-–—]?[A-Z]*%.?%s*[%-–—]?%s*", "")
 
     -- Clean up any remaining replacement characters or stray ordinal markers at the start
     -- This handles cases where encoding issues cause � to appear instead of º
@@ -374,7 +376,8 @@ local function parse_articles(html)
       text_only = compiled_content:gsub("<[^>]+>", "")
       text_only = clean_text(text_only)
       -- Try alternative patterns (greedy to handle edge cases)
-      text_only = text_only:gsub("^.*Art%.%s*%d+[ºo°]?[%-–—]?[A-Z]*%.?%s*[%-–—]?%s*", "")
+      -- [%.%d]* captures thousand separators (e.g., 1.000, 10.500)
+      text_only = text_only:gsub("^.*Art%.%s*%d+[%.%d]*[ºo°]?[%-–—]?[A-Z]*%.?%s*[%-–—]?%s*", "")
       -- Clean up any remaining replacement characters
       text_only = text_only:gsub("^[ºo°�]+%s*[%-–—]?%s*", "")
       -- Additional cleanup: remove leading dashes
@@ -484,6 +487,10 @@ function M.build_raw_spine(parsed_page)
         text-align: center;
         margin: 1em 0;
       }
+      .law-header p[align="justify"], .law-header p[style*="text-align:justify"] {
+        text-align: justify;
+        margin: 1em 0;
+      }
       .law-header strong, .law-header b {
         font-weight: bold;
       }
@@ -497,6 +504,10 @@ function M.build_raw_spine(parsed_page)
         text-align: center;
         font-weight: bold;
         margin: 1.5em 0;
+      }
+      /* Preserve justified paragraphs within articles */
+      p[align="justify"], p[style*="text-align:justify"] {
+        text-align: justify;
       }
       /* Ensure strikethrough styling is preserved - multiple selectors for compatibility */
       strike,
@@ -560,6 +571,10 @@ function M.build_compiled_spine(parsed_page)
         text-align: center;
         margin: 1em 0;
       }
+      .law-header p[align="justify"], .law-header p[style*="text-align:justify"] {
+        text-align: justify;
+        margin: 1em 0;
+      }
       .law-header strong, .law-header b {
         font-weight: bold;
       }
@@ -573,6 +588,10 @@ function M.build_compiled_spine(parsed_page)
         text-align: center;
         font-weight: bold;
         margin: 1.5em 0;
+      }
+      /* Preserve justified paragraphs within articles */
+      p[align="justify"], p[style*="text-align:justify"] {
+        text-align: justify;
       }
     </style>]]
   }
