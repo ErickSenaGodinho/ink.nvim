@@ -540,6 +540,8 @@ function M.open_book(book_data, opts)
   -- Flag to prevent state saving during book initialization
   ctx._is_initializing = true
 
+  local empty_buffer
+
   -- Open book in specified position
   if position == "right" then
     vim.cmd("rightbelow vsplit")
@@ -553,10 +555,15 @@ function M.open_book(book_data, opts)
     -- No position specified: create new tab only if current buffer is not empty
     if not utils.is_current_buffer_empty() then
       vim.cmd("tabnew")
+      empty_buffer = vim.api.nvim_get_current_buf()
     end
   end
   ctx.content_win = vim.api.nvim_get_current_win()
   vim.api.nvim_win_set_buf(ctx.content_win, content_buf)
+
+  if empty_buffer and vim.api.nvim_buf_is_valid(empty_buffer) then
+    vim.api.nvim_buf_delete(empty_buffer, {force = true})
+  end
 
   -- Render TOC and toggle it open only if show_toc is true
   if show_toc then
