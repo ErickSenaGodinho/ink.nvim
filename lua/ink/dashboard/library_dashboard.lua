@@ -77,14 +77,7 @@ function M.show(opts)
 	vim.api.nvim_buf_set_option(buf, "filetype", "ink-dashboard")
 
 	-- Open in new tab or current window
-	local win
-	if in_new_tab then
-		vim.cmd("tabnew")
-		win = vim.api.nvim_get_current_win()
-	else
-		win = vim.api.nvim_get_current_win()
-	end
-	vim.api.nvim_win_set_buf(win, buf)
+  utils.open_new_tab(in_new_tab, buf)
 
 	-- Store state
 	state.buffer = buf
@@ -606,6 +599,10 @@ function M.setup_keymaps(buf)
 	-- Quit
 	vim.keymap.set("n", "q", function()
 		vim.api.nvim_buf_delete(buf, { force = true })
+    pcall(function()
+      local tab = vim.api.nvim_get_current_tabpage()
+      vim.api.nvim_tabpage_close(tab, true)
+    end)
 	end, opts)
 
 	-- Refresh (force reload)

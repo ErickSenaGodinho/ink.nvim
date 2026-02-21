@@ -56,4 +56,25 @@ function M.is_current_buffer_empty()
 	return true
 end
 
+--- Opens a buffer in a new tab or in the current window.
+--- If `in_new_tab` is true, a new tab is created before setting the buffer.
+--- @param in_new_tab boolean If true, opens the buffer in a new tab.
+--- @param buf integer Buffer handle to display.
+--- @return integer win Window handle where the buffer was set.
+function M.open_new_tab(in_new_tab, buf)
+	local win, empty_buffer
+
+	if in_new_tab then
+		vim.cmd("tabnew")
+		empty_buffer = vim.api.nvim_get_current_buf()
+	end
+
+	win = vim.api.nvim_get_current_win()
+	vim.api.nvim_win_set_buf(win, buf)
+
+	if empty_buffer and vim.api.nvim_buf_is_valid(empty_buffer) then
+		vim.api.nvim_buf_delete(empty_buffer, { force = true })
+	end
+	return win
+end
 return M
