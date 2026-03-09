@@ -295,9 +295,22 @@ function M.get_highlight_at_cursor(ctx)
   local chapter_highlights = user_highlights.get_chapter_highlights(ctx.data.slug, ctx.current_chapter_idx)
 
   for _, hl in ipairs(chapter_highlights) do
-    local start_line, start_col, end_line, end_col = M.find_text_position(
-      ctx.rendered_lines, hl.text, hl.context_before, hl.context_after, false  -- Strict matching for highlights
-    )
+    local start_line, start_col, end_line, end_col
+
+    -- Try cached position first (avoids expensive text search)
+    local cached = user_highlights.get_cached_position(ctx.data.slug, ctx.current_chapter_idx, hl)
+    if cached and cached.start_line and cached.start_line >= 1 then
+      start_line = cached.start_line
+      start_col = cached.start_col
+      end_line = cached.end_line
+      end_col = cached.end_col
+    else
+      -- Fallback: calculate position (should rarely happen)
+      start_line, start_col, end_line, end_col = M.find_text_position(
+        ctx.rendered_lines, hl.text, hl.context_before, hl.context_after, false
+      )
+    end
+
     if start_line then
       local hl_start_offset = M.line_col_to_offset(ctx.rendered_lines, start_line, start_col)
       local hl_end_offset = M.line_col_to_offset(ctx.rendered_lines, end_line, end_col)

@@ -21,7 +21,7 @@ function M.add_note()
   modals.open_note_input(existing_note, function(text)
     user_highlights.update_note(ctx.data.slug, hl, text)
     local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
-    render.render_chapter(ctx.current_chapter_idx, cursor[1], ctx)
+    render.refresh_highlights(ctx)
     if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
       vim.api.nvim_win_set_cursor(ctx.content_win, cursor)
     end
@@ -60,12 +60,12 @@ function M.remove_note()
     -- If transparent highlight, delete the entire highlight (since it only exists for the note)
     if is_transparent then
       user_highlights.remove_highlight_by_text(ctx.data.slug, hl)
-      render.render_chapter(ctx.current_chapter_idx, cursor[1], ctx)
+      render.refresh_highlights(ctx)
       vim.notify("Note removed", vim.log.levels.INFO)
     else
       -- Otherwise just remove the note, keeping the highlight
       user_highlights.update_note(ctx.data.slug, hl, "")
-      render.render_chapter(ctx.current_chapter_idx, cursor[1], ctx)
+      render.refresh_highlights(ctx)
       vim.notify("Note removed", vim.log.levels.INFO)
     end
 
@@ -126,7 +126,7 @@ function M.add_highlight(color)
     color = color
   }
   user_highlights.add_highlight(ctx.data.slug, highlight)
-  render.render_chapter(ctx.current_chapter_idx, end_line, ctx)
+  render.refresh_highlights(ctx)
   if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
     vim.api.nvim_win_set_cursor(ctx.content_win, {end_line, end_col})
   end
@@ -155,7 +155,7 @@ function M.remove_highlight()
       end
 
       user_highlights.remove_highlight_by_text(ctx.data.slug, hl)
-      render.render_chapter(ctx.current_chapter_idx, line, ctx)
+      render.refresh_highlights(ctx)
       if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
         vim.api.nvim_win_set_cursor(ctx.content_win, cursor)
       end
@@ -164,7 +164,7 @@ function M.remove_highlight()
   else
     -- No note, delete immediately
     user_highlights.remove_highlight_by_text(ctx.data.slug, hl)
-    render.render_chapter(ctx.current_chapter_idx, line, ctx)
+    render.refresh_highlights(ctx)
     if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
       vim.api.nvim_win_set_cursor(ctx.content_win, cursor)
     end
@@ -210,7 +210,7 @@ function M.change_highlight_color(color)
   user_highlights.update_color(ctx.data.slug, hl, color)
 
   -- Re-render to show new color
-  render.render_chapter(ctx.current_chapter_idx, cursor[1], ctx)
+  render.refresh_highlights(ctx)
 
   -- Restore cursor position
   if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
@@ -282,7 +282,7 @@ function M.add_note_on_selection()
       -- Add highlight with note
       user_highlights.add_highlight(ctx.data.slug, highlight)
       user_highlights.update_note(ctx.data.slug, highlight, note_text)
-      render.render_chapter(ctx.current_chapter_idx, end_line, ctx)
+      render.refresh_highlights(ctx)
       if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
         vim.api.nvim_win_set_cursor(ctx.content_win, {end_line, end_col})
       end
