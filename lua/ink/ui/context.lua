@@ -4,6 +4,7 @@ local M = {}
 
 M.config = { max_width = 120 }
 M.ns_id = vim.api.nvim_create_namespace("ink_nvim")
+M.user_hl_ns_id = vim.api.nvim_create_namespace("ink_nvim_user_hl")
 
 -- Store contexts by content_buf
 local contexts = {}

@@ -388,6 +388,19 @@ function M.setup(opts)
         floating_toc.toggle_floating_toc()
     end, {})
 
+    -- Create Set Width command
+    vim.api.nvim_create_user_command("InkSetWidth", function(args)
+        local navigation = require("ink.ui.navigation")
+        local context = require("ink.ui.context")
+        if args.args and args.args ~= "" then
+            navigation.set_width(args.args)
+        else
+            local ctx = context.current()
+            local current = ctx and (ctx.current_max_width or context.config.max_width or 120) or 120
+            vim.notify("Usage: InkSetWidth 'value'. Current: " .. current, vim.log.levels.INFO)
+        end
+    end, { nargs = "?" })
+
     -- Create Rebuild TOC command
     vim.api.nvim_create_user_command("InkRebuildTOC", function()
         local context = require("ink.ui.context")
