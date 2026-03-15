@@ -251,6 +251,7 @@ function M.increase_width()
   ctx.parsed_chapters:clear()
   ctx.search_index = nil
   render.invalidate_glossary_cache(ctx)
+  require("ink.user_highlights").clear_positions_cache(ctx.data.slug)
   render.render_chapter(ctx.current_chapter_idx, nil, ctx)
 
   -- Restore viewport immediately (render_chapter is synchronous)
@@ -278,6 +279,39 @@ function M.decrease_width()
   ctx.parsed_chapters:clear()
   ctx.search_index = nil
   render.invalidate_glossary_cache(ctx)
+  require("ink.user_highlights").clear_positions_cache(ctx.data.slug)
+  render.render_chapter(ctx.current_chapter_idx, nil, ctx)
+
+  -- Restore viewport immediately (render_chapter is synchronous)
+  if vim.api.nvim_win_is_valid(ctx.content_win) then
+    vim.api.nvim_set_current_win(ctx.content_win)
+    render.restore_viewport_from_context(ctx, viewport_ctx)
+  end
+
+  vim.notify("Width: " .. ctx.current_max_width .. " (adaptive disabled)", vim.log.levels.INFO)
+end
+
+function M.set_width(width)
+  local ctx = context.current()
+  if not ctx then return end
+
+  local new_width = tonumber(width)
+  if not new_width or new_width < 40 then
+    vim.notify("Invalid width value. Minimum is 40.", vim.log.levels.ERROR)
+    return
+  end
+
+  ctx.current_max_width = new_width
+  ctx.manual_width_override = true  -- Disable adaptive width until reset
+
+  -- Save viewport position (text-based, survives word wrap changes)
+  local viewport_ctx = render.get_viewport_text_context(ctx)
+
+  -- Invalidate cache and re-render
+  ctx.parsed_chapters:clear()
+  ctx.search_index = nil
+  render.invalidate_glossary_cache(ctx)
+  require("ink.user_highlights").clear_positions_cache(ctx.data.slug)
   render.render_chapter(ctx.current_chapter_idx, nil, ctx)
 
   -- Restore viewport immediately (render_chapter is synchronous)
@@ -312,6 +346,7 @@ function M.reset_width()
     ctx.parsed_chapters:clear()
     ctx.search_index = nil
     render.invalidate_glossary_cache(ctx)
+    require("ink.user_highlights").clear_positions_cache(ctx.data.slug)
     render.render_chapter(ctx.current_chapter_idx, nil, ctx)
 
     -- Restore viewport (text-based, keeps same content visible)

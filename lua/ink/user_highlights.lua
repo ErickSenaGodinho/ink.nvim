@@ -7,6 +7,10 @@ local M = {}
 -- In-memory cache for highlights: slug -> { highlights = {...}, by_chapter = {...} }
 local highlights_cache = {}
 
+-- Separate cache for highlight positions: slug -> chapter -> position_key -> {line, col, end_line, end_col}
+-- Position keys are stable (text+context don't change), so we can reuse positions after cache invalidation
+local positions_cache = {}
+
 local function get_highlights_path(slug)
   migrate.migrate_book(slug)
   return data.get_book_dir(slug) .. "/highlights.json"
@@ -77,6 +81,41 @@ function M.load(slug)
   highlights_cache[slug] = { data = loaded, by_chapter = by_chapter }
 
   return loaded
+end
+
+-- Generate a stable key for position lookup
+local function get_position_key(hl)
+  return hl.text .. "||" .. (hl.context_before or "") .. "||" .. (hl.context_after or "")
+end
+
+-- Get cached position for a highlight
+function M.get_cached_position(slug, chapter, hl)
+  if not positions_cache[slug] then return nil end
+  if not positions_cache[slug][chapter] then return nil end
+  local key = get_position_key(hl)
+  return positions_cache[slug][chapter][key]
+end
+
+-- Cache position for a highlight
+function M.cache_position(slug, chapter, hl, start_line, start_col, end_line, end_col)
+  if not positions_cache[slug] then positions_cache[slug] = {} end
+  if not positions_cache[slug][chapter] then positions_cache[slug][chapter] = {} end
+  local key = get_position_key(hl)
+  positions_cache[slug][chapter][key] = {
+    start_line = start_line,
+    start_col = start_col,
+    end_line = end_line,
+    end_col = end_col
+  }
+end
+
+-- Clear positions cache (call when width changes as positions are no longer valid)
+function M.clear_positions_cache(slug)
+  if slug then
+    positions_cache[slug] = nil
+  else
+    positions_cache = {}
+  end
 end
 
 -- Add a new highlight

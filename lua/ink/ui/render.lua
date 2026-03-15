@@ -387,6 +387,7 @@ function M.render_chapter(idx, restore_line, ctx)
   vim.api.nvim_set_option_value("modifiable", false, { buf = ctx.content_buf })
 
   vim.api.nvim_buf_clear_namespace(ctx.content_buf, context.ns_id, 0, -1)
+  vim.api.nvim_buf_clear_namespace(ctx.content_buf, context.user_hl_ns_id, 0, -1)
 
   for i = 1, #final_lines do
     local line_idx = i - 1
@@ -417,12 +418,12 @@ function M.render_chapter(idx, restore_line, ctx)
   ctx.justify_map = parsed.justify_map or {}
   ctx.rendered_lines = final_lines
 
-  -- Apply user highlights using extmarks module
+  -- Apply user highlights using extmarks module (use separate namespace for lighter refresh)
   local chapter_highlights = get_user_highlights().get_chapter_highlights(ctx.data.slug, idx)
   local extmarks_module = get_extmarks()
-  extmarks_module.apply_user_highlights(ctx.content_buf, chapter_highlights, context.ns_id, final_lines, ctx.data.slug, idx)
+  extmarks_module.apply_user_highlights(ctx.content_buf, chapter_highlights, context.user_hl_ns_id, final_lines, ctx.data.slug, idx)
 
-  -- Apply note indicators or margin notes based on mode
+  -- Apply note indicators or margin notes based on mode (use user_hl namespace)
   if ctx.note_display_mode == "margin" then
     local success = extmarks_module.apply_margin_notes(
       ctx.content_buf,
@@ -430,20 +431,20 @@ function M.render_chapter(idx, restore_line, ctx)
       padding,
       max_width,
       win_width,
-      context.ns_id,
+      context.user_hl_ns_id,
       ctx._margin_toggle_attempt  -- Flag to show notification only on user toggle
     )
 
     -- Silent fallback to expanded mode if margin notes fail
     if not success then
-      extmarks_module.apply_note_indicators(ctx.content_buf, chapter_highlights, "expanded", padding, max_width, context.ns_id)
+      extmarks_module.apply_note_indicators(ctx.content_buf, chapter_highlights, "expanded", padding, max_width, context.user_hl_ns_id)
     end
 
     -- Clear the flag after first attempt
     ctx._margin_toggle_attempt = false
   elseif ctx.note_display_mode ~= "off" then
     -- Use traditional note indicators for "indicator" and "expanded" modes
-    extmarks_module.apply_note_indicators(ctx.content_buf, chapter_highlights, ctx.note_display_mode, padding, max_width, context.ns_id)
+    extmarks_module.apply_note_indicators(ctx.content_buf, chapter_highlights, ctx.note_display_mode, padding, max_width, context.user_hl_ns_id)
   end
   -- If "off", don't apply any note indicators
 
@@ -780,5 +781,50 @@ end
 M.get_current_position_context = get_current_position_context
 M.get_viewport_text_context = get_viewport_text_context
 M.restore_viewport_from_context = restore_viewport_from_context
+
+-- Lightweight refresh: only update user highlights without rewriting buffer
+function M.refresh_highlights(ctx)
+  ctx = ctx or context.current()
+  if not ctx or not ctx.content_buf then return end
+  if not vim.api.nvim_buf_is_valid(ctx.content_buf) then return end
+  if not ctx.current_chapter_idx then return end
+
+  local lines = ctx.rendered_lines
+  if not lines or #lines == 0 then
+    M.render_chapter(ctx.current_chapter_idx, nil, ctx)
+    return
+  end
+
+  local extmarks_module = get_extmarks()
+  local max_width = ctx.current_max_width or context.config.max_width or 120
+  local win_width = ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) 
+    and vim.api.nvim_win_get_width(ctx.content_win) or max_width
+  local padding = 0
+  if win_width > max_width then
+    padding = math.floor((win_width - max_width) / 2)
+  end
+
+  vim.api.nvim_buf_clear_namespace(ctx.content_buf, context.user_hl_ns_id, 0, -1)
+
+  local chapter_highlights = get_user_highlights().get_chapter_highlights(ctx.data.slug, ctx.current_chapter_idx)
+  extmarks_module.apply_user_highlights(ctx.content_buf, chapter_highlights, context.user_hl_ns_id, lines, ctx.data.slug, ctx.current_chapter_idx)
+
+  if ctx.note_display_mode == "margin" then
+    local success = extmarks_module.apply_margin_notes(
+      ctx.content_buf,
+      chapter_highlights,
+      padding,
+      max_width,
+      win_width,
+      context.user_hl_ns_id,
+      false
+    )
+    if not success then
+      extmarks_module.apply_note_indicators(ctx.content_buf, chapter_highlights, "expanded", padding, max_width, context.user_hl_ns_id)
+    end
+  elseif ctx.note_display_mode ~= "off" then
+    extmarks_module.apply_note_indicators(ctx.content_buf, chapter_highlights, ctx.note_display_mode, padding, max_width, context.user_hl_ns_id)
+  end
+end
 
 return M
