@@ -326,6 +326,9 @@ function M.setup_book_autocmds(content_buf, slug)
             -- Invalidate glossary cache since positions depend on window width
             render.invalidate_glossary_cache(current_ctx)
 
+            -- Invalidate highlight positions cache since they depend on width
+            require("ink.user_highlights").clear_positions_cache(current_ctx.data.slug)
+
             render.render_chapter(current_ctx.current_chapter_idx, nil, current_ctx)
 
             -- Restore viewport immediately (render_chapter is synchronous)

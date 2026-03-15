@@ -56,23 +56,53 @@ function M.apply_syntax_highlights(buf, highlights, ns_id, padding)
 end
 
 function M.apply_user_highlights(buf, chapter_highlights, ns_id, lines, slug, chapter_idx)
+    local user_highlights = require("ink.user_highlights")
     local orphaned_count = 0
     local rendered_count = 0
 
+    -- Get buffer line count for bounds validation
+    local buf_line_count = vim.api.nvim_buf_line_count(buf)
+
     for _, hl in ipairs(chapter_highlights) do
-        local start_line, start_col, end_line, end_col = util.find_text_position(
-            lines, hl.text, hl.context_before, hl.context_after, false  -- Strict matching for highlights
-        )
-        if start_line then
-            hl._start_line = start_line
-            hl._start_col = start_col
-            hl._end_line = end_line
-            hl._end_col = end_col
-            local hl_group = "InkUserHighlight_" .. hl.color
-            vim.api.nvim_buf_set_extmark(buf, ns_id, start_line - 1, start_col, {
-                end_line = end_line - 1, end_col = end_col, hl_group = hl_group, priority = 2000
-            })
-            rendered_count = rendered_count + 1
+        local start_line, start_col, end_line, end_col
+
+        -- Try to get cached position first (avoids expensive text search on refresh)
+        local cached = user_highlights.get_cached_position(slug, chapter_idx, hl)
+        if cached and cached.start_line and cached.end_line then
+            start_line = cached.start_line
+            start_col = cached.start_col
+            end_line = cached.end_line
+            end_col = cached.end_col
+        end
+
+        -- If no valid cached position, calculate via text matching
+        if not start_line or type(start_line) ~= "number" or start_line < 1 then
+            start_line, start_col, end_line, end_col = util.find_text_position(
+                lines, hl.text, hl.context_before, hl.context_after, false
+            )
+            -- Cache the calculated position if valid
+            if start_line and start_line >= 1 then
+                user_highlights.cache_position(slug, chapter_idx, hl, start_line, start_col, end_line, end_col)
+            end
+        end
+
+        if start_line and type(start_line) == "number" and type(end_line) == "number" then
+            -- Relaxed validation: only check basic requirements
+            if start_line > 0 and start_line <= buf_line_count and end_line > 0 and end_line <= buf_line_count then
+                -- Store position for note indicators
+                hl._start_line = start_line
+                hl._start_col = start_col
+                hl._end_line = end_line
+                hl._end_col = end_col
+                
+                local hl_group = "InkUserHighlight_" .. hl.color
+                vim.api.nvim_buf_set_extmark(buf, ns_id, start_line - 1, start_col, {
+                    end_line = end_line - 1, end_col = end_col, hl_group = hl_group, priority = 2000
+                })
+                rendered_count = rendered_count + 1
+            else
+                orphaned_count = orphaned_count + 1
+            end
         else
             orphaned_count = orphaned_count + 1
         end
@@ -102,10 +132,14 @@ function M.apply_note_indicators(buf, chapter_highlights, note_display_mode, pad
 
     local notes_by_line = {}
     for _, hl in ipairs(chapter_highlights) do
-        if hl.note and hl.note ~= "" and hl._end_line then
+        if hl.note and hl.note ~= "" and hl._end_line and hl._end_col then
             local end_line = hl._end_line
-            if not notes_by_line[end_line] then notes_by_line[end_line] = {} end
-            table.insert(notes_by_line[end_line], { hl = hl, end_col = hl._end_col })
+            local end_col = hl._end_col
+            -- Validate the position is reasonable
+            if end_line > 0 and end_col >= 0 then
+                if not notes_by_line[end_line] then notes_by_line[end_line] = {} end
+                table.insert(notes_by_line[end_line], { hl = hl, end_col = end_col })
+            end
         end
     end
 
@@ -117,17 +151,27 @@ function M.apply_note_indicators(buf, chapter_highlights, note_display_mode, pad
         local line_idx = line - 1
         local line_count = vim.api.nvim_buf_line_count(buf)
         if line_idx >= 0 and line_idx < line_count then
+            -- Get actual line length for validation
+            local buf_lines = vim.api.nvim_buf_get_lines(buf, line_idx, line_idx + 1, false)
+            local line_len = buf_lines and #buf_lines[1] or 0
+            
             if note_display_mode == "indicator" then
                 for _, note_info in ipairs(notes) do
-                    vim.api.nvim_buf_set_extmark(buf, ns_id, line_idx, note_info.end_col, {
-                        virt_text = { { "●", "InkNoteIndicator" } }, virt_text_pos = "inline", priority = 3000
-                    })
+                    -- Validate column is within line bounds
+                    if note_info.end_col >= 0 and note_info.end_col <= line_len then
+                        vim.api.nvim_buf_set_extmark(buf, ns_id, line_idx, note_info.end_col, {
+                            virt_text = { { "●", "InkNoteIndicator" } }, virt_text_pos = "inline", priority = 3000
+                        })
+                    end
                 end
             elseif note_display_mode == "expanded" then
                 for _, note_info in ipairs(notes) do
-                    vim.api.nvim_buf_set_extmark(buf, ns_id, line_idx, note_info.end_col, {
-                        virt_text = { { "●", "InkNoteIndicator" } }, virt_text_pos = "inline", priority = 3000
-                    })
+                    -- Validate column is within line bounds
+                    if note_info.end_col >= 0 and note_info.end_col <= line_len then
+                        vim.api.nvim_buf_set_extmark(buf, ns_id, line_idx, note_info.end_col, {
+                            virt_text = { { "●", "InkNoteIndicator" } }, virt_text_pos = "inline", priority = 3000
+                        })
+                    end
                 end
                 local virt_lines = {}
                 for i, note_info in ipairs(notes) do

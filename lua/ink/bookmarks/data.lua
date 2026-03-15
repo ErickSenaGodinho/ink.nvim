@@ -5,12 +5,20 @@ local migrate = require("ink.data.migrate")
 local M = {}
 
 function M.get_file_path(slug)
+  local valid, err = data.validate_slug(slug)
+  if not valid then
+    vim.notify("Invalid slug for bookmarks: " .. (err or "unknown error"), vim.log.levels.WARN)
+    return nil
+  end
   migrate.migrate_bookmarks()
   return data.get_book_dir(slug) .. "/bookmarks.json"
 end
 
 function M.save(slug, bookmarks)
   local path = M.get_file_path(slug)
+  if not path then
+    return false
+  end
   local json = data.json_encode({ bookmarks = bookmarks })
   local file = io.open(path, "w")
   if not file then
@@ -25,6 +33,9 @@ end
 
 function M.load(slug)
   local path = M.get_file_path(slug)
+  if not path then
+    return { bookmarks = {} }
+  end
   if not fs.exists(path) then
     return { bookmarks = {} }
   end
