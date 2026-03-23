@@ -27,15 +27,16 @@ function M.open_image(src, ctx)
     return
   end
   local chapter_dir
+  local chapter_path
 
   -- Determine chapter directory based on format
   if ctx.data.format == "markdown" then
     -- Markdown: images are relative to the .md file
     chapter_dir = ctx.data.base_dir
   else
-    -- EPUB: images are relative to the chapter HTML file
-    local chapter_path = ctx.data.base_dir .. "/" .. chapter_item.href
-    chapter_dir = vim.fn.fnamemodify(chapter_path, ":h")
+    -- EPUB: images are relative to base directory or the chapter HTML file
+    chapter_path = ctx.data.base_dir .. "/" .. chapter_item.href
+    chapter_dir = ctx.data.base_dir
   end
 
   local image_path = chapter_dir .. "/" .. src
@@ -44,35 +45,38 @@ function M.open_image(src, ctx)
   image_path = vim.fn.fnamemodify(image_path, ":p")
 
   -- Security check: ensure the normalized path is within allowed directory
-  local allowed_root
-  if ctx.data.format == "markdown" then
-    allowed_root = vim.fn.fnamemodify(ctx.data.base_dir, ":p")
-  elseif ctx.data.cache_dir then
-    allowed_root = vim.fn.fnamemodify(ctx.data.cache_dir, ":p")
-  else
-    allowed_root = vim.fn.fnamemodify(chapter_dir, ":p")
+  local allowed_root = vim.fn.fnamemodify(ctx.data.base_dir .. "/", ":p")
+
+  if image_path:sub(1, #allowed_root) ~= allowed_root then
+    vim.notify("Access denied: Image path outside allowed directory", vim.log.levels.ERROR)
+    return
   end
 
-  if allowed_root then
-    if image_path:sub(1, #allowed_root) ~= allowed_root then
-      vim.notify("Access denied: Image path outside allowed directory", vim.log.levels.ERROR)
-      return
+  -- If it doesn't exist, and it's EPUB, try relative to the chapter
+  if not fs.exists(image_path) and ctx.data.format ~= "markdown" then
+    local chapter_dir = vim.fn.fnamemodify(chapter_path, ":h")
+    local fallback_path = vim.fn.fnamemodify(chapter_dir .. "/" .. src, ":p")
+    
+    if fs.exists(fallback_path) then
+        image_path = fallback_path
+    else
+        vim.notify("Image not found: " .. src, vim.log.levels.ERROR)
+        return
     end
-  end
-
-  if not fs.exists(image_path) then
+  elseif not fs.exists(image_path) then
+    -- For Markdown or any other format without fallback
     vim.notify("Image not found: " .. src, vim.log.levels.ERROR)
     return
   end
 
   -- Resolve symlinks and verify the final target is still within allowed directory
   local resolved_path = vim.fn.resolve(image_path)
-  if allowed_root then
-    if resolved_path:sub(1, #allowed_root) ~= allowed_root then
-      vim.notify("Access denied: Image symlink target outside allowed directory", vim.log.levels.ERROR)
-      return
-    end
+  local real_allowed_root = vim.uv.fs_realpath(allowed_root)
+  if resolved_path:sub(1, #real_allowed_root) ~= real_allowed_root then
+    vim.notify("Access denied: Image symlink target outside allowed directory", vim.log.levels.ERROR)
+    return
   end
+
 
   -- Use resolved path for opening
   image_path = resolved_path
