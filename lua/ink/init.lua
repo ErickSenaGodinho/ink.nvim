@@ -825,43 +825,50 @@ function M.setup(opts)
 
     -- Global keymaps for library features
     local keymaps = M.config.keymaps
-    local opts = { noremap = true, silent = true }
 
     if keymaps.library then
-        vim.api.nvim_set_keymap("n", keymaps.library, ":InkLibrary<CR>", opts)
+        vim.keymap.set("n", keymaps.library, ":InkLibrary<CR>",
+            { noremap = true, silent = true, desc = "Open library" })
     end
 
     if keymaps.last_book then
-        vim.api.nvim_set_keymap("n", keymaps.last_book, ":InkLast<CR>", opts)
+        vim.keymap.set("n", keymaps.last_book, ":InkLast<CR>",
+            { noremap = true, silent = true, desc = "Open last book" })
     end
 
     -- Global keymaps for bookmarks
     local bookmark_keymaps = M.config.bookmark_keymaps
     if bookmark_keymaps.list_all then
-        vim.api.nvim_set_keymap("n", bookmark_keymaps.list_all, ":InkBookmarks<CR>", opts)
+        vim.keymap.set("n", bookmark_keymaps.list_all, ":InkBookmarks<CR>",
+            { noremap = true, silent = true, desc = "List all bookmarks" })
     end
     if bookmark_keymaps.list_book then
-        vim.api.nvim_set_keymap("n", bookmark_keymaps.list_book, ":InkBookmarksBook<CR>", opts)
+        vim.keymap.set("n", bookmark_keymaps.list_book, ":InkBookmarksBook<CR>",
+            { noremap = true, silent = true, desc = "List book bookmarks" })
     end
 
     -- Global keymaps for notes
     local notes_list_keymaps = M.config.notes_list_keymaps
     if notes_list_keymaps.list_all then
-        vim.api.nvim_set_keymap("n", notes_list_keymaps.list_all, ":InkNotes<CR>", opts)
+        vim.keymap.set("n", notes_list_keymaps.list_all, ":InkNotes<CR>",
+            { noremap = true, silent = true, desc = "List all notes" })
     end
     if notes_list_keymaps.list_book then
-        vim.api.nvim_set_keymap("n", notes_list_keymaps.list_book, ":InkNotesBook<CR>", opts)
+        vim.keymap.set("n", notes_list_keymaps.list_book, ":InkNotesBook<CR>",
+            { noremap = true, silent = true, desc = "List book notes" })
     end
 
     -- Global keymaps for export
     local export_keymaps = M.config.export_keymaps
     if export_keymaps.current_book then
-        vim.api.nvim_set_keymap("n", export_keymaps.current_book, ":InkExport<CR>", opts)
+        vim.keymap.set("n", export_keymaps.current_book, ":InkExport<CR>",
+            { noremap = true, silent = true, desc = "Export current book" })
     end
 
     -- Global keymap for dashboard
     if keymaps.dashboard then
-        vim.api.nvim_set_keymap("n", keymaps.dashboard, ":InkDashboard<CR>", opts)
+        vim.keymap.set("n", keymaps.dashboard, ":InkDashboard<CR>",
+            { noremap = true, silent = true, desc = "Open dashboard" })
     end
 
     -- Setup padnotes
@@ -890,9 +897,10 @@ function M.setup(opts)
 
     -- Global keymap for linked resources
     if keymaps.related_resources then
-        vim.api.nvim_set_keymap("n", keymaps.related_resources, ":InkListRelated<CR>", opts)
+        vim.keymap.set("n", keymaps.related_resources, ":InkListRelated<CR>",
+            { noremap = true, silent = true, desc = "List related resources" })
     end
-
+    
     -- Setup automatic tracking
     if M.config.tracking and M.config.tracking.enabled then
         require("ink.tracking").setup(M.config)
