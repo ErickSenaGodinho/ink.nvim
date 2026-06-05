@@ -26,12 +26,8 @@ end
 
 -- Check if file exists
 function M.exists(path)
-  local file = io.open(path, "r")
-  if file then
-    file:close()
-    return true
-  end
-  return false
+  local stat = vim.loop.fs_stat(path)
+  return stat ~= nil
 end
 
 -- Create directory if it doesn't exist
