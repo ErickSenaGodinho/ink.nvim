@@ -107,28 +107,7 @@ function M.handle_enter()
   local col = cursor[2]
   local buf = vim.api.nvim_get_current_buf()
 
-  if buf == ctx.toc_buf then
-    local toc_item = ctx.data.toc[line]
-    if toc_item then
-      -- Navigate by href
-      if toc_item.href then
-        local target_href = toc_item.href:match("^([^#]+)") or toc_item.href
-        local anchor = toc_item.href:match("#(.+)$")
-        for i, spine_item in ipairs(ctx.data.spine) do
-          if spine_item.href == target_href then
-            render.render_chapter(i, nil, ctx)
-            if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
-              vim.api.nvim_set_current_win(ctx.content_win)
-              if anchor and ctx.anchors[anchor] then
-                 vim.api.nvim_win_set_cursor(ctx.content_win, {ctx.anchors[anchor], 0})
-              end
-            end
-            break
-          end
-        end
-      end
-    end
-  elseif buf == ctx.content_buf then
+  if buf == ctx.content_buf then
     -- Check for glossary terms first (highest priority)
     local glossary_ui = require("ink.glossary.ui")
     local glossary_match = glossary_ui.get_match_at_cursor(line, col)

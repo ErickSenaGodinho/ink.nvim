@@ -63,8 +63,8 @@ local function find_buf_by_name(name)
   return nil
 end
 
--- Create TOC and content buffers
-function M.create_book_buffers(slug, book_data)
+-- Create content buffer
+function M.create_book_buffer(slug, book_data)
   -- Use book title for buffer name (more user-friendly than slug)
   local title = book_data and book_data.title or slug
   local author = book_data and book_data.author
@@ -96,24 +96,13 @@ function M.create_book_buffers(slug, book_data)
   vim.api.nvim_set_option_value("filetype", "ink_content", { buf = content_buf })
   vim.api.nvim_set_option_value("syntax", "off", { buf = content_buf })
 
-  -- Create TOC buffer
-  local toc_buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_name(toc_buf, toc_name)
-  vim.api.nvim_set_option_value("filetype", "ink_toc", { buf = toc_buf })
-  -- Prevent Neovim from adding blank lines when buffer is attached to window
-  vim.api.nvim_set_option_value("fixendofline", false, { buf = toc_buf })
-  vim.api.nvim_set_option_value("endofline", false, { buf = toc_buf })
-  -- Initialize with placeholder line to prevent modifiable errors
-  vim.api.nvim_buf_set_lines(toc_buf, 0, -1, false, { "Loading table of contents..." })
-
-  return content_buf, toc_buf
+  return content_buf
 end
 
 -- Setup context for book
-function M.setup_book_context(content_buf, toc_buf, book_data)
+function M.setup_book_context(content_buf, book_data)
   local ctx = context.create(content_buf)
   ctx.data = book_data
-  ctx.toc_buf = toc_buf
   ctx.content_buf = content_buf
   ctx.default_max_width = context.config.max_width
   ctx.current_max_width = context.config.max_width  -- Initialize with default, will be adjusted by adaptive width
@@ -194,19 +183,16 @@ function M.setup_basic_keymaps(buf)
 end
 
 -- Setup all book-specific keymaps
-function M.setup_book_keymaps(content_buf, toc_buf)
+function M.setup_book_keymaps(content_buf)
   local keymaps = context.config.keymaps or {}
 
   -- Setup basic keymaps for both buffers
   M.setup_basic_keymaps(content_buf)
-  M.setup_basic_keymaps(toc_buf)
 
   -- TOC toggle keymap
   if keymaps.toggle_toc then
     vim.keymap.set("n", keymaps.toggle_toc, function() require("ink.ui.floating_toc").toggle_floating_toc() end,
       { buffer = content_buf, noremap = true, silent = true, desc = "Toggle TOC" })
-    vim.keymap.set("n", keymaps.toggle_toc, function() require("ink.ui.floating_toc").toggle_floating_toc() end,
-      { buffer = toc_buf, noremap = true, silent = true, desc = "Toggle TOC" })
   end
 
   -- TOC rebuild keymap
@@ -214,8 +200,6 @@ function M.setup_book_keymaps(content_buf, toc_buf)
   if toc_keymaps.rebuild then
     vim.keymap.set("n", toc_keymaps.rebuild, ":InkRebuildTOC<CR>",
       { buffer = content_buf, noremap = true, silent = true, desc = "Rebuild TOC" })
-    vim.keymap.set("n", toc_keymaps.rebuild, ":InkRebuildTOC<CR>",
-      { buffer = toc_buf, noremap = true, silent = true, desc = "Rebuild TOC" })
   end
 
   -- Highlight keymaps (content buffer only)
@@ -563,11 +547,11 @@ function M.open_book(book_data, opts)
   local reading_sessions = require("ink.reading_sessions")
   reading_sessions.start_session(book_data.slug, 1)
 
-  -- Create buffers
-  local content_buf, toc_buf = M.create_book_buffers(book_data.slug, book_data)
+  -- Create buffer
+  local content_buf = M.create_book_buffer(book_data.slug, book_data)
 
   -- Setup context
-  local ctx = M.setup_book_context(content_buf, toc_buf, book_data)
+  local ctx = M.setup_book_context(content_buf, book_data)
 
   -- Flag to prevent state saving during book initialization
   ctx._is_initializing = true
@@ -642,7 +626,7 @@ function M.open_book(book_data, opts)
   end)
 
   -- Setup keymaps and autocmds
-  M.setup_book_keymaps(content_buf, toc_buf)
+  M.setup_book_keymaps(content_buf)
   M.setup_book_autocmds(content_buf, book_data.slug)
 end
 

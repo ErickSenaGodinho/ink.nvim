@@ -13,7 +13,6 @@ local function new_context()
   return {
     data = nil,
     current_chapter_idx = 1,
-    toc_buf = nil,
     content_buf = nil,
     toc_win = nil,
     content_win = nil,
@@ -51,9 +50,8 @@ function M.get(buf)
   buf = buf or vim.api.nvim_get_current_buf()
   -- Direct match on content_buf
   if contexts[buf] then return contexts[buf] end
-  -- Check if buf is a toc_buf or padnote_buf
+  -- Check if buf is a padnote_buf
   for _, ctx in pairs(contexts) do
-    if ctx.toc_buf == buf then return ctx end
     if ctx.padnote_buf == buf then return ctx end
   end
   return nil
