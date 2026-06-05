@@ -123,64 +123,78 @@ end
 
 -- Setup basic navigation keymaps
 function M.setup_basic_keymaps(buf)
-  local opts = { noremap = true, silent = true }
   local keymaps = context.config.keymaps or {}
 
   if keymaps.next_chapter then
-    vim.api.nvim_buf_set_keymap(buf, "n", keymaps.next_chapter, ":lua require('ink.ui').next_chapter()<CR>", opts)
+    vim.keymap.set("n", keymaps.next_chapter, function() require("ink.ui").next_chapter() end,
+      { buffer = buf, noremap = true, silent = true, desc = "Next chapter" })
   end
   if keymaps.prev_chapter then
-    vim.api.nvim_buf_set_keymap(buf, "n", keymaps.prev_chapter, ":lua require('ink.ui').prev_chapter()<CR>", opts)
+    vim.keymap.set("n", keymaps.prev_chapter, function() require("ink.ui").prev_chapter() end,
+      { buffer = buf, noremap = true, silent = true, desc = "Previous chapter" })
   end
   if keymaps.activate then
-    vim.api.nvim_buf_set_keymap(buf, "n", keymaps.activate, ":lua require('ink.ui').handle_enter()<CR>", opts)
+    vim.keymap.set("n", keymaps.activate, function() require("ink.ui").handle_enter() end,
+      { buffer = buf, noremap = true, silent = true, desc = "Activate (footnote/link/image)" })
   end
   local jump_key = keymaps.jump_to_link or "g<CR>"
-  vim.api.nvim_buf_set_keymap(buf, "n", jump_key, ":lua require('ink.ui').jump_to_link()<CR>", opts)
+  vim.keymap.set("n", jump_key, function() require("ink.ui").jump_to_link() end,
+    { buffer = buf, noremap = true, silent = true, desc = "Jump to link" })
   if keymaps.search_toc then
-    vim.api.nvim_buf_set_keymap(buf, "n", keymaps.search_toc, ":lua require('ink.ui').search_toc()<CR>", opts)
+    vim.keymap.set("n", keymaps.search_toc, function() require("ink.ui").search_toc() end,
+      { buffer = buf, noremap = true, silent = true, desc = "Search TOC" })
   end
   if keymaps.search_content then
-    vim.api.nvim_buf_set_keymap(buf, "n", keymaps.search_content, ":lua require('ink.ui').search_content()<CR>", opts)
+    vim.keymap.set("n", keymaps.search_content, function() require("ink.ui").search_content() end,
+      { buffer = buf, noremap = true, silent = true, desc = "Search content" })
   end
   if keymaps.width_increase then
-    vim.api.nvim_buf_set_keymap(buf, "n", keymaps.width_increase, ":lua require('ink.ui').increase_width()<CR>", opts)
+    vim.keymap.set("n", keymaps.width_increase, function() require("ink.ui").increase_width() end,
+      { buffer = buf, noremap = true, silent = true, desc = "Increase width" })
   end
   if keymaps.width_decrease then
-    vim.api.nvim_buf_set_keymap(buf, "n", keymaps.width_decrease, ":lua require('ink.ui').decrease_width()<CR>", opts)
+    vim.keymap.set("n", keymaps.width_decrease, function() require("ink.ui").decrease_width() end,
+      { buffer = buf, noremap = true, silent = true, desc = "Decrease width" })
   end
   if keymaps.width_reset then
-    vim.api.nvim_buf_set_keymap(buf, "n", keymaps.width_reset, ":lua require('ink.ui').reset_width()<CR>", opts)
+    vim.keymap.set("n", keymaps.width_reset, function() require("ink.ui").reset_width() end,
+      { buffer = buf, noremap = true, silent = true, desc = "Reset width" })
   end
   if keymaps.toggle_justify then
-    vim.api.nvim_buf_set_keymap(buf, "n", keymaps.toggle_justify, ":lua require('ink.ui').toggle_justify()<CR>", opts)
+    vim.keymap.set("n", keymaps.toggle_justify, function() require("ink.ui").toggle_justify() end,
+      { buffer = buf, noremap = true, silent = true, desc = "Toggle text justification" })
   end
 
   -- Typography keymaps
   local typography_keymaps = context.config.typography_keymaps or {}
   if typography_keymaps.line_spacing_increase then
-    vim.api.nvim_buf_set_keymap(buf, "n", typography_keymaps.line_spacing_increase, ":lua require('ink.ui').increase_line_spacing()<CR>", opts)
+    vim.keymap.set("n", typography_keymaps.line_spacing_increase, function() require("ink.ui").increase_line_spacing() end,
+      { buffer = buf, noremap = true, silent = true, desc = "Increase line spacing" })
   end
   if typography_keymaps.line_spacing_decrease then
-    vim.api.nvim_buf_set_keymap(buf, "n", typography_keymaps.line_spacing_decrease, ":lua require('ink.ui').decrease_line_spacing()<CR>", opts)
+    vim.keymap.set("n", typography_keymaps.line_spacing_decrease, function() require("ink.ui").decrease_line_spacing() end,
+      { buffer = buf, noremap = true, silent = true, desc = "Decrease line spacing" })
   end
   if typography_keymaps.line_spacing_reset then
-    vim.api.nvim_buf_set_keymap(buf, "n", typography_keymaps.line_spacing_reset, ":lua require('ink.ui').reset_line_spacing()<CR>", opts)
+    vim.keymap.set("n", typography_keymaps.line_spacing_reset, function() require("ink.ui").reset_line_spacing() end,
+      { buffer = buf, noremap = true, silent = true, desc = "Reset line spacing" })
   end
   if typography_keymaps.paragraph_spacing_increase then
-    vim.api.nvim_buf_set_keymap(buf, "n", typography_keymaps.paragraph_spacing_increase, ":lua require('ink.ui').increase_paragraph_spacing()<CR>", opts)
+    vim.keymap.set("n", typography_keymaps.paragraph_spacing_increase, function() require("ink.ui").increase_paragraph_spacing() end,
+      { buffer = buf, noremap = true, silent = true, desc = "Increase paragraph spacing" })
   end
   if typography_keymaps.paragraph_spacing_decrease then
-    vim.api.nvim_buf_set_keymap(buf, "n", typography_keymaps.paragraph_spacing_decrease, ":lua require('ink.ui').decrease_paragraph_spacing()<CR>", opts)
+    vim.keymap.set("n", typography_keymaps.paragraph_spacing_decrease, function() require("ink.ui").decrease_paragraph_spacing() end,
+      { buffer = buf, noremap = true, silent = true, desc = "Decrease paragraph spacing" })
   end
   if typography_keymaps.paragraph_spacing_reset then
-    vim.api.nvim_buf_set_keymap(buf, "n", typography_keymaps.paragraph_spacing_reset, ":lua require('ink.ui').reset_paragraph_spacing()<CR>", opts)
+    vim.keymap.set("n", typography_keymaps.paragraph_spacing_reset, function() require("ink.ui").reset_paragraph_spacing() end,
+      { buffer = buf, noremap = true, silent = true, desc = "Reset paragraph spacing" })
   end
 end
 
 -- Setup all book-specific keymaps
 function M.setup_book_keymaps(content_buf, toc_buf)
-  local keymap_opts = { noremap = true, silent = true }
   local keymaps = context.config.keymaps or {}
 
   -- Setup basic keymaps for both buffers
@@ -189,99 +203,119 @@ function M.setup_book_keymaps(content_buf, toc_buf)
 
   -- TOC toggle keymap
   if keymaps.toggle_toc then
-    vim.api.nvim_buf_set_keymap(content_buf, "n", keymaps.toggle_toc, ":lua require('ink.ui.floating_toc').toggle_floating_toc()<CR>", keymap_opts)
-    vim.api.nvim_buf_set_keymap(toc_buf, "n", keymaps.toggle_toc, ":lua require('ink.ui.floating_toc').toggle_floating_toc()<CR>", keymap_opts)
+    vim.keymap.set("n", keymaps.toggle_toc, function() require("ink.ui.floating_toc").toggle_floating_toc() end,
+      { buffer = content_buf, noremap = true, silent = true, desc = "Toggle TOC" })
+    vim.keymap.set("n", keymaps.toggle_toc, function() require("ink.ui.floating_toc").toggle_floating_toc() end,
+      { buffer = toc_buf, noremap = true, silent = true, desc = "Toggle TOC" })
   end
 
   -- TOC rebuild keymap
   local toc_keymaps = context.config.toc_keymaps or {}
   if toc_keymaps.rebuild then
-    vim.api.nvim_buf_set_keymap(content_buf, "n", toc_keymaps.rebuild, ":InkRebuildTOC<CR>", keymap_opts)
-    vim.api.nvim_buf_set_keymap(toc_buf, "n", toc_keymaps.rebuild, ":InkRebuildTOC<CR>", keymap_opts)
+    vim.keymap.set("n", toc_keymaps.rebuild, ":InkRebuildTOC<CR>",
+      { buffer = content_buf, noremap = true, silent = true, desc = "Rebuild TOC" })
+    vim.keymap.set("n", toc_keymaps.rebuild, ":InkRebuildTOC<CR>",
+      { buffer = toc_buf, noremap = true, silent = true, desc = "Rebuild TOC" })
   end
 
   -- Highlight keymaps (content buffer only)
   local highlight_keymaps = context.config.highlight_keymaps or {}
   for color_name, keymap in pairs(highlight_keymaps) do
     if color_name == "remove" then
-      vim.api.nvim_buf_set_keymap(content_buf, "n", keymap, ":lua require('ink.ui').remove_highlight()<CR>", keymap_opts)
+      vim.keymap.set("n", keymap, function() require("ink.ui").remove_highlight() end,
+        { buffer = content_buf, noremap = true, silent = true, desc = "Remove highlight" })
     else
-      vim.api.nvim_buf_set_keymap(content_buf, "v", keymap, string.format(":lua require('ink.ui').add_highlight('%s')<CR>", color_name), keymap_opts)
+      vim.keymap.set("v", keymap, function() require("ink.ui").add_highlight(color_name) end,
+        { buffer = content_buf, noremap = true, silent = true, desc = "Highlight " .. color_name })
     end
   end
 
   -- Change highlight color keymaps (content buffer only)
   local highlight_change_color_keymaps = context.config.highlight_change_color_keymaps or {}
   for color_name, keymap in pairs(highlight_change_color_keymaps) do
-    vim.api.nvim_buf_set_keymap(content_buf, "n", keymap,
-      string.format(":lua require('ink.ui').change_highlight_color('%s')<CR>", color_name),
-      keymap_opts)
+    vim.keymap.set("n", keymap, function() require("ink.ui").change_highlight_color(color_name) end,
+      { buffer = content_buf, noremap = true, silent = true, desc = "Change highlight to " .. color_name })
   end
 
   -- Note keymaps (content buffer only)
   local note_keymaps = context.config.note_keymaps or {}
   if note_keymaps.add then
-    -- Normal mode: add/edit note on existing highlight
-    vim.api.nvim_buf_set_keymap(content_buf, "n", note_keymaps.add, ":lua require('ink.ui').add_note()<CR>", keymap_opts)
-    -- Visual mode: create note directly on selection
-    vim.api.nvim_buf_set_keymap(content_buf, "v", note_keymaps.add, ":lua require('ink.ui').add_note_on_selection()<CR>", keymap_opts)
+    vim.keymap.set("n", note_keymaps.add, function() require("ink.ui").add_note() end,
+      { buffer = content_buf, noremap = true, silent = true, desc = "Add/edit note" })
+    vim.keymap.set("v", note_keymaps.add, function() require("ink.ui").add_note_on_selection() end,
+      { buffer = content_buf, noremap = true, silent = true, desc = "Add note on selection" })
   end
   if note_keymaps.edit then
-    vim.api.nvim_buf_set_keymap(content_buf, "n", note_keymaps.edit, ":lua require('ink.ui').edit_note()<CR>", keymap_opts)
+    vim.keymap.set("n", note_keymaps.edit, function() require("ink.ui").edit_note() end,
+      { buffer = content_buf, noremap = true, silent = true, desc = "Edit note" })
   end
   if note_keymaps.remove then
-    vim.api.nvim_buf_set_keymap(content_buf, "n", note_keymaps.remove, ":lua require('ink.ui').remove_note()<CR>", keymap_opts)
+    vim.keymap.set("n", note_keymaps.remove, function() require("ink.ui").remove_note() end,
+      { buffer = content_buf, noremap = true, silent = true, desc = "Remove note" })
   end
   if note_keymaps.toggle_display then
-    vim.api.nvim_buf_set_keymap(content_buf, "n", note_keymaps.toggle_display, ":lua require('ink.ui').toggle_note_display()<CR>", keymap_opts)
+    vim.keymap.set("n", note_keymaps.toggle_display, function() require("ink.ui").toggle_note_display() end,
+      { buffer = content_buf, noremap = true, silent = true, desc = "Toggle note display" })
   end
 
   -- Bookmark keymaps (content buffer only)
   local bookmark_keymaps = context.config.bookmark_keymaps or {}
   if bookmark_keymaps.add then
-    vim.api.nvim_buf_set_keymap(content_buf, "n", bookmark_keymaps.add, ":lua require('ink.ui').add_bookmark()<CR>", keymap_opts)
+    vim.keymap.set("n", bookmark_keymaps.add, function() require("ink.ui").add_bookmark() end,
+      { buffer = content_buf, noremap = true, silent = true, desc = "Add bookmark" })
   end
   if bookmark_keymaps.edit then
-    vim.api.nvim_buf_set_keymap(content_buf, "n", bookmark_keymaps.edit, ":lua require('ink.ui').edit_bookmark()<CR>", keymap_opts)
+    vim.keymap.set("n", bookmark_keymaps.edit, function() require("ink.ui").edit_bookmark() end,
+      { buffer = content_buf, noremap = true, silent = true, desc = "Edit bookmark" })
   end
   if bookmark_keymaps.remove then
-    vim.api.nvim_buf_set_keymap(content_buf, "n", bookmark_keymaps.remove, ":lua require('ink.ui').remove_bookmark()<CR>", keymap_opts)
+    vim.keymap.set("n", bookmark_keymaps.remove, function() require("ink.ui").remove_bookmark() end,
+      { buffer = content_buf, noremap = true, silent = true, desc = "Remove bookmark" })
   end
   if bookmark_keymaps.next then
-    vim.api.nvim_buf_set_keymap(content_buf, "n", bookmark_keymaps.next, ":lua require('ink.ui').goto_next_bookmark()<CR>", keymap_opts)
+    vim.keymap.set("n", bookmark_keymaps.next, function() require("ink.ui").goto_next_bookmark() end,
+      { buffer = content_buf, noremap = true, silent = true, desc = "Next bookmark" })
   end
   if bookmark_keymaps.prev then
-    vim.api.nvim_buf_set_keymap(content_buf, "n", bookmark_keymaps.prev, ":lua require('ink.ui').goto_prev_bookmark()<CR>", keymap_opts)
+    vim.keymap.set("n", bookmark_keymaps.prev, function() require("ink.ui").goto_prev_bookmark() end,
+      { buffer = content_buf, noremap = true, silent = true, desc = "Previous bookmark" })
   end
 
   -- Glossary keymaps (content buffer only)
   local glossary_keymaps = context.config.glossary_keymaps or {}
   if glossary_keymaps.add then
-    -- Visual mode: add from manual selection
-    vim.api.nvim_buf_set_keymap(content_buf, "v", glossary_keymaps.add, ":lua require('ink.ui').add_glossary_from_selection()<CR>", keymap_opts)
-    -- Normal mode: add from word under cursor
-    vim.api.nvim_buf_set_keymap(content_buf, "n", glossary_keymaps.add, ":lua require('ink.ui').add_glossary_under_cursor()<CR>", keymap_opts)
+    vim.keymap.set("v", glossary_keymaps.add, function() require("ink.ui").add_glossary_from_selection() end,
+      { buffer = content_buf, noremap = true, silent = true, desc = "Add glossary from selection" })
+    vim.keymap.set("n", glossary_keymaps.add, function() require("ink.ui").add_glossary_under_cursor() end,
+      { buffer = content_buf, noremap = true, silent = true, desc = "Add glossary entry" })
   end
   if glossary_keymaps.edit then
-    vim.api.nvim_buf_set_keymap(content_buf, "n", glossary_keymaps.edit, ":lua require('ink.ui').edit_glossary_under_cursor()<CR>", keymap_opts)
+    vim.keymap.set("n", glossary_keymaps.edit, function() require("ink.ui").edit_glossary_under_cursor() end,
+      { buffer = content_buf, noremap = true, silent = true, desc = "Edit glossary entry" })
   end
   if glossary_keymaps.remove then
-    vim.api.nvim_buf_set_keymap(content_buf, "n", glossary_keymaps.remove, ":lua require('ink.ui').remove_glossary_under_cursor()<CR>", keymap_opts)
+    vim.keymap.set("n", glossary_keymaps.remove, function() require("ink.ui").remove_glossary_under_cursor() end,
+      { buffer = content_buf, noremap = true, silent = true, desc = "Remove glossary entry" })
   end
   if glossary_keymaps.preview then
-    vim.api.nvim_buf_set_keymap(content_buf, "n", glossary_keymaps.preview, ":lua require('ink.ui').preview_glossary()<CR>", keymap_opts)
+    vim.keymap.set("n", glossary_keymaps.preview, function() require("ink.ui").preview_glossary() end,
+      { buffer = content_buf, noremap = true, silent = true, desc = "Preview glossary entry" })
   end
   if glossary_keymaps.browser then
-    vim.api.nvim_buf_set_keymap(content_buf, "n", glossary_keymaps.browser, ":lua require('ink.ui').show_glossary_browser()<CR>", keymap_opts)
+    vim.keymap.set("n", glossary_keymaps.browser, function() require("ink.ui").show_glossary_browser() end,
+      { buffer = content_buf, noremap = true, silent = true, desc = "Browse glossary" })
   end
   if glossary_keymaps.show_related then
-    vim.api.nvim_buf_set_keymap(content_buf, "n", glossary_keymaps.show_related, ":lua require('ink.ui').show_term_graph_under_cursor()<CR>", keymap_opts)
+    vim.keymap.set("n", glossary_keymaps.show_related, function() require("ink.ui").show_term_graph_under_cursor() end,
+      { buffer = content_buf, noremap = true, silent = true, desc = "Show related terms" })
   end
   if glossary_keymaps.show_graph then
-    vim.api.nvim_buf_set_keymap(content_buf, "n", glossary_keymaps.show_graph, ":lua require('ink.ui').show_glossary_graph()<CR>", keymap_opts)
+    vim.keymap.set("n", glossary_keymaps.show_graph, function() require("ink.ui").show_glossary_graph() end,
+      { buffer = content_buf, noremap = true, silent = true, desc = "Show glossary graph" })
   end
   if glossary_keymaps.toggle_display then
-    vim.api.nvim_buf_set_keymap(content_buf, "n", glossary_keymaps.toggle_display, ":lua require('ink.ui').toggle_glossary_display()<CR>", keymap_opts)
+    vim.keymap.set("n", glossary_keymaps.toggle_display, function() require("ink.ui").toggle_glossary_display() end,
+      { buffer = content_buf, noremap = true, silent = true, desc = "Toggle glossary display" })
   end
 end
 
