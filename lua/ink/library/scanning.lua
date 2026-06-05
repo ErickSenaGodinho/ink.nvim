@@ -18,84 +18,40 @@ end
 
 -- Scan directory for EPUB and Markdown files (async)
 function M.scan_directory(directory, callback)
-	-- Expand and normalize directory path
-	directory = vim.fn.fnamemodify(vim.fn.expand(directory), ":p")
+    directory = vim.fn.fnamemodify(vim.fn.expand(directory), ":p")
+    directory = directory:gsub("\\", "/")
 
-	-- Validate path for security
-	if not is_safe_path(directory) then
-		if callback then
-			callback(nil, "Invalid directory path: contains unsafe characters")
-		end
-		return
-	end
+    local stat = vim.loop.fs_stat(directory)
+    if not stat or stat.type ~= "directory" then
+        if callback then
+            callback(nil, "Directory not found: " .. directory)
+        end
+        return
+    end
 
-	if not fs.exists(directory) then
-		if callback then
-			callback(nil, "Directory not found: " .. directory)
-		end
-		return
-	end
+    local files = {}
 
-	-- Find all files recursively using vim.loop (async)
-	local stdout = vim.loop.new_pipe(false)
-	local stderr = vim.loop.new_pipe(false)
-	local files = {}
-	local buffer = ""
+    local function scan_recursive(dir)
+        local handle = vim.loop.fs_scandir(dir)
+        if not handle  then return end
 
-	local handle = vim.loop.spawn("find", {
-		args = { directory, "-type", "f", "(", "-name", "*.epub", "-o", "-name", "*.md", "-o", "-name", "*.markdown", ")" },
-		stdio = { nil, stdout, stderr },
-	}, function(code, signal)
-		-- Process completed
-		stdout:close()
-		stderr:close()
-	end)
+        while true do
+            local name, type = vim.loop.fs_scandir_next(handle)
+            if not name then break end
 
-	if not handle then
-		if callback then
-			callback(nil, "Failed to scan directory")
-		end
-		return
-	end
+            local full_path = dir .. "/" .. name
+            if type == "directory" then
+                scan_recursive(full_path)
+            elseif type == "file" then
+                if name:match("%.epub$") or name:match("%.md$") or name:match("%.markdown$") then
+                    table.insert(files, full_path)
+                end
+            end
+        end
+    end
 
-	-- Read stdout (file paths)
-	stdout:read_start(function(err, file_data)
-		if err then
-			if callback then
-				vim.schedule(function()
-					callback(nil, "Error reading find output: " .. err)
-				end)
-			end
-			return
-		end
-
-		if file_data then
-			buffer = buffer .. file_data
-			-- Process complete lines
-			for line in buffer:gmatch("([^\n]*)\n") do
-				if line ~= "" then
-					table.insert(files, line)
-				end
-			end
-			-- Keep incomplete line in buffer
-			buffer = buffer:match("[^\n]*$") or ""
-		else
-			-- EOF - process remaining buffer
-			if buffer ~= "" then
-				table.insert(files, buffer)
-			end
-
-			-- Now process all found files
-			vim.schedule(function()
-				M.process_files(files, callback)
-			end)
-		end
-	end)
-
-	-- Read stderr (ignore)
-	stderr:read_start(function(err, stderr_data)
-		-- Ignore stderr
-	end)
+    scan_recursive(directory)
+    M.process_files(files, callback)
 end
 
 -- Process files one by one with progress updates

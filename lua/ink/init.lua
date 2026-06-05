@@ -322,10 +322,7 @@ function M.setup(opts)
     -- Create Add Library command (scans directory for EPUBs and adds them to library)
     vim.api.nvim_create_user_command("InkAddLibrary", function(args)
         local library = require("ink.library")
-        local directory = args.args
-        if directory == "" then
-            directory = vim.fn.getcwd()
-        end
+        local directory = args.args ~= "" and vim.fn.fnamemodify(vim.fn.expand(args.args), ":p") or vim.fn.getcwd()
 
         vim.notify("Scanning for EPUB files in " .. directory .. "...", vim.log.levels.INFO)
 
