@@ -40,15 +40,6 @@ local function get_extmarks()
   return _extmarks
 end
 
--- Re-export TOC functions for backwards compatibility (lazy loaded)
-function M.render_toc(...)
-  return require("ink.ui.toc").render_toc(...)
-end
-
-function M.toggle_toc(...)
-  return require("ink.ui.toc").toggle_toc(...)
-end
-
 -- Re-export footnote function (lazy loaded)
 function M.show_footnote_preview(...)
   return require("ink.ui.footnotes").show_footnote_preview(...)
