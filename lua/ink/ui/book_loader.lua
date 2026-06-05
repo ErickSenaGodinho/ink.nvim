@@ -6,6 +6,7 @@ local state = require("ink.state")
 local context = require("ink.ui.context")
 local render = require("ink.ui.render")
 local utils = require("ink.utils")
+local floating_toc = require("ink.ui.floating_toc")
 
 local M = {}
 
@@ -188,14 +189,8 @@ function M.setup_book_keymaps(content_buf, toc_buf)
 
   -- TOC toggle keymap
   if keymaps.toggle_toc then
-    vim.api.nvim_buf_set_keymap(content_buf, "n", keymaps.toggle_toc, ":lua require('ink.ui').toggle_toc()<CR>", keymap_opts)
-    vim.api.nvim_buf_set_keymap(toc_buf, "n", keymaps.toggle_toc, ":lua require('ink.ui').toggle_toc()<CR>", keymap_opts)
-  end
-
-  -- Floating TOC keymap (experimental)
-  if keymaps.toggle_floating_toc then
-    vim.api.nvim_buf_set_keymap(content_buf, "n", keymaps.toggle_floating_toc, ":lua require('ink.ui.floating_toc').toggle_floating_toc()<CR>", keymap_opts)
-    vim.api.nvim_buf_set_keymap(toc_buf, "n", keymaps.toggle_floating_toc, ":lua require('ink.ui.floating_toc').toggle_floating_toc()<CR>", keymap_opts)
+    vim.api.nvim_buf_set_keymap(content_buf, "n", keymaps.toggle_toc, ":lua require('ink.ui.floating_toc').toggle_floating_toc()<CR>", keymap_opts)
+    vim.api.nvim_buf_set_keymap(toc_buf, "n", keymaps.toggle_toc, ":lua require('ink.ui.floating_toc').toggle_floating_toc()<CR>", keymap_opts)
   end
 
   -- TOC rebuild keymap
@@ -570,8 +565,7 @@ function M.open_book(book_data, opts)
 
   -- Render TOC and toggle it open only if show_toc is true
   if show_toc then
-    render.render_toc(ctx)
-    render.toggle_toc(ctx)
+    floating_toc.toggle_floating_toc(ctx)
   end
 
   -- Schedule chapter rendering to ensure window has been resized after TOC toggle
@@ -605,9 +599,6 @@ function M.open_book(book_data, opts)
         end
       end
 
-      if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
-        vim.api.nvim_set_current_win(ctx.content_win)
-      end
     else
       render.render_chapter(1, nil, ctx)
     end

@@ -105,7 +105,6 @@ require("ink").setup({
         next_chapter = "]c",
         prev_chapter = "[c",
         toggle_toc = "<leader>t",
-        toggle_floating_toc = "<leader>T", -- Experimental floating TOC
         activate = "<CR>",                  -- Preview/open footnote, link, image, or TOC item
         jump_to_link = "g<CR>",             -- Jump directly to link target
         search_toc = "<leader>pit",

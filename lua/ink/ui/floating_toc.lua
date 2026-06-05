@@ -299,12 +299,6 @@ local function setup_keymaps(toc_buf, ctx)
     end,
   })
 
-  -- Auto-close when leaving buffer
-  vim.api.nvim_create_autocmd({"BufLeave", "WinLeave"}, {
-    buffer = toc_buf,
-    callback = close_floating_toc,
-    once = true,
-  })
 end
 
 -- Show floating TOC with preview

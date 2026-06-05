@@ -34,8 +34,6 @@ M.reset_paragraph_spacing = navigation.reset_paragraph_spacing
 
 -- Re-export Render/TOC
 M.render_chapter = render.render_chapter
-M.render_toc = render.render_toc
-M.toggle_toc = render.toggle_toc
 M.toggle_note_display = render.toggle_note_display
 M.toggle_glossary_display = render.toggle_glossary_display
 M.invalidate_glossary_cache = render.invalidate_glossary_cache
