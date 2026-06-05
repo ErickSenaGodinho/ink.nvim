@@ -288,6 +288,20 @@ local function setup_keymaps(toc_buf, ctx)
     close_floating_toc()
   end, opts)
 
+  -- TOC close
+  local keymaps = context.config.keymaps or {}
+  if keymaps.toggle_toc then
+    vim.keymap.set("n", keymaps.toggle_toc, close_floating_toc,
+      { buffer = toc_buf, noremap = true, silent = true, desc = "Close TOC" })
+  end
+
+  -- TOC rebuild
+  local toc_keymaps = context.config.toc_keymaps or {}
+  if toc_keymaps.rebuild then
+    vim.keymap.set("n", toc_keymaps.rebuild, ":InkRebuildTOC<CR>",
+      { buffer = toc_buf, noremap = true, silent = true, desc = "Rebuild TOC" })
+  end
+
   -- Update preview on cursor move
   vim.api.nvim_create_autocmd("CursorMoved", {
     buffer = toc_buf,
@@ -298,7 +312,6 @@ local function setup_keymaps(toc_buf, ctx)
       end
     end,
   })
-
 end
 
 -- Show floating TOC with preview
