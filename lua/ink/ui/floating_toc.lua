@@ -255,44 +255,28 @@ local function navigate_to_item(line_num, ctx)
   end
 end
 
--- Close floating TOC and preview
-local function close_floating_toc()
-  if floating_state.toc_win and vim.api.nvim_win_is_valid(floating_state.toc_win) then
-    vim.api.nvim_win_close(floating_state.toc_win, true)
-  end
-
-  if floating_state.preview_win and vim.api.nvim_win_is_valid(floating_state.preview_win) then
-    vim.api.nvim_win_close(floating_state.preview_win, true)
-  end
-
-  floating_state.toc_win = nil
-  floating_state.toc_buf = nil
-  floating_state.preview_win = nil
-  floating_state.preview_buf = nil
-  floating_state.ctx = nil
-  floating_state.preview_cache = {} -- Clear preview cache
-end
-
 -- Setup buffer keymaps
-local function setup_keymaps(toc_buf, ctx)
+function setup_keymaps(toc_buf, preview_buf, ctx)
   local opts = { buffer = toc_buf, noremap = true, silent = true }
 
   -- Close with q or Esc
-  vim.keymap.set("n", "q", close_floating_toc, opts)
-  vim.keymap.set("n", "<Esc>", close_floating_toc, opts)
+  vim.keymap.set("n", "q", function() M.close_floating_toc(ctx) end, opts)
+  vim.keymap.set("n", "<Esc>", function() M.close_floating_toc(ctx) end, opts)
 
   -- Navigate and jump
   vim.keymap.set("n", "<CR>", function()
     local cursor = vim.api.nvim_win_get_cursor(floating_state.toc_win)
     navigate_to_item(cursor[1], ctx)
-    close_floating_toc()
+    M.close_floating_toc(ctx)
   end, opts)
 
   -- TOC close
   local keymaps = context.config.keymaps or {}
   if keymaps.toggle_toc then
-    vim.keymap.set("n", keymaps.toggle_toc, close_floating_toc,
+    vim.keymap.set("n", keymaps.toggle_toc, function() M.close_floating_toc(ctx) end,
       { buffer = toc_buf, noremap = true, silent = true, desc = "Close TOC" })
+    vim.keymap.set("n", keymaps.toggle_toc, function() M.close_floating_toc(ctx) end,
+      { buffer = preview_buf, noremap = true, silent = true, desc = "Close TOC" })
   end
 
   -- TOC rebuild
@@ -300,6 +284,8 @@ local function setup_keymaps(toc_buf, ctx)
   if toc_keymaps.rebuild then
     vim.keymap.set("n", toc_keymaps.rebuild, ":InkRebuildTOC<CR>",
       { buffer = toc_buf, noremap = true, silent = true, desc = "Rebuild TOC" })
+    vim.keymap.set("n", toc_keymaps.rebuild, ":InkRebuildTOC<CR>",
+      { buffer = preview_buf, noremap = true, silent = true, desc = "Rebuild TOC" })
   end
 
   -- Update preview on cursor move
@@ -314,6 +300,18 @@ local function setup_keymaps(toc_buf, ctx)
   })
 end
 
+-- Get current chapter name
+function M.get_current_chapter_name(ctx)
+  local default_label = "Chapter " .. (ctx.current_chapter_idx or "?")
+  local ctx = ctx or context.current()
+  if not ctx then return default_label end
+
+  local current_idx = find_current_toc_index(ctx)
+  local toc_item = ctx.data.toc[current_idx]
+
+  return toc_item and toc_item.label or default_label
+end
+
 -- Show floating TOC with preview
 function M.show_floating_toc(ctx)
   ctx = ctx or context.current()
@@ -321,7 +319,7 @@ function M.show_floating_toc(ctx)
 
   -- Close if already open
   if floating_state.toc_win and vim.api.nvim_win_is_valid(floating_state.toc_win) then
-    close_floating_toc()
+    M.close_floating_toc(ctx)
     return
   end
 
@@ -330,15 +328,19 @@ function M.show_floating_toc(ctx)
     vim.notify("Table of contents is empty", vim.log.levels.WARN)
     return
   end
+  
+  local current_label = M.get_current_chapter_name(ctx)
 
   -- Create buffers
   local toc_buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_name(toc_buf, "ink://TOC - " .. (ctx.data.title)  .. " | " .. current_label)
   vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = toc_buf })
   vim.api.nvim_set_option_value("buftype", "nofile", { buf = toc_buf })
   vim.api.nvim_set_option_value("swapfile", false, { buf = toc_buf })
   vim.api.nvim_set_option_value("filetype", "ink-toc", { buf = toc_buf })
 
   local preview_buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_name(preview_buf, "ink://Preview - " .. (ctx.data.title) .. " | " .. current_label)
   vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = preview_buf })
   vim.api.nvim_set_option_value("buftype", "nofile", { buf = preview_buf })
   vim.api.nvim_set_option_value("swapfile", false, { buf = preview_buf })
@@ -367,6 +369,7 @@ function M.show_floating_toc(ctx)
   vim.api.nvim_set_option_value("wrap", true, { win = preview_win })
 
   -- Save state
+  ctx.toc_win = toc_win
   floating_state.toc_buf = toc_buf
   floating_state.toc_win = toc_win
   floating_state.preview_buf = preview_buf
@@ -380,7 +383,26 @@ function M.show_floating_toc(ctx)
   update_preview(current_idx + 1, ctx)
 
   -- Setup keymaps (must be after saving state)
-  setup_keymaps(toc_buf, ctx)
+  setup_keymaps(toc_buf, preview_buf, ctx)
+end
+
+-- Close floating TOC and preview
+function M.close_floating_toc(ctx)
+  if floating_state.toc_win and vim.api.nvim_win_is_valid(floating_state.toc_win) then
+    vim.api.nvim_win_close(floating_state.toc_win, true)
+  end
+
+  if floating_state.preview_win and vim.api.nvim_win_is_valid(floating_state.preview_win) then
+    vim.api.nvim_win_close(floating_state.preview_win, true)
+  end
+
+  ctx.toc_win = nil
+  floating_state.toc_win = nil
+  floating_state.toc_buf = nil
+  floating_state.preview_win = nil
+  floating_state.preview_buf = nil
+  floating_state.ctx = nil
+  floating_state.preview_cache = {} -- Clear preview cache
 end
 
 -- Toggle floating TOC
@@ -389,7 +411,7 @@ function M.toggle_floating_toc(ctx)
   if not ctx then return end
 
   if floating_state.toc_win and vim.api.nvim_win_is_valid(floating_state.toc_win) then
-    close_floating_toc()
+    M.close_floating_toc(ctx)
   else
     M.show_floating_toc(ctx)
   end

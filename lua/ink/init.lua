@@ -421,7 +421,8 @@ function M.setup(opts)
             -- Re-render TOC if it's open
             if ctx.toc_win and vim.api.nvim_win_is_valid(ctx.toc_win) then
                 local toc = require("ink.ui.floating_toc")
-                toc.toggle_floating_toc(ctx)
+                toc.close_floating_toc(ctx)
+                toc.show_floating_toc(ctx)
             end
 
             vim.notify(string.format("TOC rebuilt with %d entries from content headings", #content_toc),

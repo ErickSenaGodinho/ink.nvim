@@ -64,35 +64,17 @@ local function find_buf_by_name(name)
 end
 
 -- Create content buffer
-function M.create_book_buffer(slug, book_data)
-  -- Use book title for buffer name (more user-friendly than slug)
-  local title = book_data and book_data.title or slug
-  local author = book_data and book_data.author
-
-  -- Create descriptive buffer names
-  local content_name
-  if author and author ~= "" then
-    content_name = "ink://" .. title .. " - " .. author
-  else
-    content_name = "ink://" .. title
-  end
-  local toc_name = content_name .. " [TOC]"
-
+function M.create_book_buffer()
   -- Delete existing buffers if they exist
-  local existing_toc = find_buf_by_name(toc_name)
-  if existing_toc then
-    context.remove(existing_toc)
-    vim.api.nvim_buf_delete(existing_toc, { force = true })
-  end
-  local existing_content = find_buf_by_name(content_name)
-  if existing_content then
+  if context.content_buf then
     context.remove(existing_content)
-    vim.api.nvim_buf_delete(existing_content, { force = true })
+    if vim.api.nvim_buf_is_valid(existing_content) then
+      vim.api.nvim_buf_delete(existing_content, { force = true })
+    end
   end
 
   -- Create content buffer
   local content_buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_name(content_buf, content_name)
   vim.api.nvim_set_option_value("filetype", "ink_content", { buf = content_buf })
   vim.api.nvim_set_option_value("syntax", "off", { buf = content_buf })
 
@@ -548,7 +530,7 @@ function M.open_book(book_data, opts)
   reading_sessions.start_session(book_data.slug, 1)
 
   -- Create buffer
-  local content_buf = M.create_book_buffer(book_data.slug, book_data)
+  local content_buf = M.create_book_buffer()
 
   -- Setup context
   local ctx = M.setup_book_context(content_buf, book_data)

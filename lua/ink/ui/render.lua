@@ -223,19 +223,7 @@ function M.update_statusline(ctx)
 
   local total = #ctx.data.spine
   local current = ctx.current_chapter_idx or 1
-  local chapter_name = nil
-
-  if ctx.data.spine[current] and ctx.data.spine[current].href then
-    local current_href = ctx.data.spine[current].href
-    for _, toc_item in ipairs(ctx.data.toc) do
-      local toc_href = toc_item.href:match("^([^#]+)") or toc_item.href
-      if toc_href == current_href then
-        chapter_name = toc_item.label
-        break
-      end
-    end
-  end
-  if not chapter_name then chapter_name = "Chapter " .. current end
+  local chapter_name = require("ink.ui.floating_toc").get_current_chapter_name(ctx)
 
   local status = string.format(" %s %d%%%% | %s | %d/%d ", bar, percent, chapter_name, current, total)
   vim.api.nvim_set_option_value("statusline", status, { win = ctx.content_win })
@@ -373,6 +361,20 @@ function M.render_chapter(idx, restore_line, ctx)
     padding = math.floor((win_width - max_width) / 2)
   end
 
+  -- Use book title for buffer name (more user-friendly than slug)
+  local title = ctx.data and ctx.data.title or slug
+  local author = ctx.data and ctx.data.author
+  local chapter_name = require("ink.ui.floating_toc").get_current_chapter_name(ctx)
+
+  -- Create descriptive buffer names
+  local content_name
+  if author and author ~= "" then
+    content_name = "ink://" .. title .. " | " .. author .. " | " .. chapter_name
+  else
+    content_name = "ink://" .. title .. " | " .. chapter_name
+  end
+
+  vim.api.nvim_buf_set_name(ctx.content_buf, content_name)
   vim.api.nvim_set_option_value("modifiable", true, { buf = ctx.content_buf })
   vim.api.nvim_buf_set_lines(ctx.content_buf, 0, -1, false, final_lines)
   vim.api.nvim_set_option_value("modifiable", false, { buf = ctx.content_buf })
