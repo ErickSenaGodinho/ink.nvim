@@ -33,6 +33,7 @@ local default_config = {
         library = "<leader>eL",
         last_book = "<leader>el",
         dashboard = "<leader>ed",
+        toggle_focused_mode = "<leader>em",
         related_resources = "<leader>er",   -- List related books
     },
     -- Highlight colors (add custom colors: purple, orange, pink, etc.)
@@ -824,6 +825,11 @@ function M.setup(opts)
         desc = "Clean up orphan references in related.json (use ! to skip confirmation)"
     })
 
+    -- Create Toggle Focused Mode command
+    vim.api.nvim_create_user_command("InkToggleFocusedMode", function()
+        ui.toggle_focused_mode()
+    end, {})
+
     -- Global keymaps for library features
     local keymaps = M.config.keymaps
 
@@ -900,6 +906,12 @@ function M.setup(opts)
     if keymaps.related_resources then
         vim.keymap.set("n", keymaps.related_resources, ":InkListRelated<CR>",
             { noremap = true, silent = true, desc = "List related resources" })
+    end
+
+    -- Global keymap for focused mode
+    if keymaps.toggle_focused_mode then
+        vim.keymap.set("n", keymaps.toggle_focused_mode, ":InkToggleFocusedMode<CR>",
+            { noremap = true, silent = true, desc = "Toggle focused mode" })
     end
     
     -- Setup automatic tracking
