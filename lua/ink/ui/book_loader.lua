@@ -563,6 +563,10 @@ function M.open_book(book_data, opts)
     vim.api.nvim_buf_delete(empty_buffer, {force = true})
   end
 
+  if context.config.focused_mode then
+    require("ink.ui").enable_focused_mode()
+  end
+
   -- Render TOC and toggle it open only if show_toc is true
   if show_toc then
     floating_toc.toggle_floating_toc(ctx)

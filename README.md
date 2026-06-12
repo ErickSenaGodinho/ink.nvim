@@ -319,6 +319,7 @@ require("ink").setup({
 :InkRebuildTOC            " Rebuild TOC from content
 :InkHealth                " Run diagnostics
 :InkResetStats            " Reset reading statistics
+:InkToggleFocusedMode     " Switch between focused mode
 ```
 
 ### Key Features

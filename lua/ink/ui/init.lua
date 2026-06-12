@@ -290,4 +290,41 @@ function M.open_last_book()
   M.open_book(book_data)
 end
 
+function M.enable_focused_mode()
+  local ctx = context.current()
+  if not ctx then return end
+
+  -- Enable focused mode - hide distractions
+  vim.api.nvim_win_set_option(ctx.content_win, 'number', false)
+  vim.api.nvim_win_set_option(ctx.content_win, 'relativenumber', false)
+  vim.api.nvim_win_set_option(ctx.content_win, 'signcolumn', 'no')
+  vim.api.nvim_win_set_option(ctx.content_win, 'foldcolumn', '0')
+  vim.opt.laststatus = 0
+  vim.api.nvim_set_hl(0, 'StatusLine', { link = 'Normal' })
+  vim.api.nvim_set_hl(0, 'StatusLineNC', { link = 'Normal' })
+end
+
+function M.toggle_focused_mode()
+  local ctx = context.current()
+  if not ctx then
+    vim.notify("No book is currently open", vim.log.levels.WARN)
+    return
+  end
+
+  ctx.focused_mode = not ctx.focused_mode
+  if ctx.focused_mode then
+    -- Disable focused mode - restore defaults
+    vim.api.nvim_win_set_option(ctx.content_win, 'number', true)
+    vim.api.nvim_win_set_option(ctx.content_win, 'relativenumber', true)
+    vim.api.nvim_win_set_option(ctx.content_win, 'signcolumn', 'yes')
+    vim.api.nvim_win_set_option(ctx.content_win, 'foldcolumn', '1')
+    vim.opt.laststatus = 2
+    vim.api.nvim_set_hl(0, 'StatusLine', { link = 'StatusLine' })
+    vim.api.nvim_set_hl(0, 'StatusLineNC', { link = 'StatusLineNC' })
+  else
+    M.enable_focused_mode()
+  end
+end
+
+
 return M
