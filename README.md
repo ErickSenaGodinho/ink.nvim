@@ -339,14 +339,14 @@ require("ink").setup({
 - Reset: `<leader>=` (re-enables adaptive)
 
 **Bookmarks**
-- Add: `<leader>ba`, navigate: `<leader>bn` / `<leader>bp`
+- Add: `<leader>ma`, navigate: `<leader>mn` / `<leader>mp`
 - Multiple bookmarks per paragraph supported
 
 **Glossary**
-- Add terms: `<leader>ga`, preview: `<leader>gp`
+- Add terms: `<leader>iga`, preview: `<leader>igp`
 - Auto-detection underlines terms in text
 - Define relationships: see_also, contrast, broader, narrower
-- Visualize: `<leader>gG` (ASCII/HTML graph)
+- Visualize: `<leader>igg` (ASCII/HTML graph)
 
 **Padnotes**
 - Smart toggle: `<leader>pa` (create/open/close/switch)
@@ -407,6 +407,7 @@ Test files demonstrate all features:
 ## Author
 
 Created by [DanielPonte01](https://github.com/DanielPonte01)
+Maintained/extended by [ErickSenaGodinho](https://github.com/ErickSenaGodinho)
 
 ## License
 
