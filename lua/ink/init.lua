@@ -31,12 +31,12 @@ local default_config = {
         width_decrease = "<leader>-",
         width_reset = "<leader>=",          -- Reset to adaptive width
         toggle_justify = "<leader>jt",
-        library = "<leader>eL",
-        last_book = "<leader>el",
-        dashboard = "<leader>ed",
+        library = "<leader>iL",
+        last_book = "<leader>il",
+        dashboard = "<leader>id",
         toggle_focused_mode = "<leader>imf",
         toggle_reading_paragraph_mode = "<leader>imr",
-        related_resources = "<leader>er",   -- List related books
+        related_resources = "<leader>ir",   -- List related books
     },
     -- Highlight colors (add custom colors: purple, orange, pink, etc.)
     highlight_colors = {
@@ -80,19 +80,19 @@ local default_config = {
 
     -- Bookmarks keymaps
     bookmark_keymaps = {
-        add = "<leader>ba",
-        edit = "<leader>be",
-        remove = "<leader>bd",
-        next = "<leader>bn",           -- Navigate across chapters
-        prev = "<leader>bp",
-        list_all = "<leader>bl",       -- Global bookmarks list
-        list_book = "<leader>bb",      -- Current book bookmarks
+        add = "<leader>ma",
+        edit = "<leader>me",
+        remove = "<leader>md",
+        next = "<leader>mn",           -- Navigate across chapters
+        prev = "<leader>mp",
+        list_all = "<leader>ml",       -- Global bookmarks list
+        list_book = "<leader>mb",      -- Current book bookmarks
     },
     bookmark_icon = "📑",
 
     -- Export keymaps
     export_keymaps = {
-        current_book = "<leader>ex",
+        current_book = "<leader>ix",
     },
     export_defaults = {
         format = "markdown",       -- "markdown" | "json"
@@ -139,14 +139,14 @@ local default_config = {
     },
     glossary_visible = true, -- Show glossary terms underlined in text
     glossary_keymaps = {
-        add = "<leader>ga",
-        edit = "<leader>ge",
-        remove = "<leader>gd",
-        preview = "<leader>gp",        -- Show definition in floating window
-        browser = "<leader>gl",        -- Browse all entries with Telescope
-        show_related = "<leader>gg",   -- Show related terms (relationships)
-        show_graph = "<leader>gG",     -- Visualize term relationships (ASCII/HTML)
-        toggle_display = "<leader>gt", -- Toggle term underlining on/off
+        add = "<leader>iga",
+        edit = "<leader>ige",
+        remove = "<leader>igd",
+        preview = "<leader>igp",        -- Show definition in floating window
+        browser = "<leader>igl",        -- Browse all entries with Telescope
+        show_related = "<leader>igr",   -- Show related terms (relationships)
+        show_graph = "<leader>igg",     -- Visualize term relationships (ASCII/HTML)
+        toggle_display = "<leader>igt", -- Toggle term underlining on/off
     },
 
     -- TOC configuration
@@ -942,6 +942,8 @@ function M.setup(opts)
     if M.config.tracking and M.config.tracking.enabled then
         require("ink.tracking").setup(M.config)
     end
+
+    require("ink.which_key_groups").register(M.config)
 end
 
 return M
