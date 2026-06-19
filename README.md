@@ -13,12 +13,13 @@ A minimalist EPUB, Markdown, and web reader for Neovim with powerful annotation 
 ## Features
 
 **Reading**
-- Multiple formats: EPUB, Markdown, web pages
-- Smart caching with automatic invalidation
-- Adaptive text width based on window size
-- Continuous scrolling with TOC navigation
-- Customizable typography (line/paragraph spacing, justification)
-- Syntax highlighting for code blocks
+- Format support: EPUB, Markdown and web pages
+- Smart caching: automatic invalidation for always up-to-date content
+- Adaptive layout: text width adjusts to window size
+- Navigation: continuous scrolling with table of contents (TOC) support
+- Typography controls: adjust line height, paragraph spacing and text justification
+- Code readability: syntax highlighting for code blocks
+- Reading modes: focused reading and paragraph-by-paragraph mode
 
 **Annotations**
 - Highlights with customizable colors
@@ -117,6 +118,8 @@ require("ink").setup({
         library = "<leader>eL",
         last_book = "<leader>el",
         dashboard = "<leader>ed",
+        toggle_focused = "<leader>imf"
+        toggle_reading_paragraph_mode = "<leader>imr",
         related_resources = "<leader>er",   -- List related books
     }
     -- Highlight colors (add custom colors: purple, orange, pink, etc.)

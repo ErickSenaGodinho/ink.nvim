@@ -567,6 +567,10 @@ function M.open_book(book_data, opts)
     require("ink.ui").enable_focused_mode()
   end
 
+  if context.config.reading_paragraph_mode then
+    require("ink.ui.extmarks").enable_reading_paragraph_mode(ctx)
+  end
+
   -- Render TOC and toggle it open only if show_toc is true
   if show_toc then
     floating_toc.toggle_floating_toc(ctx)

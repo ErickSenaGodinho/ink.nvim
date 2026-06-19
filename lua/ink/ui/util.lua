@@ -421,4 +421,71 @@ function M.wrap_note_text(note, max_width)
   return formatted_lines
 end
 
+function M.get_paragraph(buf, line)
+  local line_count = vim.api.nvim_buf_line_count(buf)
+
+  local start = line
+  while start > 0 do
+    local l = vim.api.nvim_buf_get_lines(buf, start - 1, start, false)[1] or ""
+    if l == "" then break end
+    start = start - 1
+  end
+
+  local finish = line
+  while finish < line_count - 1 do
+    local l = vim.api.nvim_buf_get_lines(buf, finish, finish + 1, false)[1] or ""
+    if l == "" then break end
+    finish = finish + 1
+  end
+
+  return start, finish
+end
+
+function M.get_highlights_in_range(ctx, start_line, end_line)
+  ctx = ctx or context.current()
+  if not ctx then return {} end
+
+  local result = {}
+  local chapter_highlights =
+    user_highlights.get_chapter_highlights(ctx.data.slug, ctx.current_chapter_idx)
+
+  for _, hl in ipairs(chapter_highlights) do
+    local start_line_hl, start_col, end_line_hl, end_col
+
+    -- usa cache se possível
+    local cached = user_highlights.get_cached_position(
+      ctx.data.slug,
+      ctx.current_chapter_idx,
+      hl
+    )
+
+    if cached and cached.start_line and cached.start_line >= 1 then
+      start_line_hl = cached.start_line
+      start_col = cached.start_col
+      end_line_hl = cached.end_line
+      end_col = cached.end_col
+    else
+      start_line_hl, start_col, end_line_hl, end_col =
+        M.find_text_position(
+          ctx.rendered_lines,
+          hl.text,
+          hl.context_before,
+          hl.context_after,
+          false
+        )
+    end
+
+    if start_line_hl then
+      local overlaps =
+        not (end_line_hl < start_line or start_line_hl > end_line)
+
+      if overlaps then
+        table.insert(result, hl)
+      end
+    end
+  end
+
+  return result
+end
+
 return M

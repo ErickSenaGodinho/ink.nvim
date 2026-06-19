@@ -8,6 +8,27 @@ local M = {}
 -- Track which chapters have already shown orphan warnings (per session)
 local orphan_warnings_shown = {}
 
+-- Helper: extract the buffer text covered by a [start_line, start_col, end_line, end_col)
+-- range (1-indexed lines, 0-indexed cols) from an in-memory lines table.
+-- Used to validate cached highlight positions before trusting them.
+local function get_text_for_range(lines, start_line, start_col, end_line, end_col)
+    if not lines[start_line] then return nil end
+
+    if start_line == end_line then
+        return lines[start_line]:sub(start_col + 1, end_col)
+    end
+
+    local parts = { lines[start_line]:sub(start_col + 1) }
+    for l = start_line + 1, end_line - 1 do
+        if not lines[l] then return nil end
+        table.insert(parts, lines[l])
+    end
+    if not lines[end_line] then return nil end
+    table.insert(parts, lines[end_line]:sub(1, end_col))
+
+    return table.concat(parts, "\n")
+end
+
 function M.apply_syntax_highlights(buf, highlights, ns_id, padding)
     padding = padding or 0
     if not highlights or #highlights == 0 then return end
@@ -56,7 +77,6 @@ function M.apply_syntax_highlights(buf, highlights, ns_id, padding)
 end
 
 function M.apply_user_highlights(buf, chapter_highlights, ns_id, lines, slug, chapter_idx)
-    local user_highlights = require("ink.user_highlights")
     local orphaned_count = 0
     local rendered_count = 0
 
@@ -69,10 +89,18 @@ function M.apply_user_highlights(buf, chapter_highlights, ns_id, lines, slug, ch
         -- Try to get cached position first (avoids expensive text search on refresh)
         local cached = user_highlights.get_cached_position(slug, chapter_idx, hl)
         if cached and cached.start_line and cached.end_line then
-            start_line = cached.start_line
-            start_col = cached.start_col
-            end_line = cached.end_line
-            end_col = cached.end_col
+            -- Validate the cache against current buffer contents before trusting it.
+            -- If the underlying text changed (re-fetch, edit, translation swap, etc.)
+            -- the cached coordinates may now point at unrelated text.
+            local cached_text = get_text_for_range(
+                lines, cached.start_line, cached.start_col, cached.end_line, cached.end_col
+            )
+            if cached_text == hl.text then
+                start_line = cached.start_line
+                start_col = cached.start_col
+                end_line = cached.end_line
+                end_col = cached.end_col
+            end
         end
 
         -- If no valid cached position, calculate via text matching
@@ -94,7 +122,7 @@ function M.apply_user_highlights(buf, chapter_highlights, ns_id, lines, slug, ch
                 hl._start_col = start_col
                 hl._end_line = end_line
                 hl._end_col = end_col
-                
+
                 local hl_group = "InkUserHighlight_" .. hl.color
                 vim.api.nvim_buf_set_extmark(buf, ns_id, start_line - 1, start_col, {
                     end_line = end_line - 1, end_col = end_col, hl_group = hl_group, priority = 2000
@@ -109,22 +137,35 @@ function M.apply_user_highlights(buf, chapter_highlights, ns_id, lines, slug, ch
     end
 
     -- Notify user if some highlights could not be rendered (once per chapter per session)
-    if orphaned_count > 0 and slug and chapter_idx then
+    if slug and chapter_idx then
         local warning_key = slug .. ":" .. chapter_idx
-        if not orphan_warnings_shown[warning_key] then
-            orphan_warnings_shown[warning_key] = true
-            vim.notify(
-                string.format(
-                    "One or more highlights could not be rendered (%d/%d). Text may have been modified or removed.",
-                    orphaned_count,
-                    orphaned_count + rendered_count
-                ),
-                vim.log.levels.WARN
-            )
+        if orphaned_count > 0 then
+            if not orphan_warnings_shown[warning_key] then
+                orphan_warnings_shown[warning_key] = true
+                vim.notify(
+                    string.format(
+                        "One or more highlights could not be rendered (%d/%d). Text may have been modified or removed.",
+                        orphaned_count,
+                        orphaned_count + rendered_count
+                    ),
+                    vim.log.levels.WARN
+                )
+            end
+        else
+            -- All highlights rendered cleanly this pass: clear any stale warning flag
+            -- so a future regression for this chapter is surfaced again.
+            orphan_warnings_shown[warning_key] = nil
         end
     end
 
     return { rendered = rendered_count, orphaned = orphaned_count }
+end
+
+-- Helper: draw the inline "●" indicator for a note at a validated position.
+local function draw_note_dot(buf, ns_id, line_idx, end_col)
+    vim.api.nvim_buf_set_extmark(buf, ns_id, line_idx, end_col, {
+        virt_text = { { "●", "InkNoteIndicator" } }, virt_text_pos = "inline", priority = 3000
+    })
 end
 
 function M.apply_note_indicators(buf, chapter_highlights, note_display_mode, padding, max_width, ns_id)
@@ -154,23 +195,19 @@ function M.apply_note_indicators(buf, chapter_highlights, note_display_mode, pad
             -- Get actual line length for validation
             local buf_lines = vim.api.nvim_buf_get_lines(buf, line_idx, line_idx + 1, false)
             local line_len = buf_lines and #buf_lines[1] or 0
-            
+
             if note_display_mode == "indicator" then
                 for _, note_info in ipairs(notes) do
                     -- Validate column is within line bounds
                     if note_info.end_col >= 0 and note_info.end_col <= line_len then
-                        vim.api.nvim_buf_set_extmark(buf, ns_id, line_idx, note_info.end_col, {
-                            virt_text = { { "●", "InkNoteIndicator" } }, virt_text_pos = "inline", priority = 3000
-                        })
+                        draw_note_dot(buf, ns_id, line_idx, note_info.end_col)
                     end
                 end
             elseif note_display_mode == "expanded" then
                 for _, note_info in ipairs(notes) do
                     -- Validate column is within line bounds
                     if note_info.end_col >= 0 and note_info.end_col <= line_len then
-                        vim.api.nvim_buf_set_extmark(buf, ns_id, line_idx, note_info.end_col, {
-                            virt_text = { { "●", "InkNoteIndicator" } }, virt_text_pos = "inline", priority = 3000
-                        })
+                        draw_note_dot(buf, ns_id, line_idx, note_info.end_col)
                     end
                 end
                 local virt_lines = {}
@@ -571,6 +608,113 @@ function M.apply_glossary_marks(buf, matches, entries_map, custom_types, ns_id)
                 end
             end
         end
+    end
+end
+
+local function apply_dim_all(buf, ns, lines)
+    vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
+
+    vim.api.nvim_buf_set_extmark(buf, ns, 0, 0, {
+        end_line = vim.api.nvim_buf_line_count(buf),
+        end_col = 0,
+        hl_group = "InkDimmed",
+        priority = 50,
+    })
+
+    local ctx = context.current()
+
+    local highlights = user_highlights.get_chapter_highlights(ctx.data.slug, ctx.current_chapter_idx)
+    for _, hl in ipairs(highlights) do
+        if hl._start_line and hl._start_col and hl._end_line and hl._end_col then
+            hl.dimmed_id = vim.api.nvim_buf_set_extmark(ctx.content_buf, context.ns_reading, hl._start_line - 1, hl._start_col, {
+                end_line = hl._end_line - 1,
+                end_col = hl._end_col,
+                hl_group = "InkUserHighlightDim",
+                priority = 3000,
+                hl_mode = "replace"
+            })
+        end
+    end
+end
+
+local function apply_focus(buf, ns, start_l, end_l)
+    vim.api.nvim_buf_set_extmark(buf, ns, start_l, 0, {
+        end_line = end_l,
+        end_col = 0,
+        hl_group = "Normal",
+        hl_mode = "replace",
+        priority = 200,
+    })
+end
+
+local function update_reading_paragraph_mode(ctx)
+    if not ctx then return end
+
+    local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
+    local line = cursor[1] - 1
+
+    local start_l, end_l = util.get_paragraph(ctx.content_buf, line)
+
+    -- Skip the full redraw if the cursor is still inside the same paragraph.
+    if ctx._reading_para_start == start_l and ctx._reading_para_end == end_l then
+        return
+    end
+    ctx._reading_para_start = start_l
+    ctx._reading_para_end = end_l
+
+    vim.api.nvim_buf_clear_namespace(ctx.content_buf, context.ns_reading, 0, -1)
+
+    apply_dim_all(ctx.content_buf, context.ns_reading, lines)
+    apply_focus(ctx.content_buf, context.ns_reading, start_l, end_l)
+
+    local highlights = util.get_highlights_in_range(ctx, start_l, end_l)
+    for _, hl in ipairs(highlights) do
+        if hl.dimmed_id then
+            vim.api.nvim_buf_del_extmark(ctx.content_buf, context.ns_reading, hl.dimmed_id)
+        end
+    end
+end
+
+local function enable_reading_paragraph_mode(ctx)
+    -- Reset cached paragraph bounds so the first call after enabling always renders.
+    ctx._reading_para_start = nil
+    ctx._reading_para_end = nil
+
+    update_reading_paragraph_mode(ctx)
+
+    vim.api.nvim_create_autocmd(
+    { "CursorMoved", "CursorMovedI" },
+    {
+        buffer = vim.api.nvim_win_get_buf(ctx.content_win),
+        callback = function()
+            update_reading_paragraph_mode(ctx)
+        end,
+    }
+  )
+end
+
+local function disable_reading_paragraph_mode(ctx)
+    if ctx then
+        local buf = vim.api.nvim_win_get_buf(ctx.content_win)
+        vim.api.nvim_buf_clear_namespace(buf, context.ns_reading, 0, -1)
+        ctx._reading_para_start = nil
+        ctx._reading_para_end = nil
+    end
+end
+
+function M.toggle_reading_paragraph_mode()
+    local ctx = context.current()
+    if not ctx then
+        vim.notify("No book is currently open", vim.log.levels.WARN)
+        return
+    end
+
+    ctx.reading_paragraph_mode = not ctx.reading_paragraph_mode
+
+    if ctx.reading_paragraph_mode then
+        enable_reading_paragraph_mode(ctx)
+    else
+        disable_reading_paragraph_mode(ctx)
     end
 end
 

@@ -326,5 +326,4 @@ function M.toggle_focused_mode()
   end
 end
 
-
 return M
