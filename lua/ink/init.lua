@@ -8,6 +8,7 @@ local M = {}
 local default_config = {
     -- Display settings
     focused_mode = true,           -- Hide distractions (statusline, etc.) when reading
+    reading_paragraph_mode = false, -- Highlight current paragraph for better focus
     image_open = true,             -- Allow opening images in external viewer
     image_viewer = "nsxiv",      -- Image viewer: "default", "feh", "sxiv", "imv", "eog", "gwenview", etc.
     justify_text = false,          -- Enable text justification (adds spaces between words, affects copying)
@@ -33,7 +34,8 @@ local default_config = {
         library = "<leader>eL",
         last_book = "<leader>el",
         dashboard = "<leader>ed",
-        toggle_focused_mode = "<leader>em",
+        toggle_focused_mode = "<leader>imf",
+        toggle_reading_paragraph_mode = "<leader>imr",
         related_resources = "<leader>er",   -- List related books
     },
     -- Highlight colors (add custom colors: purple, orange, pink, etc.)
@@ -231,6 +233,17 @@ function M.setup(opts)
                 fg = color_def.fg
             })
         end
+
+        vim.api.nvim_set_hl(0, "InkDimmed", {
+            fg = "#666666",
+            blend = 30,
+        })
+
+        vim.api.nvim_set_hl(0, "InkUserHighlightDim", {
+            fg = "#666666",
+            bg = "#1d1d1d",
+            blend = 50,
+        })
     end
 
     -- Define highlights initially
@@ -830,6 +843,11 @@ function M.setup(opts)
         ui.toggle_focused_mode()
     end, {})
 
+    -- Create Toggle Reading Paragraph Mode command
+    vim.api.nvim_create_user_command("InkToggleReadingParagraphMode", function()
+        require("ink.ui.extmarks").toggle_reading_paragraph_mode()
+    end, {})
+
     -- Global keymaps for library features
     local keymaps = M.config.keymaps
 
@@ -912,6 +930,12 @@ function M.setup(opts)
     if keymaps.toggle_focused_mode then
         vim.keymap.set("n", keymaps.toggle_focused_mode, ":InkToggleFocusedMode<CR>",
             { noremap = true, silent = true, desc = "Toggle focused mode" })
+    end
+
+    -- Global keymap for reading paragraph mode
+    if keymaps.toggle_reading_paragraph_mode then
+        vim.keymap.set("n", keymaps.toggle_reading_paragraph_mode, ":InkToggleReadingParagraphMode<CR>",
+            { noremap = true, silent = true, desc = "Toggle reading paragraph mode" })
     end
     
     -- Setup automatic tracking
