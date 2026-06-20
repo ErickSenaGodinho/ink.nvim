@@ -66,7 +66,7 @@ A minimalist EPUB, Markdown, and web reader for Neovim with powerful annotation 
 
 ```lua
 {
-  "DanielPonte01/ink.nvim",
+  "ErickSenaGodinho/ink.nvim",
   dependencies = { "nvim-telescope/telescope.nvim" },
   config = function()
     require("ink").setup()
@@ -78,7 +78,7 @@ A minimalist EPUB, Markdown, and web reader for Neovim with powerful annotation 
 
 ```lua
 use {
-  "DanielPonte01/ink.nvim",
+  "ErickSenaGodinho/ink.nvim",
   requires = { "nvim-telescope/telescope.nvim" },
   config = function()
     require("ink").setup()
@@ -163,8 +163,8 @@ require("ink").setup({
     margin_note_width = 35,            -- Max width of margin notes (chars)
     margin_min_space = 30,             -- Min margin space required for margin mode (chars)
     notes_list_keymaps = {
-        list_all = "<leader>nla",      -- List notes from all books
-        list_book = "<leader>nlb",
+        list_all = "<leader>nl",      -- List notes from all books
+        list_book = "<leader>nb",     -- List notes from current book
     },
 
     -- Bookmarks keymaps
@@ -323,6 +323,7 @@ require("ink").setup({
 :InkHealth                " Run diagnostics
 :InkResetStats            " Reset reading statistics
 :InkToggleFocusedMode     " Switch between focused mode
+:InkToggleParagraphMode   " Switch between reading paragraph mode
 ```
 
 ### Key Features

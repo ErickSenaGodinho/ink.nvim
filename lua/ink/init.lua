@@ -74,8 +74,8 @@ local default_config = {
     margin_note_width = 35,            -- Max width of margin notes (chars)
     margin_min_space = 30,             -- Min margin space required for margin mode (chars)
     notes_list_keymaps = {
-        list_all = "<leader>nla",      -- List notes from all books
-        list_book = "<leader>nlb",
+        list_all = "<leader>nl",      -- List notes from all books
+        list_book = "<leader>nb",     -- List notes from current book
     },
 
     -- Bookmarks keymaps
@@ -844,7 +844,7 @@ function M.setup(opts)
     end, {})
 
     -- Create Toggle Reading Paragraph Mode command
-    vim.api.nvim_create_user_command("InkToggleReadingParagraphMode", function()
+    vim.api.nvim_create_user_command("InkToggleParagraphMode", function()
         require("ink.ui.extmarks").toggle_reading_paragraph_mode()
     end, {})
 
@@ -867,27 +867,12 @@ function M.setup(opts)
         vim.keymap.set("n", bookmark_keymaps.list_all, ":InkBookmarks<CR>",
             { noremap = true, silent = true, desc = "List all bookmarks" })
     end
-    if bookmark_keymaps.list_book then
-        vim.keymap.set("n", bookmark_keymaps.list_book, ":InkBookmarksBook<CR>",
-            { noremap = true, silent = true, desc = "List book bookmarks" })
-    end
 
     -- Global keymaps for notes
     local notes_list_keymaps = M.config.notes_list_keymaps
     if notes_list_keymaps.list_all then
         vim.keymap.set("n", notes_list_keymaps.list_all, ":InkNotes<CR>",
             { noremap = true, silent = true, desc = "List all notes" })
-    end
-    if notes_list_keymaps.list_book then
-        vim.keymap.set("n", notes_list_keymaps.list_book, ":InkNotesBook<CR>",
-            { noremap = true, silent = true, desc = "List book notes" })
-    end
-
-    -- Global keymaps for export
-    local export_keymaps = M.config.export_keymaps
-    if export_keymaps.current_book then
-        vim.keymap.set("n", export_keymaps.current_book, ":InkExport<CR>",
-            { noremap = true, silent = true, desc = "Export current book" })
     end
 
     -- Global keymap for dashboard
@@ -900,42 +885,6 @@ function M.setup(opts)
     if M.config.padnotes and M.config.padnotes.enabled then
         local padnotes = require("ink.padnotes")
         padnotes.setup(M.config.padnotes)
-
-        local pk = M.config.padnotes_keymaps
-        if pk.toggle then
-            vim.keymap.set("n", pk.toggle, function() padnotes.toggle() end,
-                { noremap = true, silent = true, desc = "Toggle padnote" })
-        end
-        if pk.open then
-            vim.keymap.set("n", pk.open, function() padnotes.open() end,
-                { noremap = true, silent = true, desc = "Open padnote" })
-        end
-        if pk.close then
-            vim.keymap.set("n", pk.close, function() padnotes.close(true) end,
-                { noremap = true, silent = true, desc = "Close padnote" })
-        end
-        if pk.list_all then
-            vim.keymap.set("n", pk.list_all, function() padnotes.list_all() end,
-                { noremap = true, silent = true, desc = "List all padnotes" })
-        end
-     end
-
-    -- Global keymap for linked resources
-    if keymaps.related_resources then
-        vim.keymap.set("n", keymaps.related_resources, ":InkListRelated<CR>",
-            { noremap = true, silent = true, desc = "List related resources" })
-    end
-
-    -- Global keymap for focused mode
-    if keymaps.toggle_focused_mode then
-        vim.keymap.set("n", keymaps.toggle_focused_mode, ":InkToggleFocusedMode<CR>",
-            { noremap = true, silent = true, desc = "Toggle focused mode" })
-    end
-
-    -- Global keymap for reading paragraph mode
-    if keymaps.toggle_reading_paragraph_mode then
-        vim.keymap.set("n", keymaps.toggle_reading_paragraph_mode, ":InkToggleReadingParagraphMode<CR>",
-            { noremap = true, silent = true, desc = "Toggle reading paragraph mode" })
     end
     
     -- Setup automatic tracking
