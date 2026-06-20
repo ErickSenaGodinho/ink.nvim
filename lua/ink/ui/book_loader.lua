@@ -84,84 +84,76 @@ function M.setup_book_context(content_buf, book_data)
   return ctx
 end
 
--- Setup basic navigation keymaps
-function M.setup_basic_keymaps(buf)
+-- Setup all book-specific keymaps
+function M.setup_book_keymaps(content_buf)
   local keymaps = context.config.keymaps or {}
 
   if keymaps.next_chapter then
     vim.keymap.set("n", keymaps.next_chapter, function() require("ink.ui").next_chapter() end,
-      { buffer = buf, noremap = true, silent = true, desc = "Next chapter" })
+      { buffer = content_buf, noremap = true, silent = true, desc = "Next chapter" })
   end
   if keymaps.prev_chapter then
     vim.keymap.set("n", keymaps.prev_chapter, function() require("ink.ui").prev_chapter() end,
-      { buffer = buf, noremap = true, silent = true, desc = "Previous chapter" })
+      { buffer = content_buf, noremap = true, silent = true, desc = "Previous chapter" })
   end
   if keymaps.activate then
     vim.keymap.set("n", keymaps.activate, function() require("ink.ui").handle_enter() end,
-      { buffer = buf, noremap = true, silent = true, desc = "Activate (footnote/link/image)" })
+      { buffer = content_buf, noremap = true, silent = true, desc = "Activate (footnote/link/image)" })
   end
   local jump_key = keymaps.jump_to_link or "g<CR>"
   vim.keymap.set("n", jump_key, function() require("ink.ui").jump_to_link() end,
-    { buffer = buf, noremap = true, silent = true, desc = "Jump to link" })
+    { buffer = content_buf, noremap = true, silent = true, desc = "Jump to link" })
   if keymaps.search_toc then
     vim.keymap.set("n", keymaps.search_toc, function() require("ink.ui").search_toc() end,
-      { buffer = buf, noremap = true, silent = true, desc = "Search TOC" })
+      { buffer = content_buf, noremap = true, silent = true, desc = "Search TOC" })
   end
   if keymaps.search_content then
     vim.keymap.set("n", keymaps.search_content, function() require("ink.ui").search_content() end,
-      { buffer = buf, noremap = true, silent = true, desc = "Search content" })
+      { buffer = content_buf, noremap = true, silent = true, desc = "Search content" })
   end
   if keymaps.width_increase then
     vim.keymap.set("n", keymaps.width_increase, function() require("ink.ui").increase_width() end,
-      { buffer = buf, noremap = true, silent = true, desc = "Increase width" })
+      { buffer = content_buf, noremap = true, silent = true, desc = "Increase width" })
   end
   if keymaps.width_decrease then
     vim.keymap.set("n", keymaps.width_decrease, function() require("ink.ui").decrease_width() end,
-      { buffer = buf, noremap = true, silent = true, desc = "Decrease width" })
+      { buffer = content_buf, noremap = true, silent = true, desc = "Decrease width" })
   end
   if keymaps.width_reset then
     vim.keymap.set("n", keymaps.width_reset, function() require("ink.ui").reset_width() end,
-      { buffer = buf, noremap = true, silent = true, desc = "Reset width" })
+      { buffer = content_buf, noremap = true, silent = true, desc = "Reset width" })
   end
   if keymaps.toggle_justify then
     vim.keymap.set("n", keymaps.toggle_justify, function() require("ink.ui").toggle_justify() end,
-      { buffer = buf, noremap = true, silent = true, desc = "Toggle text justification" })
+      { buffer = content_buf, noremap = true, silent = true, desc = "Toggle text justification" })
   end
 
   -- Typography keymaps
   local typography_keymaps = context.config.typography_keymaps or {}
   if typography_keymaps.line_spacing_increase then
     vim.keymap.set("n", typography_keymaps.line_spacing_increase, function() require("ink.ui").increase_line_spacing() end,
-      { buffer = buf, noremap = true, silent = true, desc = "Increase line spacing" })
+      { buffer = content_buf, noremap = true, silent = true, desc = "Increase line spacing" })
   end
   if typography_keymaps.line_spacing_decrease then
     vim.keymap.set("n", typography_keymaps.line_spacing_decrease, function() require("ink.ui").decrease_line_spacing() end,
-      { buffer = buf, noremap = true, silent = true, desc = "Decrease line spacing" })
+      { buffer = content_buf, noremap = true, silent = true, desc = "Decrease line spacing" })
   end
   if typography_keymaps.line_spacing_reset then
     vim.keymap.set("n", typography_keymaps.line_spacing_reset, function() require("ink.ui").reset_line_spacing() end,
-      { buffer = buf, noremap = true, silent = true, desc = "Reset line spacing" })
+      { buffer = content_buf, noremap = true, silent = true, desc = "Reset line spacing" })
   end
   if typography_keymaps.paragraph_spacing_increase then
     vim.keymap.set("n", typography_keymaps.paragraph_spacing_increase, function() require("ink.ui").increase_paragraph_spacing() end,
-      { buffer = buf, noremap = true, silent = true, desc = "Increase paragraph spacing" })
+      { buffer = content_buf, noremap = true, silent = true, desc = "Increase paragraph spacing" })
   end
   if typography_keymaps.paragraph_spacing_decrease then
     vim.keymap.set("n", typography_keymaps.paragraph_spacing_decrease, function() require("ink.ui").decrease_paragraph_spacing() end,
-      { buffer = buf, noremap = true, silent = true, desc = "Decrease paragraph spacing" })
+      { buffer = content_buf, noremap = true, silent = true, desc = "Decrease paragraph spacing" })
   end
   if typography_keymaps.paragraph_spacing_reset then
     vim.keymap.set("n", typography_keymaps.paragraph_spacing_reset, function() require("ink.ui").reset_paragraph_spacing() end,
-      { buffer = buf, noremap = true, silent = true, desc = "Reset paragraph spacing" })
+      { buffer = content_buf, noremap = true, silent = true, desc = "Reset paragraph spacing" })
   end
-end
-
--- Setup all book-specific keymaps
-function M.setup_book_keymaps(content_buf)
-  local keymaps = context.config.keymaps or {}
-
-  -- Setup basic keymaps for both buffers
-  M.setup_basic_keymaps(content_buf)
 
   -- TOC toggle keymap
   if keymaps.toggle_toc then
@@ -275,6 +267,68 @@ function M.setup_book_keymaps(content_buf)
     vim.keymap.set("n", glossary_keymaps.toggle_display, function() require("ink.ui").toggle_glossary_display() end,
       { buffer = content_buf, noremap = true, silent = true, desc = "Toggle glossary display" })
   end
+
+  -- Bookmarks list keymap (content buffer only)
+  local bookmark_keymaps = context.config.bookmark_keymaps
+  if bookmark_keymaps.list_book then
+      vim.keymap.set("n", bookmark_keymaps.list_book, ":InkBookmarksBook<CR>",
+          { buffer = content_buf, noremap = true, silent = true, desc = "List book bookmarks" })
+  end
+
+  -- Notes list keymap (content buffer only)
+  local notes_list_keymaps = context.config.notes_list_keymaps
+  if notes_list_keymaps.list_book then
+      vim.keymap.set("n", notes_list_keymaps.list_book, ":InkNotesBook<CR>",
+          { buffer = content_buf, noremap = true, silent = true, desc = "List book notes" })
+  end
+
+  -- Padnotes keymaps
+  if context.config.padnotes and context.config.padnotes.enabled then
+      local padnotes = require("ink.padnotes")
+
+      local pk = context.config.padnotes_keymaps
+      if pk.list_all then
+          vim.keymap.set("n", pk.list_all, function() padnotes.list_all() end,
+              { buffer = content_buf, noremap = true, silent = true, desc = "List all padnotes" })
+      end
+      if pk.toggle then
+          vim.keymap.set("n", pk.toggle, function() padnotes.toggle() end,
+              { buffer = content_buf, noremap = true, silent = true, desc = "Toggle padnote" })
+      end
+      if pk.open then
+          vim.keymap.set("n", pk.open, function() padnotes.open() end,
+              { buffer = content_buf, noremap = true, silent = true, desc = "Open padnote" })
+      end
+      if pk.close then
+          vim.keymap.set("n", pk.close, function() padnotes.close(true) end,
+              { buffer = content_buf, noremap = true, silent = true, desc = "Close padnote" })
+      end
+    end
+
+  -- Linked resources keymap
+  if keymaps.related_resources then
+      vim.keymap.set("n", keymaps.related_resources, ":InkListRelated<CR>",
+          { buffer = content_buf, noremap = true, silent = true, desc = "List related resources" })
+  end
+
+  -- Focused mode keymap
+  if keymaps.toggle_focused_mode then
+      vim.keymap.set("n", keymaps.toggle_focused_mode, ":InkToggleFocusedMode<CR>",
+          { buffer = content_buf, noremap = true, silent = true, desc = "Toggle focused mode" })
+  end
+
+  -- Reading paragraph mode keymap
+  if keymaps.toggle_reading_paragraph_mode then
+      vim.keymap.set("n", keymaps.toggle_reading_paragraph_mode, ":InkToggleReadingParagraphMode<CR>",
+          { buffer = content_buf, noremap = true, silent = true, desc = "Toggle reading paragraph mode" })
+  end
+
+    -- Export keymap
+    local export_keymaps = context.config.export_keymaps
+    if export_keymaps.current_book then
+        vim.keymap.set("n", export_keymaps.current_book, ":InkExport<CR>",
+            { buffer = content_buf, noremap = true, silent = true, desc = "Export current book" })
+    end
 end
 
 -- Setup autocmds for book
