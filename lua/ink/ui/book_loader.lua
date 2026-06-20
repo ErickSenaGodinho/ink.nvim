@@ -65,14 +65,6 @@ end
 
 -- Create content buffer
 function M.create_book_buffer()
-  -- Delete existing buffers if they exist
-  if context.content_buf then
-    context.remove(existing_content)
-    if vim.api.nvim_buf_is_valid(existing_content) then
-      vim.api.nvim_buf_delete(existing_content, { force = true })
-    end
-  end
-
   -- Create content buffer
   local content_buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_set_option_value("filetype", "ink_content", { buf = content_buf })
@@ -357,6 +349,19 @@ function M.setup_book_autocmds(content_buf, slug)
     end,
   })
 
+  vim.api.nvim_create_autocmd({ "WinEnter", "BufEnter" }, {
+  group = vim.api.nvim_create_augroup("WindowFocusTracking", { clear = true }),
+  callback = function()
+    local current_win = vim.api.nvim_get_current_win()
+    local current_buf = vim.api.nvim_win_get_buf(current_win)
+    local ctx = context.get(current_buf)
+
+    if ctx then
+      ctx.content_win = current_win
+    end
+  end,
+  })
+
   -- Periodic save on cursor hold (after 4 seconds of inactivity)
   vim.api.nvim_create_autocmd("CursorHold", {
     group = augroup,
@@ -525,16 +530,21 @@ function M.open_book(book_data, opts)
     total_chapters = #book_data.spine
   })
 
+  local ctx = context.get_by_book_slug(book_data.slug);
+  local content_buf
+  
+  if(ctx) then
+    vim.api.nvim_set_current_win(ctx.content_win)
+    return
+  else
+    content_buf = M.create_book_buffer()
+    ctx = M.setup_book_context(content_buf, book_data)
+  end
+  
   -- Start reading session
   local reading_sessions = require("ink.reading_sessions")
   reading_sessions.start_session(book_data.slug, 1)
-
-  -- Create buffer
-  local content_buf = M.create_book_buffer()
-
-  -- Setup context
-  local ctx = M.setup_book_context(content_buf, book_data)
-
+  
   -- Flag to prevent state saving during book initialization
   ctx._is_initializing = true
 

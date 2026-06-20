@@ -682,9 +682,7 @@ local function enable_reading_paragraph_mode(ctx)
 
     update_reading_paragraph_mode(ctx)
 
-    vim.api.nvim_create_autocmd(
-    { "CursorMoved", "CursorMovedI" },
-    {
+    vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
         buffer = vim.api.nvim_win_get_buf(ctx.content_win),
         callback = function()
             update_reading_paragraph_mode(ctx)
