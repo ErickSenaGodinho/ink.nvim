@@ -58,6 +58,16 @@ function M.get(buf)
   return nil
 end
 
+-- Get context for a content buffer by slug
+function M.get_by_book_slug(slug)
+  for _, ctx in pairs(contexts) do
+    if ctx.data and ctx.data.slug == slug then
+      return ctx
+    end
+  end
+  return nil
+end
+
 -- Get current context based on current buffer
 function M.current()
   return M.get(vim.api.nvim_get_current_buf())
