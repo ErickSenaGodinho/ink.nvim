@@ -82,12 +82,18 @@ function M.add_highlight(color)
   if buf ~= ctx.content_buf then vim.notify("Highlights can only be added in the content buffer", vim.log.levels.WARN); return end
   if not context.config.highlight_colors[color] then vim.notify("Unknown highlight color: " .. color, vim.log.levels.ERROR); return end
 
-  local start_pos = vim.fn.getpos("'<")
-  local end_pos = vim.fn.getpos("'>")
-  local start_line = start_pos[2]
-  local start_col = start_pos[3] - 1
-  local end_line = end_pos[2]
-  local end_col = end_pos[3]
+  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "x", false)
+
+  local start_pos = vim.api.nvim_buf_get_mark(0, '<')
+  local end_pos = vim.api.nvim_buf_get_mark(0, '>')
+
+  local start_line, start_col = start_pos[1], start_pos[2]
+  local end_line, end_col = end_pos[1], end_pos[2]
+
+  if start_line > end_line or (start_line == end_line and start_col > end_col) then
+    start_line, end_line = end_line, start_line
+    start_col, end_col = end_col, start_col
+  end
 
   local lines = vim.api.nvim_buf_get_lines(ctx.content_buf, start_line - 1, end_line, false)
   local text
@@ -128,7 +134,7 @@ function M.add_highlight(color)
   user_highlights.add_highlight(ctx.data.slug, highlight)
   render.refresh_highlights(ctx)
   if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
-    vim.api.nvim_win_set_cursor(ctx.content_win, {end_line, end_col})
+    -- vim.api.nvim_win_set_cursor(ctx.content_win, {end_line, end_col})
   end
   vim.notify("Highlight added", vim.log.levels.INFO)
 end
