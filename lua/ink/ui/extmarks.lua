@@ -682,19 +682,24 @@ local function enable_reading_paragraph_mode(ctx)
 
     update_reading_paragraph_mode(ctx)
 
+    local buf = vim.api.nvim_win_get_buf(ctx.content_win)
+    local group_name = "ReadingMode_Buf_" .. buf
+    local group = vim.api.nvim_create_augroup(group_name, { clear = true })
+
     vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
-        buffer = vim.api.nvim_win_get_buf(ctx.content_win),
+        group = group,
+        buffer = buf,
         callback = function()
             update_reading_paragraph_mode(ctx)
         end,
-    }
-  )
+    })
 end
 
 local function disable_reading_paragraph_mode(ctx)
     if ctx then
         local buf = vim.api.nvim_win_get_buf(ctx.content_win)
         vim.api.nvim_buf_clear_namespace(buf, context.ns_reading, 0, -1)
+        vim.api.nvim_del_augroup_by_name("ReadingMode_Buf_" .. buf)
         ctx._reading_para_start = nil
         ctx._reading_para_end = nil
     end
