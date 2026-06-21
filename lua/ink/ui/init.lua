@@ -294,7 +294,8 @@ function M.enable_focused_mode()
   local ctx = context.current()
   if not ctx then return end
 
-  -- Enable focused mode - hide distractions
+  ctx.focused_mode = true
+
   vim.api.nvim_win_set_option(ctx.content_win, 'number', false)
   vim.api.nvim_win_set_option(ctx.content_win, 'relativenumber', false)
   vim.api.nvim_win_set_option(ctx.content_win, 'signcolumn', 'no')
@@ -311,14 +312,13 @@ function M.toggle_focused_mode()
     return
   end
 
-  ctx.focused_mode = not ctx.focused_mode
   if ctx.focused_mode then
-    -- Disable focused mode - restore defaults
+    ctx.focused_mode = false
     vim.api.nvim_win_set_option(ctx.content_win, 'number', true)
     vim.api.nvim_win_set_option(ctx.content_win, 'relativenumber', true)
     vim.api.nvim_win_set_option(ctx.content_win, 'signcolumn', 'yes')
     vim.api.nvim_win_set_option(ctx.content_win, 'foldcolumn', '1')
-    vim.opt.laststatus = 2
+    vim.opt.laststatus = 3
     vim.api.nvim_set_hl(0, 'StatusLine', { link = 'StatusLine' })
     vim.api.nvim_set_hl(0, 'StatusLineNC', { link = 'StatusLineNC' })
   else

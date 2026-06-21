@@ -319,7 +319,7 @@ function M.setup_book_keymaps(content_buf)
 
   -- Reading paragraph mode keymap
   if keymaps.toggle_reading_paragraph_mode then
-      vim.keymap.set("n", keymaps.toggle_reading_paragraph_mode, ":InkToggleReadingParagraphMode<CR>",
+      vim.keymap.set("n", keymaps.toggle_reading_paragraph_mode, ":InkToggleParagraphMode<CR>",
           { buffer = content_buf, noremap = true, silent = true, desc = "Toggle reading paragraph mode" })
   end
 
@@ -374,7 +374,6 @@ function M.setup_book_autocmds(content_buf, slug)
 
             -- Restore viewport immediately (render_chapter is synchronous)
             if vim.api.nvim_win_is_valid(current_ctx.content_win) then
-              vim.api.nvim_set_current_win(current_ctx.content_win)
               render.restore_viewport_from_context(current_ctx, viewport_ctx)
             end
 
@@ -404,7 +403,6 @@ function M.setup_book_autocmds(content_buf, slug)
   })
 
   vim.api.nvim_create_autocmd({ "WinEnter", "BufEnter" }, {
-  group = vim.api.nvim_create_augroup("WindowFocusTracking", { clear = true }),
   callback = function()
     local current_win = vim.api.nvim_get_current_win()
     local current_buf = vim.api.nvim_win_get_buf(current_win)
@@ -587,14 +585,17 @@ function M.open_book(book_data, opts)
   local ctx = context.get_by_book_slug(book_data.slug);
   local content_buf
   
-  if(ctx) then
-    vim.api.nvim_set_current_win(ctx.content_win)
-    return
+  if ctx then
+    if vim.api.nvim_win_is_valid(ctx.content_win) and vim.api.nvim_win_get_buf(ctx.content_win) == ctx.content_buf then
+      vim.api.nvim_set_current_win(ctx.content_win)
+      return
+    end
+    content_buf = ctx.content_buf
   else
     content_buf = M.create_book_buffer()
     ctx = M.setup_book_context(content_buf, book_data)
   end
-  
+
   -- Start reading session
   local reading_sessions = require("ink.reading_sessions")
   reading_sessions.start_session(book_data.slug, 1)
@@ -637,7 +638,7 @@ function M.open_book(book_data, opts)
 
   -- Render TOC and toggle it open only if show_toc is true
   if show_toc then
-    floating_toc.toggle_floating_toc(ctx)
+    floating_toc.show_floating_toc(ctx)
   end
 
   -- Schedule chapter rendering to ensure window has been resized after TOC toggle
