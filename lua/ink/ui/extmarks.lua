@@ -638,12 +638,8 @@ local function apply_dim_all(buf, ns, lines)
 end
 
 local function apply_focus(buf, ns, start_l, end_l)
-    if end_l <= start_l then
-        end_l = start_l + 1
-    end
-
     vim.api.nvim_buf_set_extmark(buf, ns, start_l, 0, {
-        end_line = end_l,
+        end_line = end_l + 1,
         end_col = 0,
         hl_group = "Normal",
         hl_mode = "replace",
