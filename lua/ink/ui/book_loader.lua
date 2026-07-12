@@ -403,7 +403,7 @@ function M.setup_book_autocmds(content_buf, slug)
   })
 
   vim.api.nvim_create_autocmd({ "WinEnter", "BufEnter" }, {
-  callback = function()
+  callback = vim.schedule_wrap(function()
     local current_win = vim.api.nvim_get_current_win()
     local current_buf = vim.api.nvim_win_get_buf(current_win)
     local ctx = context.get(current_buf)
@@ -411,7 +411,7 @@ function M.setup_book_autocmds(content_buf, slug)
     if ctx then
       ctx.content_win = current_win
     end
-  end,
+  end),
   })
 
   -- Periodic save on cursor hold (after 4 seconds of inactivity)
@@ -595,10 +595,6 @@ function M.open_book(book_data, opts)
     content_buf = M.create_book_buffer()
     ctx = M.setup_book_context(content_buf, book_data)
   end
-
-  -- Start reading session
-  local reading_sessions = require("ink.reading_sessions")
-  reading_sessions.start_session(book_data.slug, 1)
   
   -- Flag to prevent state saving during book initialization
   ctx._is_initializing = true
@@ -675,6 +671,10 @@ function M.open_book(book_data, opts)
     else
       render.render_chapter(1, nil, ctx)
     end
+
+    -- Start reading session
+    local reading_sessions = require("ink.reading_sessions")
+    reading_sessions.start_session(book_data.slug, saved and saved.chapter or 1)
 
     -- Book initialization complete, allow state saving
     ctx._is_initializing = false
