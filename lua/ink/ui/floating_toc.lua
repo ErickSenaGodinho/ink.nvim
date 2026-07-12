@@ -347,7 +347,7 @@ function M.show_floating_toc(ctx)
 
   -- Create floating windows
   local toc_config, preview_config = get_window_configs()
-  local toc_win = vim.api.nvim_open_win(toc_buf, false, toc_config)
+  local toc_win = vim.api.nvim_open_win(toc_buf, true, toc_config)
   local preview_win = vim.api.nvim_open_win(preview_buf, false, preview_config)
 
   -- Window options for TOC
@@ -372,7 +372,6 @@ function M.show_floating_toc(ctx)
 
   -- Set cursor to current chapter (adjust for title line)
   vim.api.nvim_win_set_cursor(toc_win, {current_idx + 1, 0})
-  vim.api.nvim_set_current_win(toc_win)
 
   -- Initial preview update
   update_preview(current_idx + 1, ctx)
