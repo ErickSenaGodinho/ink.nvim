@@ -135,6 +135,35 @@ local function fix_orphaned_session(slug, session)
 	)
 end
 
+local function get_active_session(slug)
+	local session_id = active_sessions[slug]
+	if not session_id then
+		return nil
+	end
+
+	local data = load_sessions(slug)
+
+	for _, session in ipairs(data.sessions) do
+		if session.id == session_id then
+			return data, session
+		end
+	end
+
+	return data, nil
+end
+
+local function update_session_data(session, data)
+    local ctx = require("ink.ui.context")
+    local current_chapter = ctx.ctx.chapter_idx or session.chapter_start
+
+    session.chapter_end = current_chapter
+
+    local previous_duration = session.duration
+    session.duration = math.max(0, os.time() - session.start_time)
+
+    data.total_time = data.total_time + (session.duration - previous_duration)
+end
+
 -- === CORE FUNCTIONS ===
 
 function M.start_session(slug, chapter)
@@ -191,22 +220,7 @@ function M.end_session(slug)
 		return 0
 	end
 
-	local session_id = active_sessions[slug]
-	if not session_id then
-		return 0 -- No active session
-	end
-
-	-- Load sessions
-	local data = load_sessions(slug)
-
-	-- Find the session
-	local session = nil
-	for _, s in ipairs(data.sessions) do
-		if s.id == session_id then
-			session = s
-			break
-		end
-	end
+	local data, session = get_active_session(slug)
 
 	if not session then
 		vim.notify("Active session not found in file", vim.log.levels.WARN)
@@ -214,27 +228,9 @@ function M.end_session(slug)
 		return 0
 	end
 
-	-- Get current chapter from context
-	local ctx = require("ink.ui.context")
-	local current_chapter = ctx.ctx.chapter_idx or session.chapter_start
-
-	-- Update session
-	session.end_time = os.time()
-	session.duration = session.end_time - session.start_time
-	session.chapter_end = current_chapter
-
-	-- Handle clock skew
-	if session.duration < 0 then
-		session.duration = 0
-	end
-
-	-- Update total time
-	data.total_time = data.total_time + session.duration
-
-	-- Save
+	update_session_data(session, data)
 	save_sessions(slug, data)
 
-	-- Clear from memory
 	active_sessions[slug] = nil
 
 	return session.duration
@@ -254,41 +250,13 @@ function M.update_active_session(slug)
 		return
 	end
 
-	local session_id = active_sessions[target_slug]
-	if not session_id then
-		return -- No active session
-	end
-
-	-- Load sessions
-	local data = load_sessions(target_slug)
-
-	-- Find the session
-	local session = nil
-	for _, s in ipairs(data.sessions) do
-		if s.id == session_id then
-			session = s
-			break
-		end
-	end
+	local data, session = get_active_session(target_slug)
 
 	if not session then
 		return
 	end
 
-	-- Get current chapter from context
-	local ctx = require("ink.ui.context")
-	local current_chapter = ctx.ctx.chapter_idx or session.chapter_start
-
-	-- Update duration (without setting end_time)
-	session.duration = os.time() - session.start_time
-	session.chapter_end = current_chapter
-
-	-- Handle clock skew
-	if session.duration < 0 then
-		session.duration = 0
-	end
-
-	-- Save
+	update_session_data(session, data)
 	save_sessions(target_slug, data)
 end
 
@@ -352,7 +320,7 @@ function M.get_reading_by_day(days_back, slug)
 		local data = load_sessions(book_slug)
 		for _, session in ipairs(data.sessions) do
 			if session.date >= start_date then
-				local minutes = math.floor(session.duration / 60)
+				local minutes = session.duration / 60
 				result[session.date] = (result[session.date] or 0) + minutes
 			end
 		end

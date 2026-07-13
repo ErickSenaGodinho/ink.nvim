@@ -157,8 +157,8 @@ function M.load_data(force_reload)
 		end
 	end
 
-	-- Calculate daily average (total reading time / 30 days)
-	local daily_avg = month_time / 30
+	-- Calculate daily average (total reading time / reading days)
+	local daily_avg = days_with_reading > 0 and (month_time / days_with_reading) or 0
 
 	-- Progress statistics
 	local total_chapters = 0
@@ -521,7 +521,7 @@ function M.render_time_stats(lines, line_paddings, box_width, box_padding)
 		{ value = text_utils.format_time(state.data.total_time), label = "Total Reading Time" },
 		{ value = text_utils.format_time(state.data.week_time), label = "This Week" },
 		{ value = text_utils.format_time(state.data.month_time), label = "This Month" },
-		{ value = text_utils.format_time(state.data.daily_avg), label = "Daily Average" },
+		{ value = text_utils.format_time(state.data.daily_avg), label = "Daily Average (Last 30 Days )" },
 	}
 
 	-- Values line
