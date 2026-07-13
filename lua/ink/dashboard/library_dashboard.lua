@@ -597,13 +597,7 @@ function M.setup_keymaps(buf)
 	end, opts)
 
 	-- Quit
-	vim.keymap.set("n", "q", function()
-		vim.api.nvim_buf_delete(buf, { force = true })
-    pcall(function()
-      local tab = vim.api.nvim_get_current_tabpage()
-      vim.api.nvim_tabpage_close(tab, true)
-    end)
-	end, opts)
+	vim.keymap.set("n", "q", "<cmd>tabclose<CR>", opts)
 
 	-- Refresh (force reload)
 	vim.keymap.set("n", "R", function()
