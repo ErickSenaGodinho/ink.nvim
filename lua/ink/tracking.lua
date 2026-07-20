@@ -40,11 +40,11 @@ function M.setup(config)
     end,
   })
 
-  -- Autocmd: End session on BufLeave
-  vim.api.nvim_create_autocmd("BufLeave", {
+  -- Autocmd: End session on WinLeave
+  vim.api.nvim_create_autocmd("WinLeave", {
     group = augroup,
     pattern = "ink://*",
-    callback = function()
+    callback = function(event)
       -- Get current book context
       local ok_context, context_module = pcall(require, "ink.ui.context")
       if not ok_context then
@@ -53,6 +53,10 @@ function M.setup(config)
 
       local ctx = context_module.current()
       if not ctx or not ctx.data then
+        return
+      end
+
+      if event.win ~= ctx.content_win then
         return
       end
 
