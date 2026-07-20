@@ -438,7 +438,6 @@ function M.setup_book_autocmds(content_buf, slug)
       local get_position_ctx = render.get_current_position_context
       if get_position_ctx then
         local position_ctx = get_position_ctx(current_ctx, cursor_line)
-        local state_module = require("ink.state")
         local library_module = require("ink.library")
 
         local state_data = { chapter = current_ctx.current_chapter_idx }
@@ -451,7 +450,7 @@ function M.setup_book_autocmds(content_buf, slug)
           state_data.line = cursor_line
         end
 
-        state_module.save(current_ctx.data.slug, state_data)
+        state.save(current_ctx.data.slug, state_data)
         library_module.update_progress(current_ctx.data.slug, current_ctx.current_chapter_idx, #current_ctx.data.spine)
       end
     end,
@@ -487,7 +486,6 @@ function M.setup_book_autocmds(content_buf, slug)
             local get_position_ctx = render.get_current_position_context
             if get_position_ctx then
               local position_ctx = get_position_ctx(current_ctx, cursor_line)
-              local state_module = require("ink.state")
               local library_module = require("ink.library")
 
               local state_data = { chapter = current_ctx.current_chapter_idx }
@@ -500,7 +498,7 @@ function M.setup_book_autocmds(content_buf, slug)
                 state_data.line = cursor_line
               end
 
-              state_module.save(current_ctx.data.slug, state_data)
+              state.save(current_ctx.data.slug, state_data)
               library_module.update_progress(current_ctx.data.slug, current_ctx.current_chapter_idx, #current_ctx.data.spine)
             end
           end
@@ -534,7 +532,6 @@ function M.setup_book_autocmds(content_buf, slug)
           local get_position_ctx = render.get_current_position_context
           if get_position_ctx then
             local position_ctx = get_position_ctx(current_ctx, cursor_line)
-            local state_module = require("ink.state")
             local library_module = require("ink.library")
 
             local state_data = { chapter = current_ctx.current_chapter_idx }
@@ -547,7 +544,7 @@ function M.setup_book_autocmds(content_buf, slug)
               state_data.line = cursor_line
             end
 
-            state_module.save(current_ctx.data.slug, state_data)
+            state.save(current_ctx.data.slug, state_data)
             library_module.update_progress(current_ctx.data.slug, current_ctx.current_chapter_idx, #current_ctx.data.spine)
           end
         end
@@ -623,12 +620,25 @@ function M.open_book(book_data, opts)
     vim.api.nvim_buf_delete(empty_buffer, {force = true})
   end
 
+  local state_data = state.load(book_data.slug)
+
   vim.schedule(function()
-    if context.config.focused_mode then
+    local function get_value(key)
+      if state_data and state_data[key] ~= nil then
+        return state_data[key]
+      end
+      return context.config[key]
+    end
+
+    ctx.justify_text = get_value("justify_text")
+    ctx.focused_mode = get_value("focused_mode")
+    ctx.reading_paragraph_mode = get_value("reading_paragraph_mode")
+
+    if ctx.focused_mode then
       require("ink.ui").enable_focused_mode()
     end
 
-    if context.config.reading_paragraph_mode then
+    if ctx.reading_paragraph_mode then
       require("ink.ui.extmarks").enable_reading_paragraph_mode(ctx)
     end
   end)
@@ -648,19 +658,18 @@ function M.open_book(book_data, opts)
     end
 
     -- Load saved position or render first chapter
-    local saved = state.load(book_data.slug)
-    if saved then
+    if state_data then
       -- First render the chapter
-      render.render_chapter(saved.chapter, saved.line, ctx)
+      render.render_chapter(state_data.chapter, state_data.line, ctx)
 
       -- If we have text-based position data, find the exact position
-      if saved.text and saved.text ~= "" and ctx.rendered_lines then
+      if state_data.text and state_data.text ~= "" and ctx.rendered_lines then
         local util = require("ink.ui.util")
         local start_line = util.find_text_position(
           ctx.rendered_lines,
-          saved.text,
-          saved.context_before,
-          saved.context_after
+          state_data.text,
+          state_data.context_before,
+          state_data.context_after
         )
 
         -- If found, update cursor to exact position
@@ -675,7 +684,7 @@ function M.open_book(book_data, opts)
 
     -- Start reading session
     local reading_sessions = require("ink.reading_sessions")
-    reading_sessions.start_session(book_data.slug, saved and saved.chapter or 1)
+    reading_sessions.start_session(book_data.slug, state_data and state_data.chapter or 1)
 
     -- Book initialization complete, allow state saving
     ctx._is_initializing = false

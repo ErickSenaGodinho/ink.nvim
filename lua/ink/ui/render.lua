@@ -192,7 +192,7 @@ function M.get_parsed_chapter(chapter_idx, ctx)
   -- Parse HTML with current settings
   local max_width = ctx.current_max_width or context.config.max_width or 120
   local class_styles = ctx.data.class_styles or {}
-  local justify_text = context.config.justify_text or false
+  local justify_text = ctx.justify_text or context.config.justify_text or false
   local typography = context.config.typography or {
     line_spacing = 1,
     paragraph_spacing = 1,

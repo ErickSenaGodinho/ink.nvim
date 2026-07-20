@@ -5,7 +5,7 @@ local migrate = require("ink.data.migrate")
 local M = {}
 
 function M.save(slug, state)
-  migrate.migrate_book(slug)
+  state = vim.tbl_deep_extend("force", M.load(slug) or {}, state)
   local path = data.get_book_dir(slug) .. "/state.json"
 
   local file = io.open(path, "w")

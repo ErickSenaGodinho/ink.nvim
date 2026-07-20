@@ -611,7 +611,7 @@ function M.apply_glossary_marks(buf, matches, entries_map, custom_types, ns_id)
     end
 end
 
-local function apply_dim_all(buf, ns, lines)
+local function apply_dim_all(buf, ns)
     vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
 
     vim.api.nvim_buf_set_extmark(buf, ns, 0, 0, {
@@ -664,7 +664,7 @@ local function update_reading_paragraph_mode(ctx)
 
     vim.api.nvim_buf_clear_namespace(ctx.content_buf, context.ns_reading, 0, -1)
 
-    apply_dim_all(ctx.content_buf, context.ns_reading, lines)
+    apply_dim_all(ctx.content_buf, context.ns_reading)
     apply_focus(ctx.content_buf, context.ns_reading, start_l, end_l)
 
     local highlights = util.get_highlights_in_range(ctx, start_l, end_l)
@@ -675,10 +675,11 @@ local function update_reading_paragraph_mode(ctx)
     end
 end
 
-local function enable_reading_paragraph_mode(ctx)
+function M.enable_reading_paragraph_mode(ctx)
     -- Reset cached paragraph bounds so the first call after enabling always renders.
     ctx._reading_para_start = nil
     ctx._reading_para_end = nil
+    ctx.reading_paragraph_mode = true -- Set the flag because can be called outside of toggle function
 
     update_reading_paragraph_mode(ctx)
 
@@ -702,6 +703,7 @@ local function disable_reading_paragraph_mode(ctx)
         vim.api.nvim_del_augroup_by_name("ReadingMode_Buf_" .. buf)
         ctx._reading_para_start = nil
         ctx._reading_para_end = nil
+        ctx.reading_paragraph_mode = false
     end
 end
 
@@ -714,8 +716,11 @@ function M.toggle_reading_paragraph_mode()
 
     ctx.reading_paragraph_mode = not ctx.reading_paragraph_mode
 
+    local state = require("ink.state")
+    state.save(ctx.data.slug, { reading_paragraph_mode = ctx.reading_paragraph_mode })
+
     if ctx.reading_paragraph_mode then
-        enable_reading_paragraph_mode(ctx)
+        M.enable_reading_paragraph_mode(ctx)
     else
         disable_reading_paragraph_mode(ctx)
     end
