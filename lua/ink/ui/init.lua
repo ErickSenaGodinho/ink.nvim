@@ -312,8 +312,14 @@ function M.toggle_focused_mode()
     return
   end
 
+  ctx.focused_mode = not ctx.focused_mode
+
+  local state = require("ink.state")
+  state.save(ctx.data.slug, { focused_mode = ctx.focused_mode })
+
   if ctx.focused_mode then
-    ctx.focused_mode = false
+    M.enable_focused_mode()
+  else
     vim.api.nvim_win_set_option(ctx.content_win, 'number', true)
     vim.api.nvim_win_set_option(ctx.content_win, 'relativenumber', true)
     vim.api.nvim_win_set_option(ctx.content_win, 'signcolumn', 'yes')
@@ -321,8 +327,6 @@ function M.toggle_focused_mode()
     vim.opt.laststatus = 3
     vim.api.nvim_set_hl(0, 'StatusLine', { link = 'StatusLine' })
     vim.api.nvim_set_hl(0, 'StatusLineNC', { link = 'StatusLineNC' })
-  else
-    M.enable_focused_mode()
   end
 end
 

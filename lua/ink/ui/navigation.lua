@@ -343,7 +343,7 @@ end
 function M.toggle_justify()
   local ctx = context.current()
   if not ctx then return end
-  context.config.justify_text = not context.config.justify_text
+  ctx.justify_text = not ctx.justify_text
 
   -- Save viewport position (text-based, survives word wrap changes)
   local viewport_ctx = render.get_viewport_text_context(ctx)
@@ -360,7 +360,10 @@ function M.toggle_justify()
     render.restore_viewport_from_context(ctx, viewport_ctx)
   end
 
-  vim.notify("Justify: " .. (context.config.justify_text and "on" or "off"), vim.log.levels.INFO)
+  local state = require("ink.state")
+  state.save(ctx.data.slug, { justify_text = ctx.justify_text })
+
+  vim.notify("Justify: " .. (ctx.justify_text and "on" or "off"), vim.log.levels.INFO)
 end
 
 function M.increase_line_spacing()
