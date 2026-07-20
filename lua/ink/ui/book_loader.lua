@@ -373,10 +373,9 @@ function M.setup_book_autocmds(content_buf, slug)
             render.render_chapter(current_ctx.current_chapter_idx, nil, current_ctx)
 
             -- Restore viewport immediately (render_chapter is synchronous)
-            if vim.api.nvim_win_is_valid(current_ctx.content_win) then
+            if vim.api.nvim_win_is_valid(current_ctx.content_win) and vim.api.nvim_get_current_win() == current_ctx.content_win then
               render.restore_viewport_from_context(current_ctx, viewport_ctx)
             end
-
             break
           end
         end
@@ -624,13 +623,15 @@ function M.open_book(book_data, opts)
     vim.api.nvim_buf_delete(empty_buffer, {force = true})
   end
 
-  if context.config.focused_mode then
-    require("ink.ui").enable_focused_mode()
-  end
+  vim.schedule(function()
+    if context.config.focused_mode then
+      require("ink.ui").enable_focused_mode()
+    end
 
-  if context.config.reading_paragraph_mode then
-    require("ink.ui.extmarks").enable_reading_paragraph_mode(ctx)
-  end
+    if context.config.reading_paragraph_mode then
+      require("ink.ui.extmarks").enable_reading_paragraph_mode(ctx)
+    end
+  end)
 
   -- Render TOC and toggle it open only if show_toc is true
   if show_toc then
