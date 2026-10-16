@@ -3,7 +3,6 @@
 
 local M = {}
 
-local fs = require("ink.fs")
 local data = require("ink.library.data")
 
 -- Validate directory path for safe characters
@@ -18,40 +17,44 @@ end
 
 -- Scan directory for EPUB and Markdown files (async)
 function M.scan_directory(directory, callback)
-    directory = vim.fn.fnamemodify(vim.fn.expand(directory), ":p")
-    directory = directory:gsub("\\", "/")
+	directory = vim.fn.fnamemodify(vim.fn.expand(directory), ":p")
+	directory = directory:gsub("\\", "/")
 
-    local stat = vim.loop.fs_stat(directory)
-    if not stat or stat.type ~= "directory" then
-        if callback then
-            callback(nil, "Directory not found: " .. directory)
-        end
-        return
-    end
+	local stat = vim.loop.fs_stat(directory)
+	if not stat or stat.type ~= "directory" then
+		if callback then
+			callback(nil, "Directory not found: " .. directory)
+		end
+		return
+	end
 
-    local files = {}
+	local files = {}
 
-    local function scan_recursive(dir)
-        local handle = vim.loop.fs_scandir(dir)
-        if not handle  then return end
+	local function scan_recursive(dir)
+		local handle = vim.loop.fs_scandir(dir)
+		if not handle then
+			return
+		end
 
-        while true do
-            local name, type = vim.loop.fs_scandir_next(handle)
-            if not name then break end
+		while true do
+			local name, type = vim.loop.fs_scandir_next(handle)
+			if not name then
+				break
+			end
 
-            local full_path = dir .. "/" .. name
-            if type == "directory" then
-                scan_recursive(full_path)
-            elseif type == "file" then
-                if name:match("%.epub$") or name:match("%.md$") or name:match("%.markdown$") then
-                    table.insert(files, full_path)
-                end
-            end
-        end
-    end
+			local full_path = dir .. "/" .. name
+			if type == "directory" then
+				scan_recursive(full_path)
+			elseif type == "file" then
+				if name:match("%.epub$") or name:match("%.md$") or name:match("%.markdown$") then
+					table.insert(files, full_path)
+				end
+			end
+		end
+	end
 
-    scan_recursive(directory)
-    M.process_files(files, callback)
+	scan_recursive(directory)
+	M.process_files(files, callback)
 end
 
 -- Process files one by one with progress updates
@@ -76,12 +79,46 @@ function M.process_files(files, callback)
 	end
 
 	local current_idx = 0
+	local last_progress_time = 0
+	local progress_interval = 150
+	local bar_width = 20
+
+	local function show_progress(file_path, file_type, force)
+		local now = vim.loop.hrtime() / 1e6
+
+		if not force and now - last_progress_time < progress_interval then
+			return
+		end
+
+		last_progress_time = now
+
+		local percent = math.floor(current_idx / total * 100)
+		local filled = math.floor(current_idx / total * bar_width)
+
+		local bar = string.rep("█", filled) .. string.rep("░", bar_width - filled)
+
+		local filename = vim.fn.fnamemodify(file_path, ":t")
+
+		local message =
+			string.format("[%s] %3d%% (%d/%d) %s: %s", bar, percent, current_idx, total, file_type, filename)
+
+		vim.schedule(function()
+			vim.api.nvim_echo({
+				{ message, "None" },
+			}, false, {})
+			vim.cmd("redraw")
+		end)
+	end
 
 	local function process_next()
 		current_idx = current_idx + 1
 
 		if current_idx > total then
-			-- All done
+			vim.schedule(function()
+				vim.api.nvim_echo({ { "", "None" } }, false, {})
+				vim.cmd("redraw")
+			end)
+
 			if callback then
 				callback({
 					total = total,
@@ -96,29 +133,16 @@ function M.process_files(files, callback)
 		local file_path = files[current_idx]
 		local file_type = "unknown"
 
-		-- Detect file type
 		if file_path:match("%.epub$") then
 			file_type = "EPUB"
 		elseif file_path:match("%.md$") or file_path:match("%.markdown$") then
 			file_type = "Markdown"
 		end
 
-		-- Show progress
-		vim.schedule(function()
-			vim.notify(
-				string.format(
-					"Processing %s %d/%d: %s",
-					file_type,
-					current_idx,
-					total,
-					vim.fn.fnamemodify(file_path, ":t")
-				),
-				vim.log.levels.INFO
-			)
-		end)
+		show_progress(file_path, file_type, current_idx == 1 or current_idx == total)
 
-		-- Process this file
 		local ok, parsed_data
+
 		if file_type == "EPUB" then
 			ok, parsed_data = pcall(epub.open, file_path, { skip_toc_generation = true })
 		elseif file_type == "Markdown" then
@@ -142,9 +166,9 @@ function M.process_files(files, callback)
 					total_chapters = #parsed_data.spine,
 				}
 
-				-- Check if book already exists
 				local library = data.load()
 				local exists = false
+
 				for _, book in ipairs(library.books) do
 					if book.slug == book_info.slug or book.path == book_info.path then
 						exists = true
@@ -153,7 +177,6 @@ function M.process_files(files, callback)
 				end
 
 				if not exists then
-					-- Lazy load core to avoid circular dependency
 					local core = require("ink.library.core")
 					core.add_book(book_info)
 					added = added + 1
@@ -161,15 +184,16 @@ function M.process_files(files, callback)
 					skipped = skipped + 1
 				end
 			else
-				table.insert(errors, { path = file_path, error = tostring(parsed_data) })
+				table.insert(errors, {
+					path = file_path,
+					error = tostring(parsed_data),
+				})
 			end
 
-			-- Process next file after small delay
 			vim.defer_fn(process_next, 10)
 		end)
 	end
 
-	-- Start processing
 	process_next()
 end
 
