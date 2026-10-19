@@ -630,8 +630,6 @@ function M.apply_glossary_marks(buf, matches, entries_map, custom_types, ns_id)
 end
 
 local function apply_dim_all(ctx, buf, ns)
-	vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
-
 	vim.api.nvim_buf_set_extmark(buf, ns, 0, 0, {
 		end_line = vim.api.nvim_buf_line_count(buf),
 		end_col = 0,
@@ -664,7 +662,7 @@ local function apply_focus(buf, ns, start_l, end_l)
 	})
 end
 
-local function update_reading_paragraph_mode(ctx)
+local function update_reading_paragraph_highlights(ctx)
 	if not ctx then
 		return
 	end
@@ -699,17 +697,17 @@ function M.enable_reading_paragraph_mode(ctx)
 	ctx._reading_para_start = nil
 	ctx._reading_para_end = nil
 
-	update_reading_paragraph_mode(ctx)
+	update_reading_paragraph_highlights(ctx)
 
 	local buf = vim.api.nvim_win_get_buf(ctx.content_win)
 	local group_name = "ReadingMode_Buf_" .. buf
 	local group = vim.api.nvim_create_augroup(group_name, { clear = true })
 
-	vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
+	vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI", "WinLeave", "WinEnter" }, {
 		group = group,
 		buffer = buf,
 		callback = function()
-			update_reading_paragraph_mode(ctx)
+			update_reading_paragraph_highlights(ctx)
 		end,
 	})
 end
@@ -744,5 +742,16 @@ function M.toggle_reading_paragraph_mode()
 	end
 end
 
-return M
+function M.refresh_reading_paragraph_mode(ctx)
+	if not ctx or not ctx.reading_paragraph_mode then
+		return
+	end
+	if not (ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win)) then
+		return
+	end
 
+	ctx._reading_para_start = nil
+	ctx._reading_para_end = nil
+	update_reading_paragraph_highlights(ctx)
+end
+return M
