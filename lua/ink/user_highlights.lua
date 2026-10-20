@@ -90,22 +90,30 @@ end
 
 -- Get cached position for a highlight
 function M.get_cached_position(slug, chapter, hl)
-  if not positions_cache[slug] then return nil end
-  if not positions_cache[slug][chapter] then return nil end
+  if not positions_cache[slug] then
+    return nil
+  end
+  if not positions_cache[slug][chapter] then
+    return nil
+  end
   local key = get_position_key(hl)
   return positions_cache[slug][chapter][key]
 end
 
 -- Cache position for a highlight
 function M.cache_position(slug, chapter, hl, start_line, start_col, end_line, end_col)
-  if not positions_cache[slug] then positions_cache[slug] = {} end
-  if not positions_cache[slug][chapter] then positions_cache[slug][chapter] = {} end
+  if not positions_cache[slug] then
+    positions_cache[slug] = {}
+  end
+  if not positions_cache[slug][chapter] then
+    positions_cache[slug][chapter] = {}
+  end
   local key = get_position_key(hl)
   positions_cache[slug][chapter][key] = {
     start_line = start_line,
     start_col = start_col,
     end_line = end_line,
-    end_col = end_col
+    end_col = end_col,
   }
 end
 
@@ -133,10 +141,10 @@ function M.remove_highlight_by_text(slug, highlight)
 
   for _, hl in ipairs(data.highlights) do
     -- Match by chapter and text content
-    local is_match = hl.chapter == highlight.chapter and
-                     hl.text == highlight.text and
-                     hl.context_before == highlight.context_before and
-                     hl.context_after == highlight.context_after
+    local is_match = hl.chapter == highlight.chapter
+      and hl.text == highlight.text
+      and hl.context_before == highlight.context_before
+      and hl.context_after == highlight.context_after
 
     if not is_match then
       table.insert(new_highlights, hl)
@@ -173,10 +181,12 @@ function M.update_note(slug, highlight, note_text)
 
   for _, hl in ipairs(data.highlights) do
     -- Match by chapter and text content
-    if hl.chapter == highlight.chapter and
-       hl.text == highlight.text and
-       hl.context_before == highlight.context_before and
-       hl.context_after == highlight.context_after then
+    if
+      hl.chapter == highlight.chapter
+      and hl.text == highlight.text
+      and hl.context_before == highlight.context_before
+      and hl.context_after == highlight.context_after
+    then
       -- Update note
       if note_text and note_text ~= "" then
         hl.note = note_text
@@ -204,10 +214,12 @@ function M.update_color(slug, highlight, new_color)
 
   for _, hl in ipairs(data.highlights) do
     -- Match by chapter and text content
-    if hl.chapter == highlight.chapter and
-       hl.text == highlight.text and
-       hl.context_before == highlight.context_before and
-       hl.context_after == highlight.context_after then
+    if
+      hl.chapter == highlight.chapter
+      and hl.text == highlight.text
+      and hl.context_before == highlight.context_before
+      and hl.context_after == highlight.context_after
+    then
       -- Update color
       hl.color = new_color
       hl.updated_at = os.time()
