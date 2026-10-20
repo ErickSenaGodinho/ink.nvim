@@ -4,23 +4,23 @@
 local M = {}
 
 local fs = require("ink.fs")
-local data_module = require("ink.data")
+local data = require("ink.data")
 local entities = require("ink.html.entities")
 
 -- Get path to library.json
 local function get_library_path()
-  fs.ensure_dir(data_module.get_data_dir())
-  return data_module.get_data_dir() .. "/library.json"
+  fs.ensure_dir(data.get_data_dir())
+  return data.get_data_dir() .. "/library.json"
 end
 
 -- Migrate library data to decode HTML entities
+-- Returns the library and whether anything was changed
 local function migrate_decode_entities(library)
-  -- Check if migration is needed (v2 includes proper tag removal)
+  -- Already migrated (v2 includes proper tag removal)
   if library.entities_decoded_v2 then
-    return library
+    return library, false
   end
 
-  -- Decode entities and clean HTML in all books
   for _, book in ipairs(library.books or {}) do
     if book.title then
       book.title = entities.decode_entities(book.title)
@@ -35,59 +35,53 @@ local function migrate_decode_entities(library)
     end
   end
 
-  -- Mark as migrated (v2)
   library.entities_decoded_v2 = true
   library.entities_decoded = nil -- Remove old flag
 
-  return library
+  return library, true
 end
 
--- Load library from disk
 function M.load()
   local path = get_library_path()
 
   if not fs.exists(path) then
-    return { books = {}, last_book_path = nil }
+    return { books = {}, entities_decoded_v2 = true }
   end
 
   local content = fs.read_file(path)
   if not content then
-    return { books = {}, last_book_path = nil }
+    return { books = {} }
   end
 
-  local ok, lib = pcall(vim.json.decode, content)
-  if not ok or not lib then
-    return { books = {}, last_book_path = nil }
+  local lib = data.json_decode_safe(content, path)
+  if not lib then
+    -- corrupted/empty: original was backed up and moved aside
+    return { books = {} }
   end
 
-  -- Ensure books array exists
-  lib.books = lib.books or {}
+  if type(lib.books) ~= "table" then
+    lib.books = {}
+  end
 
-  -- Run migrations
-  lib = migrate_decode_entities(lib)
+  local migrated
+  lib, migrated = migrate_decode_entities(lib)
 
-  -- Save migrated data
-  if lib.entities_decoded_v2 then
+  -- Only touch the disk when the migration actually changed something
+  if migrated then
     M.save(lib)
   end
 
   return lib
 end
 
--- Save library to disk
 function M.save(library)
-  local path = get_library_path()
-  local json = data_module.json_encode(library)
-
-  local file = io.open(path, "w")
-  if not file then
+  local ok, json = pcall(vim.json.encode, library)
+  if not ok then
+    vim.notify("Failed to encode library: " .. tostring(json), vim.log.levels.ERROR)
     return false
   end
 
-  -- Ensure file is always closed, even on error
-  local ok = pcall(file.write, file, json)
-  file:close()
-  return ok
+  return (fs.write_file(get_library_path(), json))
 end
 
 return M
