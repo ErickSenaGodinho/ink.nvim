@@ -629,31 +629,8 @@ function M.render_chapter(idx, restore_line, ctx)
 	M.update_statusline(ctx)
 
 	-- Don't save state during book initialization to prevent overwriting saved position
-	if not ctx._is_initializing then
-		-- Get current cursor position
-		local cursor_line = 1
-		if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
-			local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
-			cursor_line = cursor[1]
-		elseif type(restore_line) == "number" then
-			cursor_line = restore_line
-		elseif type(restore_line) == "table" then
-			cursor_line = restore_line[1]
-		end
-
-		-- Extract position with text context for robust restoration
-		local position_ctx = get_current_position_context(ctx, cursor_line)
-
+	if not ctx._is_initializing and not ctx._rerendering then
 		local state_data = { chapter = idx }
-		if position_ctx then
-			state_data.text = position_ctx.text
-			state_data.context_before = position_ctx.context_before
-			state_data.context_after = position_ctx.context_after
-			state_data.line = position_ctx.line_fallback
-		else
-			state_data.line = cursor_line
-		end
-
 		get_state().save(ctx.data.slug, state_data)
 		get_library().update_progress(ctx.data.slug, idx, #ctx.data.spine)
 	end
@@ -675,18 +652,9 @@ function M.toggle_note_display(ctx)
 		ctx.note_display_mode = "off"
 	end
 
-	-- Save viewport position (text-based, survives word wrap changes)
-	local viewport_ctx = M.get_viewport_text_context(ctx)
-
-	M.render_chapter(ctx.current_chapter_idx, nil, ctx)
-
-	-- Restore viewport immediately (render_chapter is synchronous)
-	if vim.api.nvim_win_is_valid(ctx.content_win) then
-		vim.api.nvim_set_current_win(ctx.content_win)
-		M.restore_viewport_from_context(ctx, viewport_ctx)
+	if M.rerender_preserving_viewport(ctx, { focus = true }) then
+		vim.notify("Note display: " .. ctx.note_display_mode, vim.log.levels.INFO)
 	end
-
-	vim.notify("Note display: " .. ctx.note_display_mode, vim.log.levels.INFO)
 end
 
 function M.toggle_glossary_display(ctx)
@@ -698,21 +666,11 @@ function M.toggle_glossary_display(ctx)
 	-- Toggle the visibility state
 	ctx.glossary_visible = not ctx.glossary_visible
 
-	-- Save viewport position (text-based, survives word wrap changes)
-	local viewport_ctx = M.get_viewport_text_context(ctx)
-
 	-- Re-render the chapter to apply/remove glossary marks
-	M.render_chapter(ctx.current_chapter_idx, nil, ctx)
-
-	-- Restore viewport immediately (render_chapter is synchronous)
-	if vim.api.nvim_win_is_valid(ctx.content_win) then
-		vim.api.nvim_set_current_win(ctx.content_win)
-		M.restore_viewport_from_context(ctx, viewport_ctx)
+	if M.rerender_preserving_viewport(ctx, { focus = true }) then
+		local status = ctx.glossary_visible and "visible" or "hidden"
+		vim.notify("Glossary terms: " .. status, vim.log.levels.INFO)
 	end
-
-	-- Notify user
-	local status = ctx.glossary_visible and "visible" or "hidden"
-	vim.notify("Glossary terms: " .. status, vim.log.levels.INFO)
 end
 
 -- Invalidate glossary cache (for when glossary is modified)
@@ -753,31 +711,37 @@ local function get_viewport_text_context(ctx)
 	local cursor_line = cursor[1]
 	local total_lines = vim.api.nvim_buf_line_count(ctx.content_buf)
 
-	-- Get text from cursor line (single API call)
-	local lines = vim.api.nvim_buf_get_lines(ctx.content_buf, cursor_line - 1, cursor_line, false)
-	if not lines or not lines[1] or lines[1]:match("^%s*$") then
-		return {
-			cursor_fallback = cursor_line,
-			total_lines = total_lines,
-		}
-	end
-
-	-- Normalize and extract first ~40 characters (survives word wrap)
-	local normalized = lines[1]:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
-	if #normalized < 15 then
-		return {
-			cursor_fallback = cursor_line,
-			total_lines = total_lines,
-		}
-	end
-
-	local search_snippet = normalized:sub(1, math.min(40, #normalized))
-
-	return {
-		search_text = { search_snippet },
+	local result = {
 		cursor_fallback = cursor_line,
 		total_lines = total_lines,
 	}
+
+	-- Prefer saved state (text + context_before/after), but only if it belongs to the current chapter
+	local state_data = get_state().load(ctx.data.slug)
+	local pos
+	if
+		state_data
+		and state_data.chapter == ctx.current_chapter_idx
+		and state_data.text
+		and not state_data.text:match("^%s*$")
+	then
+		pos = {
+			text = state_data.text,
+			context_before = state_data.context_before,
+			context_after = state_data.context_after,
+		}
+	else
+		-- Fallback: extracted live from the buffer
+		pos = get_current_position_context(ctx, cursor_line)
+	end
+
+	if pos and pos.text and not pos.text:match("^%s*$") then
+		result.text = pos.text
+		result.context_before = pos.context_before or ""
+		result.context_after = pos.context_after or ""
+	end
+
+	return result
 end
 
 local function center_cursor(win)
@@ -792,45 +756,32 @@ local function restore_viewport_from_context(ctx, viewport_ctx)
 		return false
 	end
 
-	-- If we have search text, try to find it by searching the entire buffer
-	if viewport_ctx.search_text and #viewport_ctx.search_text > 0 then
-		local search = viewport_ctx.search_text[1]
-		local total_lines = vim.api.nvim_buf_line_count(ctx.content_buf)
+	local total_lines = vim.api.nvim_buf_line_count(ctx.content_buf)
 
-		-- First try: search near the old cursor position (±100 lines for better coverage)
-		local start_line = math.max(1, (viewport_ctx.cursor_fallback or 1) - 100)
-		local end_line = math.min(total_lines, (viewport_ctx.cursor_fallback or 1) + 100)
+	-- If we have text, locate it using text + surrounding context (disambiguates repeated text)
+	if viewport_ctx.text then
+		local util = require("ink.ui.util")
+		local lines = vim.api.nvim_buf_get_lines(ctx.content_buf, 0, -1, false)
+		local line, col = util.find_text_position(
+			lines,
+			viewport_ctx.text,
+			viewport_ctx.context_before,
+			viewport_ctx.context_after,
+			false
+		)
 
-		local lines = vim.api.nvim_buf_get_lines(ctx.content_buf, start_line - 1, end_line, false)
-
-		for i, line in ipairs(lines) do
-			local normalized = line:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
-			if normalized:find(search, 1, true) then
-				-- Found it! Position cursor here and center it
-				local actual_line = start_line + i - 1
-				vim.api.nvim_win_set_cursor(ctx.content_win, { actual_line, 0 })
-				center_cursor(ctx.content_win)
-				return true
-			end
-		end
-
-		-- Second try: search entire buffer (width changes can move text far away)
-		lines = vim.api.nvim_buf_get_lines(ctx.content_buf, 0, -1, false)
-		for i, line in ipairs(lines) do
-			local normalized = line:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
-			if normalized:find(search, 1, true) then
-				-- Found it! Position cursor here and center it
-				vim.api.nvim_win_set_cursor(ctx.content_win, { i, 0 })
-				center_cursor(ctx.content_win)
-				return true
-			end
+		if type(line) == "number" and line >= 1 and line <= total_lines then
+			-- Found it! Position cursor here and center it
+			local line_len = #(lines[line] or "")
+			local safe_col = math.max(0, math.min(col or 0, line_len))
+			vim.api.nvim_win_set_cursor(ctx.content_win, { line, safe_col })
+			center_cursor(ctx.content_win)
+			return true
 		end
 	end
 
 	-- Fallback: estimate relative position based on line ratio
 	if viewport_ctx.cursor_fallback then
-		local total_lines = vim.api.nvim_buf_line_count(ctx.content_buf)
-
 		-- Try to maintain relative position in the chapter
 		-- If we had cursor at 20% through the old buffer, try to put it at ~20% in new buffer
 		if viewport_ctx.total_lines and viewport_ctx.total_lines > 0 then
@@ -854,6 +805,39 @@ end
 M.get_current_position_context = get_current_position_context
 M.get_viewport_text_context = get_viewport_text_context
 M.restore_viewport_from_context = restore_viewport_from_context
+
+-- Re-render current chapter keeping the viewport position.
+-- opts.focus: also move focus to the content window (used by toggles)
+-- Returns true on success.
+function M.rerender_preserving_viewport(ctx, opts)
+	opts = opts or {}
+	ctx = ctx or context.current()
+	if not ctx then
+		return false
+	end
+
+	-- Save viewport position (text-based, survives word wrap changes)
+	local viewport_ctx = M.get_viewport_text_context(ctx)
+
+	ctx._rerendering = true
+	local ok, err = pcall(M.render_chapter, ctx.current_chapter_idx, nil, ctx)
+	ctx._rerendering = false
+	if not ok then
+		vim.notify("Render error: " .. tostring(err), vim.log.levels.ERROR)
+		return false
+	end
+
+	-- Restore viewport immediately (render_chapter is synchronous)
+	if vim.api.nvim_win_is_valid(ctx.content_win) then
+		if opts.focus then
+			vim.api.nvim_set_current_win(ctx.content_win)
+		end
+		M.restore_viewport_from_context(ctx, viewport_ctx)
+		get_extmarks().refresh_reading_paragraph_mode(ctx)
+	end
+
+	return true
+end
 
 -- Lightweight refresh: only update user highlights without rewriting buffer
 function M.refresh_highlights(ctx)

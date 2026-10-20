@@ -71,6 +71,7 @@ function M.create_book_buffer()
 	local content_buf = vim.api.nvim_create_buf(false, true)
 	vim.api.nvim_set_option_value("filetype", "ink_content", { buf = content_buf })
 	vim.api.nvim_set_option_value("syntax", "off", { buf = content_buf })
+	vim.api.nvim_set_option_value("undolevels", -1, { buf = content_buf })
 
 	return content_buf
 end
@@ -424,9 +425,6 @@ function M.setup_book_autocmds(content_buf, slug)
 				local resized_wins = vim.v.event.windows or {}
 				for _, win_id in ipairs(resized_wins) do
 					if win_id == current_ctx.content_win then
-						-- Save viewport position (text-based, survives word wrap changes)
-						local viewport_ctx = render.get_viewport_text_context(current_ctx)
-
 						-- Adaptive width: adjust max_width based on window size (per-context)
 						local new_max_width = calculate_adaptive_width(current_ctx)
 						if new_max_width and current_ctx.current_max_width ~= new_max_width then
@@ -442,16 +440,7 @@ function M.setup_book_autocmds(content_buf, slug)
 
 						-- Invalidate highlight positions cache since they depend on width
 						require("ink.user_highlights").clear_positions_cache(current_ctx.data.slug)
-
-						render.render_chapter(current_ctx.current_chapter_idx, nil, current_ctx)
-
-						-- Restore viewport immediately (render_chapter is synchronous)
-						if
-							vim.api.nvim_win_is_valid(current_ctx.content_win)
-							and vim.api.nvim_get_current_win() == current_ctx.content_win
-						then
-							render.restore_viewport_from_context(current_ctx, viewport_ctx)
-						end
+						render.rerender_preserving_viewport(current_ctx)
 						break
 					end
 				end
