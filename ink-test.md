@@ -49,7 +49,7 @@ Inline code works with `backticks`, like `local foo = "bar"`.
 
 ## Links and Images
 
-Here's a [link to the repository](https://github.com/DanielPonte01/ink.nvim).
+Here's a [link to the repository](https://github.com/ErickSenaGodinho/ink.nvim).
 
 Internal links work too: [Jump to Chapter 2](#chapter-2-lists-and-blockquotes).
 
