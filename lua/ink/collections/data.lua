@@ -54,37 +54,32 @@ end
 
 -- Save collections to disk
 function M.save(data)
-  local path = get_collections_file_path()
   local fs = require("ink.fs")
   local ink_data = require("ink.data")
+  local uv = vim.uv or vim.loop
 
-  -- Ensure directory exists
-  local data_dir = ink_data.get_data_dir()
-  fs.ensure_dir(data_dir)
+  local path = get_collections_file_path()
+  fs.ensure_dir(ink_data.get_data_dir())
 
-  -- Backup before saving
-  if fs.exists(path) then
-    local backup_path = path .. ".backup"
-    -- Only keep one backup (overwrite)
-    os.rename(path, backup_path)
-  end
-
-  -- Encode to JSON
-  local content = ink_data.json_encode(data)
-
-  -- Write file
-  local file = io.open(path, "w")
-  if not file then
-    vim.notify("Failed to save collections file: " .. path, vim.log.levels.ERROR)
+  -- Encode first: if this fails, nothing on disk has been touched
+  local ok, content = pcall(vim.json.encode, data)
+  if not ok then
+    vim.notify("Failed to encode collections: " .. tostring(content), vim.log.levels.ERROR)
     return false
   end
 
-  file:write(content)
-  file:close()
+  -- Keep one backup as a COPY (overwrites; the original stays in place)
+  if fs.exists(path) then
+    uv.fs_copyfile(path, path .. ".backup")
+  end
 
-  -- Invalidate cache
+  -- Atomic write (.tmp + rename); original is only replaced on success
+  local written = fs.write_file(path, content)
+  if not written then
+    return false -- write_file already notified
+  end
+
   M.invalidate_cache()
-
   return true
 end
 
