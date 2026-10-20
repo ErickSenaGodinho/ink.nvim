@@ -22,12 +22,13 @@ function M.load()
     return {}
   end
 
-  local ok, data = pcall(vim.json.decode, content)
-  if not ok or not data then
+  local result = data_module.json_decode_safe(content, path)
+  if not result then
+    -- corrupted/empty: original was backed up and moved aside
     return {}
   end
 
-  return data
+  return result
 end
 
 -- Save related data to disk
