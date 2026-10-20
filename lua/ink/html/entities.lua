@@ -32,67 +32,99 @@ local cp1252_map = {
   [159] = 376, -- Ÿ Latin capital letter Y with diaeresis
 }
 
--- Safe character conversion with bounds checking
-local function safe_char(num)
-  -- Valid Unicode range: 0x0000 to 0x10FFFF (1114111 decimal)
-  -- Exclude surrogate pairs: 0xD800 to 0xDFFF
-  if not num or num < 0 or num > 0x10FFFF then
-    return ""
+-- Encode a Unicode code point as UTF-8 (LuaJIT has no utf8.char)
+local function codepoint_to_utf8(cp)
+  local floor = math.floor
+  if cp < 0x80 then
+    return string.char(cp)
+  elseif cp < 0x800 then
+    return string.char(0xC0 + floor(cp / 0x40), 0x80 + cp % 0x40)
+  elseif cp < 0x10000 then
+    return string.char(0xE0 + floor(cp / 0x1000), 0x80 + floor(cp / 0x40) % 0x40, 0x80 + cp % 0x40)
   end
-  if num >= 0xD800 and num <= 0xDFFF then
-    return ""
-  end
-
-  -- Map Windows-1252 characters (128-159) to proper Unicode
-  if num >= 128 and num <= 159 and cp1252_map[num] then
-    num = cp1252_map[num]
-  end
-
-  -- Try utf8.char first (Neovim 0.10+)
-  if utf8 and utf8.char then
-    local ok, result = pcall(utf8.char, num)
-    if ok then
-      return result
-    end
-  end
-
-  -- Fallback to string.char for ASCII range (0-127)
-  if num <= 127 then
-    return string.char(num)
-  end
-
-  -- For non-ASCII, return empty string (better than crash)
-  -- Most common HTML entities are ASCII anyway
-  return ""
+  return string.char(
+    0xF0 + floor(cp / 0x40000),
+    0x80 + floor(cp / 0x1000) % 0x40,
+    0x80 + floor(cp / 0x40) % 0x40,
+    0x80 + cp % 0x40
+  )
 end
 
--- Entity lookup table for faster replacement
+-- Returns the UTF-8 character, or nil if the code point is invalid
+-- (nil makes decode_entities keep the original text instead of deleting it)
+local function safe_char(num)
+  if not num or num == 0 or num > 0x10FFFF then
+    return nil
+  end
+  if num >= 0xD800 and num <= 0xDFFF then -- surrogates
+    return nil
+  end
+
+  -- Windows-1252 range (128-159) is mapped by browsers to real Unicode
+  num = cp1252_map[num] or num
+
+  return codepoint_to_utf8(num)
+end
+
 local entity_map = {
-  ["&lt;"] = "<",
-  ["&gt;"] = ">",
-  ["&amp;"] = "&",
-  ["&quot;"] = '"',
-  ["&apos;"] = "'",
-  ["&nbsp;"] = " ",
+  lt = "<",
+  gt = ">",
+  amp = "&",
+  quot = '"',
+  apos = "'",
+  nbsp = " ",
+  mdash = "—",
+  ndash = "–",
+  hellip = "…",
+  lsquo = "‘",
+  rsquo = "’",
+  ldquo = "“",
+  rdquo = "”",
+  laquo = "«",
+  raquo = "»",
+  bull = "•",
+  middot = "·",
+  copy = "©",
+  reg = "®",
+  trade = "™",
+  deg = "°",
+  eacute = "é",
+  egrave = "è",
+  aacute = "á",
+  agrave = "à",
+  acirc = "â",
+  atilde = "ã",
+  ccedil = "ç",
+  iacute = "í",
+  oacute = "ó",
+  ocirc = "ô",
+  otilde = "õ",
+  uacute = "ú",
+  Eacute = "É",
+  Aacute = "Á",
+  Ccedil = "Ç",
 }
 
--- Optimized: single gsub pass instead of multiple sequential gsub calls
 function M.decode_entities(str)
-  -- Single gsub with pattern that matches all entity types
-  return str:gsub("&(#?x?)([%w]+);", function(prefix, value)
-    if prefix == "" then
-      -- Named entity (e.g., &lt;)
-      local full_entity = "&" .. value .. ";"
-      return entity_map[full_entity] or full_entity
-    elseif prefix == "#" then
-      -- Decimal numeric entity (e.g., &#65;)
-      return safe_char(tonumber(value))
-    elseif prefix == "#x" then
-      -- Hex numeric entity (e.g., &#x41;)
-      return safe_char(tonumber(value, 16))
-    end
-    return "&" .. prefix .. value .. ";"
-  end)
+  -- Single pass, so "&amp;lt;" becomes "&lt;" and not "<".
+  -- Returning nil from the callback keeps the original match.
+  return (
+    str:gsub("&(#?%w+);", function(body)
+      if body:sub(1, 1) ~= "#" then
+        return entity_map[body]
+      end
+
+      local hex = body:match("^#[xX](%x+)$")
+      if hex then
+        return safe_char(tonumber(hex, 16))
+      end
+
+      local dec = body:match("^#(%d+)$")
+      if dec then
+        return safe_char(tonumber(dec))
+      end
+    end)
+  )
 end
 
 return M
