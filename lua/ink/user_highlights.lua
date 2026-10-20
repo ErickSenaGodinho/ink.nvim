@@ -18,23 +18,19 @@ end
 
 function M.save(slug, highlights)
   local path = get_highlights_path(slug)
-  local json = data.json_encode({ highlights = highlights })
 
-  local file = io.open(path, "w")
-  if not file then
+  local ok, json = pcall(vim.json.encode, { highlights = highlights })
+  if not ok then
+    vim.notify("Failed to encode highlights: " .. tostring(json), vim.log.levels.ERROR)
     return false
   end
 
-  -- Ensure file is always closed, even on error
-  local ok = pcall(file.write, file, json)
-  file:close()
-
-  -- Invalidate cache on save
-  if ok then
-    highlights_cache[slug] = nil
+  if not fs.write_file(path, json) then
+    return false
   end
 
-  return ok
+  highlights_cache[slug] = nil
+  return true
 end
 
 -- Load highlights from disk (or cache)
@@ -59,12 +55,16 @@ function M.load(slug)
     return empty
   end
 
-  local ok, loaded = pcall(vim.json.decode, content)
-  if not ok or not loaded then
+  local loaded = data.json_decode_safe(content, path)
+  if not loaded then
+    -- corrupted/empty: the original was backed up and moved aside,
+    -- so starting empty no longer overwrites anything recoverable
     local empty = { highlights = {} }
     highlights_cache[slug] = { data = empty, by_chapter = {} }
     return empty
   end
+
+  loaded.highlights = loaded.highlights or {}
 
   -- Build chapter index for fast lookup
   local by_chapter = {}
