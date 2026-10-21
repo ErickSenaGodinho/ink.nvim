@@ -2,7 +2,6 @@ local M = {}
 
 -- In-memory state
 local active_sessions = {} -- { slug => session_id }
-local cache = {} -- Cache for loaded data
 local config = {
 	enabled = true,
 	auto_save_interval = 300, -- 5 minutes
@@ -113,9 +112,6 @@ local function save_sessions(slug, data)
 	file:write(content)
 	file:close()
 
-	-- Invalidate cache
-	cache[slug] = nil
-
 	return true
 end
 
@@ -182,9 +178,11 @@ function M.start_session(slug, chapter)
 	-- Check for orphaned session (end_time = null)
 	if data.last_session then
 		for _, session in ipairs(data.sessions) do
-			if session.id == data.last_session and session.end_time == vim.NIL then
-				fix_orphaned_session(slug, session)
-			end
+      if session.id == data.last_session and (session.end_time == nil or session.end_time == vim.NIL) then
+        fix_orphaned_session(slug, session)
+        data.total_time = data.total_time + session.duration
+        save_sessions(slug, data)
+      end
 		end
 	end
 
@@ -215,25 +213,35 @@ function M.start_session(slug, chapter)
 	return session_id
 end
 
+
 function M.end_session(slug)
-	if not config.enabled then
-		return 0
-	end
+    if not config.enabled then
+        return 0
+    end
 
-	local data, session = get_active_session(slug)
+    if slug then
+        local data, session = get_active_session(slug)
 
-	if not session then
-		vim.notify("Active session not found in file", vim.log.levels.WARN)
-		active_sessions[slug] = nil
-		return 0
-	end
+        if session then
+            update_session_data(session, data)
+            session.end_time = os.time()
+            save_sessions(slug, data)
+        end
 
-	update_session_data(session, data)
-	save_sessions(slug, data)
+        active_sessions[slug] = nil
+    else
+        local slugs = {}
 
-	active_sessions[slug] = nil
+        for s in pairs(active_sessions) do
+            table.insert(slugs, s)
+        end
 
-	return session.duration
+        for _, s in ipairs(slugs) do
+            M.end_session(s)
+        end
+    end
+
+    return 0
 end
 
 function M.update_active_session(slug)
@@ -571,9 +579,7 @@ function M.reset_all_statistics()
 	end
 
 	-- End all active sessions first
-	for slug, _ in pairs(active_sessions) do
-		M.end_session(slug)
-	end
+	M.end_session(nil)
 
 	local library = require("ink.library")
 	local books = library.get_books()
