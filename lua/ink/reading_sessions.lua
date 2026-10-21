@@ -153,8 +153,8 @@ local function get_active_session(slug)
 end
 
 local function update_session_data(session, data)
-    local ctx = require("ink.ui.context")
-    local current_chapter = ctx.ctx.chapter_idx or session.chapter_start
+    local ctx = require("ink.ui.context").current()
+    local current_chapter = ctx and ctx.current_chapter_idx or session.chapter_start
 
     session.chapter_end = current_chapter
 

@@ -28,24 +28,24 @@ local function new_context()
     note_display_mode = M.config.note_display_mode or "indicator",
     rendered_lines = {},
     default_max_width = nil,
-    current_max_width = nil,  -- Current max_width for this book (adaptive width), nil = use config default
-    manual_width_override = false,  -- If true, user manually adjusted width, disable adaptive until reset
-    parsed_chapters = lru_cache.new(15),  -- LRU cache with max 15 chapters
+    current_max_width = nil, -- Current max_width for this book (adaptive width), nil = use config default
+    manual_width_override = false, -- If true, user manually adjusted width, disable adaptive until reset
+    parsed_chapters = lru_cache.new(15), -- LRU cache with max 15 chapters
     search_index = nil,
     -- Glossary fields
-    glossary_detection_index = nil,  -- Cache of detection index for performance
-    glossary_matches = {},           -- Detected glossary terms in current chapter
-    glossary_custom_types = {},      -- Custom types defined for this book
-    glossary_visible = M.config.glossary_visible or true,  -- Whether to show glossary terms
-    glossary_matches_cache = {       -- Versioned cache: { version = "hash", chapters = { [idx] = matches } }
+    glossary_detection_index = nil, -- Cache of detection index for performance
+    glossary_matches = {}, -- Detected glossary terms in current chapter
+    glossary_custom_types = {}, -- Custom types defined for this book
+    glossary_visible = M.config.glossary_visible or true, -- Whether to show glossary terms
+    glossary_matches_cache = { -- Versioned cache: { version = "hash", chapters = { [idx] = matches } }
       version = nil,
-      chapters = {}
+      chapters = {},
     },
     -- Padnotes fields
-    padnote_buf = nil,               -- Buffer of current padnote (if open)
-    padnote_win = nil,               -- Window of current padnote
-    padnote_chapter = nil,           -- Chapter index of open padnote
-    padnote_auto_save_timer = nil,   -- Auto-save timer
+    padnote_buf = nil, -- Buffer of current padnote (if open)
+    padnote_win = nil, -- Window of current padnote
+    padnote_chapter = nil, -- Chapter index of open padnote
+    padnote_auto_save_timer = nil, -- Auto-save timer
   }
 end
 
@@ -53,10 +53,14 @@ end
 function M.get(buf)
   buf = buf or vim.api.nvim_get_current_buf()
   -- Direct match on content_buf
-  if contexts[buf] then return contexts[buf] end
+  if contexts[buf] then
+    return contexts[buf]
+  end
   -- Check if buf is a padnote_buf
   for _, ctx in pairs(contexts) do
-    if ctx.padnote_buf == buf then return ctx end
+    if ctx.padnote_buf == buf then
+      return ctx
+    end
   end
   return nil
 end
@@ -88,26 +92,6 @@ end
 function M.remove(content_buf)
   contexts[content_buf] = nil
 end
-
--- Legacy: M.ctx points to current context (for gradual migration)
-M.ctx = setmetatable({}, {
-  __index = function(_, k)
-    local ctx = M.current()
-    if not ctx then
-      vim.notify("Warning: Attempted to read context key '" .. tostring(k) .. "' but no context exists", vim.log.levels.WARN)
-      return nil
-    end
-    return ctx[k]
-  end,
-  __newindex = function(_, k, v)
-    local ctx = M.current()
-    if not ctx then
-      vim.notify("Warning: Attempted to set context key '" .. tostring(k) .. "' but no context exists", vim.log.levels.WARN)
-      return
-    end
-    ctx[k] = v
-  end
-})
 
 function M.setup(config)
   M.config = vim.tbl_deep_extend("force", M.config, config or {})
