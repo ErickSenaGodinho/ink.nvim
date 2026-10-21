@@ -1,47 +1,31 @@
 local M = {}
 
+--- Declarative list of global keymaps.
+--- `group` is the key inside the plugin config that holds the lhs table,
+--- `key` is the entry inside that table, `cmd` is the Ex command to run.
+local specs = {
+  { group = "keymaps", key = "library", cmd = "InkLibrary", desc = "Open library" },
+  { group = "keymaps", key = "last_book", cmd = "InkLast", desc = "Open last book" },
+  { group = "bookmark_keymaps", key = "list_all", cmd = "InkBookmarks", desc = "List all bookmarks" },
+  { group = "notes_list_keymaps", key = "list_all", cmd = "InkNotes", desc = "List all notes" },
+  { group = "keymaps", key = "dashboard", cmd = "InkDashboard", desc = "Open dashboard" },
+}
+
+---@param config table plugin config (M.config)
 function M.setup(config)
-  local keymaps = config.keymaps or {}
+  config = config or {}
 
-  -- Global keymaps for library features
-  if keymaps.library then
-    vim.keymap.set("n", keymaps.library, ":InkLibrary<CR>", { noremap = true, silent = true, desc = "Open library" })
-  end
+  for _, spec in ipairs(specs) do
+    local group = config[spec.group] or {}
+    local lhs = group[spec.key]
 
-  if keymaps.last_book then
-    vim.keymap.set("n", keymaps.last_book, ":InkLast<CR>", { noremap = true, silent = true, desc = "Open last book" })
-  end
-
-  -- Global keymaps for bookmarks
-  local bookmark_keymaps = config.bookmark_keymaps or {}
-  if bookmark_keymaps.list_all then
-    vim.keymap.set(
-      "n",
-      bookmark_keymaps.list_all,
-      ":InkBookmarks<CR>",
-      { noremap = true, silent = true, desc = "List all bookmarks" }
-    )
-  end
-
-  -- Global keymaps for notes
-  local notes_list_keymaps = config.notes_list_keymaps or {}
-  if notes_list_keymaps.list_all then
-    vim.keymap.set(
-      "n",
-      notes_list_keymaps.list_all,
-      ":InkNotes<CR>",
-      { noremap = true, silent = true, desc = "List all notes" }
-    )
-  end
-
-  -- Global keymap for dashboard
-  if keymaps.dashboard then
-    vim.keymap.set(
-      "n",
-      keymaps.dashboard,
-      ":InkDashboard<CR>",
-      { noremap = true, silent = true, desc = "Open dashboard" }
-    )
+    if lhs then
+      vim.keymap.set("n", lhs, ":" .. spec.cmd .. "<CR>", {
+        noremap = true,
+        silent = true,
+        desc = spec.desc,
+      })
+    end
   end
 end
 

@@ -414,7 +414,7 @@ function M.open_book(book_data, opts)
 
   ctx.content_win = vim.api.nvim_get_current_win()
 
-  require("ink.keymaps.reader").setup_book_keymaps(content_buf, context)
+  require("ink.keymaps.reader").setup(content_buf, context)
   M.setup_book_autocmds(content_buf, book_data.slug)
 
   vim.api.nvim_win_set_buf(ctx.content_win, content_buf)

@@ -1,318 +1,447 @@
 local M = {}
 
--- Setup all book-specific keymaps
-function M.setup_book_keymaps(content_buf, context)
-  local keymaps = context.config.keymaps or {}
+local function ui()
+  return require("ink.ui")
+end
 
-  if keymaps.next_chapter then
-    vim.keymap.set("n", keymaps.next_chapter, function()
-      require("ink.ui").next_chapter()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Next chapter" })
-  end
-  if keymaps.prev_chapter then
-    vim.keymap.set("n", keymaps.prev_chapter, function()
-      require("ink.ui").prev_chapter()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Previous chapter" })
-  end
-  if keymaps.activate then
-    vim.keymap.set("n", keymaps.activate, function()
-      require("ink.ui").handle_enter()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Activate (footnote/link/image)" })
-  end
+local function map(mode, lhs, rhs, buf, desc)
+  vim.keymap.set(mode, lhs, rhs, {
+    buffer = buf,
+    noremap = true,
+    silent = true,
+    desc = desc,
+  })
+end
 
-  local jump_key = keymaps.jump_to_link or "g<CR>"
-  vim.keymap.set("n", jump_key, function()
-    require("ink.ui").jump_to_link()
-  end, { buffer = content_buf, noremap = true, silent = true, desc = "Jump to link" })
+--- Each entry is either a keymap spec or a `dynamic` block.
+---
+--- Keymap spec:
+---   group   string    key in the plugin config holding the lhs table (e.g. "keymaps")
+---   key     string    entry inside that table (e.g. "next_chapter")
+---   mode    string?   defaults to "n"
+---   desc    string    keymap description
+---   run     function? Lua callback          (use `run` OR `cmd`)
+---   cmd     string?   Ex command, without ":" and "<CR>"
+---   default string?   lhs used when the config does not define one
+---   when    function? receives config; keymap is skipped if it returns falsy
+---
+--- Dynamic block:
+---   dynamic function(buf, config) for keymaps generated from config tables
+local specs = {
+  -- Navigation and basic reading
+  {
+    group = "keymaps",
+    key = "next_chapter",
+    desc = "Next chapter",
+    run = function()
+      ui().next_chapter()
+    end,
+  },
+  {
+    group = "keymaps",
+    key = "prev_chapter",
+    desc = "Previous chapter",
+    run = function()
+      ui().prev_chapter()
+    end,
+  },
+  {
+    group = "keymaps",
+    key = "activate",
+    desc = "Activate (footnote/link/image)",
+    run = function()
+      ui().handle_enter()
+    end,
+  },
+  {
+    group = "keymaps",
+    key = "jump_to_link",
+    default = "g<CR>",
+    desc = "Jump to link",
+    run = function()
+      ui().jump_to_link()
+    end,
+  },
+  {
+    group = "keymaps",
+    key = "search_toc",
+    desc = "Search TOC",
+    run = function()
+      ui().search_toc()
+    end,
+  },
+  {
+    group = "keymaps",
+    key = "search_content",
+    desc = "Search content",
+    run = function()
+      ui().search_content()
+    end,
+  },
 
-  if keymaps.search_toc then
-    vim.keymap.set("n", keymaps.search_toc, function()
-      require("ink.ui").search_toc()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Search TOC" })
-  end
-  if keymaps.search_content then
-    vim.keymap.set("n", keymaps.search_content, function()
-      require("ink.ui").search_content()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Search content" })
-  end
-  if keymaps.width_increase then
-    vim.keymap.set("n", keymaps.width_increase, function()
-      require("ink.ui").increase_width()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Increase width" })
-  end
-  if keymaps.width_decrease then
-    vim.keymap.set("n", keymaps.width_decrease, function()
-      require("ink.ui").decrease_width()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Decrease width" })
-  end
-  if keymaps.width_reset then
-    vim.keymap.set("n", keymaps.width_reset, function()
-      require("ink.ui").reset_width()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Reset width" })
-  end
-  if keymaps.toggle_justify then
-    vim.keymap.set("n", keymaps.toggle_justify, function()
-      require("ink.ui").toggle_justify()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Toggle text justification" })
-  end
+  -- Layout
+  {
+    group = "keymaps",
+    key = "width_increase",
+    desc = "Increase width",
+    run = function()
+      ui().increase_width()
+    end,
+  },
+  {
+    group = "keymaps",
+    key = "width_decrease",
+    desc = "Decrease width",
+    run = function()
+      ui().decrease_width()
+    end,
+  },
+  {
+    group = "keymaps",
+    key = "width_reset",
+    desc = "Reset width",
+    run = function()
+      ui().reset_width()
+    end,
+  },
+  {
+    group = "keymaps",
+    key = "toggle_justify",
+    desc = "Toggle text justification",
+    run = function()
+      ui().toggle_justify()
+    end,
+  },
 
-  -- Typography keymaps
-  local typography_keymaps = context.config.typography_keymaps or {}
-  if typography_keymaps.line_spacing_increase then
-    vim.keymap.set("n", typography_keymaps.line_spacing_increase, function()
-      require("ink.ui").increase_line_spacing()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Increase line spacing" })
-  end
-  if typography_keymaps.line_spacing_decrease then
-    vim.keymap.set("n", typography_keymaps.line_spacing_decrease, function()
-      require("ink.ui").decrease_line_spacing()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Decrease line spacing" })
-  end
-  if typography_keymaps.line_spacing_reset then
-    vim.keymap.set("n", typography_keymaps.line_spacing_reset, function()
-      require("ink.ui").reset_line_spacing()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Reset line spacing" })
-  end
-  if typography_keymaps.paragraph_spacing_increase then
-    vim.keymap.set("n", typography_keymaps.paragraph_spacing_increase, function()
-      require("ink.ui").increase_paragraph_spacing()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Increase paragraph spacing" })
-  end
-  if typography_keymaps.paragraph_spacing_decrease then
-    vim.keymap.set("n", typography_keymaps.paragraph_spacing_decrease, function()
-      require("ink.ui").decrease_paragraph_spacing()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Decrease paragraph spacing" })
-  end
-  if typography_keymaps.paragraph_spacing_reset then
-    vim.keymap.set("n", typography_keymaps.paragraph_spacing_reset, function()
-      require("ink.ui").reset_paragraph_spacing()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Reset paragraph spacing" })
-  end
+  -- Typography
+  {
+    group = "typography_keymaps",
+    key = "line_spacing_increase",
+    desc = "Increase line spacing",
+    run = function()
+      ui().increase_line_spacing()
+    end,
+  },
+  {
+    group = "typography_keymaps",
+    key = "line_spacing_decrease",
+    desc = "Decrease line spacing",
+    run = function()
+      ui().decrease_line_spacing()
+    end,
+  },
+  {
+    group = "typography_keymaps",
+    key = "line_spacing_reset",
+    desc = "Reset line spacing",
+    run = function()
+      ui().reset_line_spacing()
+    end,
+  },
+  {
+    group = "typography_keymaps",
+    key = "paragraph_spacing_increase",
+    desc = "Increase paragraph spacing",
+    run = function()
+      ui().increase_paragraph_spacing()
+    end,
+  },
+  {
+    group = "typography_keymaps",
+    key = "paragraph_spacing_decrease",
+    desc = "Decrease paragraph spacing",
+    run = function()
+      ui().decrease_paragraph_spacing()
+    end,
+  },
+  {
+    group = "typography_keymaps",
+    key = "paragraph_spacing_reset",
+    desc = "Reset paragraph spacing",
+    run = function()
+      ui().reset_paragraph_spacing()
+    end,
+  },
 
-  -- TOC toggle keymap
-  if keymaps.toggle_toc then
-    vim.keymap.set("n", keymaps.toggle_toc, function()
+  -- TOC
+  {
+    group = "keymaps",
+    key = "toggle_toc",
+    desc = "Toggle TOC",
+    run = function()
       require("ink.ui.floating_toc").toggle_floating_toc()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Toggle TOC" })
-  end
+    end,
+  },
+  { group = "toc_keymaps", key = "rebuild", desc = "Rebuild TOC", cmd = "InkRebuildTOC" },
 
-  -- TOC rebuild keymap
-  local toc_keymaps = context.config.toc_keymaps or {}
-  if toc_keymaps.rebuild then
-    vim.keymap.set(
-      "n",
-      toc_keymaps.rebuild,
-      ":InkRebuildTOC<CR>",
-      { buffer = content_buf, noremap = true, silent = true, desc = "Rebuild TOC" }
-    )
-  end
+  -- Highlights
+  {
+    dynamic = function(buf, config)
+      for color_name, lhs in pairs(config.highlight_keymaps or {}) do
+        if color_name == "remove" then
+          map("n", lhs, function()
+            ui().remove_highlight()
+          end, buf, "Remove highlight")
+        else
+          map("v", lhs, function()
+            ui().add_highlight(color_name)
+          end, buf, "Highlight " .. color_name)
+        end
+      end
+    end,
+  },
+  {
+    dynamic = function(buf, config)
+      for color_name, lhs in pairs(config.highlight_change_color_keymaps or {}) do
+        map("n", lhs, function()
+          ui().change_highlight_color(color_name)
+        end, buf, "Change highlight to " .. color_name)
+      end
+    end,
+  },
 
-  -- Highlight keymaps
-  local highlight_keymaps = context.config.highlight_keymaps or {}
-  for color_name, keymap in pairs(highlight_keymaps) do
-    if color_name == "remove" then
-      vim.keymap.set("n", keymap, function()
-        require("ink.ui").remove_highlight()
-      end, { buffer = content_buf, noremap = true, silent = true, desc = "Remove highlight" })
-    else
-      vim.keymap.set("v", keymap, function()
-        require("ink.ui").add_highlight(color_name)
-      end, { buffer = content_buf, noremap = true, silent = true, desc = "Highlight " .. color_name })
+  -- Notes
+  {
+    group = "note_keymaps",
+    key = "add",
+    mode = "n",
+    desc = "Add/edit note",
+    run = function()
+      ui().add_note()
+    end,
+  },
+  {
+    group = "note_keymaps",
+    key = "add",
+    mode = "v",
+    desc = "Add note on selection",
+    run = function()
+      ui().add_note_on_selection()
+    end,
+  },
+  {
+    group = "note_keymaps",
+    key = "edit",
+    desc = "Edit note",
+    run = function()
+      ui().edit_note()
+    end,
+  },
+  {
+    group = "note_keymaps",
+    key = "remove",
+    desc = "Remove note",
+    run = function()
+      ui().remove_note()
+    end,
+  },
+  {
+    group = "note_keymaps",
+    key = "toggle_display",
+    desc = "Toggle note display",
+    run = function()
+      ui().toggle_note_display()
+    end,
+  },
+
+  -- Bookmarks
+  {
+    group = "bookmark_keymaps",
+    key = "add",
+    desc = "Add bookmark",
+    run = function()
+      ui().add_bookmark()
+    end,
+  },
+  {
+    group = "bookmark_keymaps",
+    key = "edit",
+    desc = "Edit bookmark",
+    run = function()
+      ui().edit_bookmark()
+    end,
+  },
+  {
+    group = "bookmark_keymaps",
+    key = "remove",
+    desc = "Remove bookmark",
+    run = function()
+      ui().remove_bookmark()
+    end,
+  },
+  {
+    group = "bookmark_keymaps",
+    key = "next",
+    desc = "Next bookmark",
+    run = function()
+      ui().goto_next_bookmark()
+    end,
+  },
+  {
+    group = "bookmark_keymaps",
+    key = "prev",
+    desc = "Previous bookmark",
+    run = function()
+      ui().goto_prev_bookmark()
+    end,
+  },
+
+  -- Glossary
+  {
+    group = "glossary_keymaps",
+    key = "add",
+    mode = "v",
+    desc = "Add glossary from selection",
+    run = function()
+      ui().add_glossary_from_selection()
+    end,
+  },
+  {
+    group = "glossary_keymaps",
+    key = "add",
+    mode = "n",
+    desc = "Add glossary entry",
+    run = function()
+      ui().add_glossary_under_cursor()
+    end,
+  },
+  {
+    group = "glossary_keymaps",
+    key = "edit",
+    desc = "Edit glossary entry",
+    run = function()
+      ui().edit_glossary_under_cursor()
+    end,
+  },
+  {
+    group = "glossary_keymaps",
+    key = "remove",
+    desc = "Remove glossary entry",
+    run = function()
+      ui().remove_glossary_under_cursor()
+    end,
+  },
+  {
+    group = "glossary_keymaps",
+    key = "preview",
+    desc = "Preview glossary entry",
+    run = function()
+      ui().preview_glossary()
+    end,
+  },
+  {
+    group = "glossary_keymaps",
+    key = "browser",
+    desc = "Browse glossary",
+    run = function()
+      ui().show_glossary_browser()
+    end,
+  },
+  {
+    group = "glossary_keymaps",
+    key = "show_related",
+    desc = "Show related terms",
+    run = function()
+      ui().show_term_graph_under_cursor()
+    end,
+  },
+  {
+    group = "glossary_keymaps",
+    key = "show_graph",
+    desc = "Show glossary graph",
+    run = function()
+      ui().show_glossary_graph()
+    end,
+  },
+  {
+    group = "glossary_keymaps",
+    key = "toggle_display",
+    desc = "Toggle glossary display",
+    run = function()
+      ui().toggle_glossary_display()
+    end,
+  },
+
+  -- Per-book lists
+  { group = "bookmark_keymaps", key = "list_book", desc = "List book bookmarks", cmd = "InkBookmarksBook" },
+  { group = "notes_list_keymaps", key = "list_book", desc = "List book notes", cmd = "InkNotesBook" },
+
+  -- Padnotes (only when enabled)
+  {
+    group = "padnotes_keymaps",
+    key = "list_all",
+    desc = "List all padnotes",
+    when = function(config)
+      return config.padnotes and config.padnotes.enabled
+    end,
+    run = function()
+      require("ink.padnotes").list_all()
+    end,
+  },
+  {
+    group = "padnotes_keymaps",
+    key = "toggle",
+    desc = "Toggle padnote",
+    when = function(config)
+      return config.padnotes and config.padnotes.enabled
+    end,
+    run = function()
+      require("ink.padnotes").toggle()
+    end,
+  },
+  {
+    group = "padnotes_keymaps",
+    key = "open",
+    desc = "Open padnote",
+    when = function(config)
+      return config.padnotes and config.padnotes.enabled
+    end,
+    run = function()
+      require("ink.padnotes").open()
+    end,
+  },
+  {
+    group = "padnotes_keymaps",
+    key = "close",
+    desc = "Close padnote",
+    when = function(config)
+      return config.padnotes and config.padnotes.enabled
+    end,
+    run = function()
+      require("ink.padnotes").close(true)
+    end,
+  },
+
+  -- Related resources, reading modes and export
+  { group = "keymaps", key = "related_resources", desc = "List related resources", cmd = "InkListRelated" },
+  { group = "keymaps", key = "toggle_focused_mode", desc = "Toggle focused mode", cmd = "InkToggleFocusedMode" },
+  {
+    group = "keymaps",
+    key = "toggle_reading_paragraph_mode",
+    desc = "Toggle reading paragraph mode",
+    cmd = "InkToggleParagraphMode",
+  },
+  { group = "export_keymaps", key = "current_book", desc = "Export current book", cmd = "InkExport" },
+}
+
+--- Sets up all book-specific keymaps on the content buffer.
+---@param content_buf integer
+---@param config? table defaults to the UI context config
+function M.setup(content_buf, config)
+  config = config or require("ink.ui.context").config or {}
+
+  for _, spec in ipairs(specs) do
+    if spec.dynamic then
+      spec.dynamic(content_buf, config)
+    elseif not spec.when or spec.when(config) then
+      local group = config[spec.group] or {}
+      local lhs = group[spec.key] or spec.default
+
+      if lhs then
+        local rhs = spec.cmd and (":" .. spec.cmd .. "<CR>") or spec.run
+        map(spec.mode or "n", lhs, rhs, content_buf, spec.desc)
+      end
     end
-  end
-
-  -- Change highlight color keymaps
-  local highlight_change_color_keymaps = context.config.highlight_change_color_keymaps or {}
-  for color_name, keymap in pairs(highlight_change_color_keymaps) do
-    vim.keymap.set("n", keymap, function()
-      require("ink.ui").change_highlight_color(color_name)
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Change highlight to " .. color_name })
-  end
-
-  -- Note keymaps
-  local note_keymaps = context.config.note_keymaps or {}
-  if note_keymaps.add then
-    vim.keymap.set("n", note_keymaps.add, function()
-      require("ink.ui").add_note()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Add/edit note" })
-    vim.keymap.set("v", note_keymaps.add, function()
-      require("ink.ui").add_note_on_selection()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Add note on selection" })
-  end
-  if note_keymaps.edit then
-    vim.keymap.set("n", note_keymaps.edit, function()
-      require("ink.ui").edit_note()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Edit note" })
-  end
-  if note_keymaps.remove then
-    vim.keymap.set("n", note_keymaps.remove, function()
-      require("ink.ui").remove_note()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Remove note" })
-  end
-  if note_keymaps.toggle_display then
-    vim.keymap.set("n", note_keymaps.toggle_display, function()
-      require("ink.ui").toggle_note_display()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Toggle note display" })
-  end
-
-  -- Bookmark keymaps
-  local bookmark_keymaps = context.config.bookmark_keymaps or {}
-  if bookmark_keymaps.add then
-    vim.keymap.set("n", bookmark_keymaps.add, function()
-      require("ink.ui").add_bookmark()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Add bookmark" })
-  end
-  if bookmark_keymaps.edit then
-    vim.keymap.set("n", bookmark_keymaps.edit, function()
-      require("ink.ui").edit_bookmark()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Edit bookmark" })
-  end
-  if bookmark_keymaps.remove then
-    vim.keymap.set("n", bookmark_keymaps.remove, function()
-      require("ink.ui").remove_bookmark()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Remove bookmark" })
-  end
-  if bookmark_keymaps.next then
-    vim.keymap.set("n", bookmark_keymaps.next, function()
-      require("ink.ui").goto_next_bookmark()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Next bookmark" })
-  end
-  if bookmark_keymaps.prev then
-    vim.keymap.set("n", bookmark_keymaps.prev, function()
-      require("ink.ui").goto_prev_bookmark()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Previous bookmark" })
-  end
-  if bookmark_keymaps.list_book then
-    vim.keymap.set(
-      "n",
-      bookmark_keymaps.list_book,
-      ":InkBookmarksBook<CR>",
-      { buffer = content_buf, noremap = true, silent = true, desc = "List book bookmarks" }
-    )
-  end
-
-  -- Notes list keymap
-  local notes_list_keymaps = context.config.notes_list_keymaps or {}
-  if notes_list_keymaps.list_book then
-    vim.keymap.set(
-      "n",
-      notes_list_keymaps.list_book,
-      ":InkNotesBook<CR>",
-      { buffer = content_buf, noremap = true, silent = true, desc = "List book notes" }
-    )
-  end
-
-  -- Glossary keymaps
-  local glossary_keymaps = context.config.glossary_keymaps or {}
-  if glossary_keymaps.add then
-    vim.keymap.set("v", glossary_keymaps.add, function()
-      require("ink.ui").add_glossary_from_selection()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Add glossary from selection" })
-    vim.keymap.set("n", glossary_keymaps.add, function()
-      require("ink.ui").add_glossary_under_cursor()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Add glossary entry" })
-  end
-  if glossary_keymaps.edit then
-    vim.keymap.set("n", glossary_keymaps.edit, function()
-      require("ink.ui").edit_glossary_under_cursor()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Edit glossary entry" })
-  end
-  if glossary_keymaps.remove then
-    vim.keymap.set("n", glossary_keymaps.remove, function()
-      require("ink.ui").remove_glossary_under_cursor()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Remove glossary entry" })
-  end
-  if glossary_keymaps.preview then
-    vim.keymap.set("n", glossary_keymaps.preview, function()
-      require("ink.ui").preview_glossary()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Preview glossary entry" })
-  end
-  if glossary_keymaps.browser then
-    vim.keymap.set("n", glossary_keymaps.browser, function()
-      require("ink.ui").show_glossary_browser()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Browse glossary" })
-  end
-  if glossary_keymaps.show_related then
-    vim.keymap.set("n", glossary_keymaps.show_related, function()
-      require("ink.ui").show_term_graph_under_cursor()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Show related terms" })
-  end
-  if glossary_keymaps.show_graph then
-    vim.keymap.set("n", glossary_keymaps.show_graph, function()
-      require("ink.ui").show_glossary_graph()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Show glossary graph" })
-  end
-  if glossary_keymaps.toggle_display then
-    vim.keymap.set("n", glossary_keymaps.toggle_display, function()
-      require("ink.ui").toggle_glossary_display()
-    end, { buffer = content_buf, noremap = true, silent = true, desc = "Toggle glossary display" })
-  end
-
-  -- Padnotes keymaps
-  if context.config.padnotes and context.config.padnotes.enabled then
-    local padnotes = require("ink.padnotes")
-    local pk = context.config.padnotes_keymaps or {}
-    if pk.list_all then
-      vim.keymap.set("n", pk.list_all, function()
-        padnotes.list_all()
-      end, { buffer = content_buf, noremap = true, silent = true, desc = "List all padnotes" })
-    end
-    if pk.toggle then
-      vim.keymap.set("n", pk.toggle, function()
-        padnotes.toggle()
-      end, { buffer = content_buf, noremap = true, silent = true, desc = "Toggle padnote" })
-    end
-    if pk.open then
-      vim.keymap.set("n", pk.open, function()
-        padnotes.open()
-      end, { buffer = content_buf, noremap = true, silent = true, desc = "Open padnote" })
-    end
-    if pk.close then
-      vim.keymap.set("n", pk.close, function()
-        padnotes.close(true)
-      end, { buffer = content_buf, noremap = true, silent = true, desc = "Close padnote" })
-    end
-  end
-
-  -- Linked resources keymap
-  if keymaps.related_resources then
-    vim.keymap.set(
-      "n",
-      keymaps.related_resources,
-      ":InkListRelated<CR>",
-      { buffer = content_buf, noremap = true, silent = true, desc = "List related resources" }
-    )
-  end
-
-  -- Focused mode keymap
-  if keymaps.toggle_focused_mode then
-    vim.keymap.set(
-      "n",
-      keymaps.toggle_focused_mode,
-      ":InkToggleFocusedMode<CR>",
-      { buffer = content_buf, noremap = true, silent = true, desc = "Toggle focused mode" }
-    )
-  end
-
-  -- Reading paragraph mode keymap
-  if keymaps.toggle_reading_paragraph_mode then
-    vim.keymap.set(
-      "n",
-      keymaps.toggle_reading_paragraph_mode,
-      ":InkToggleParagraphMode<CR>",
-      { buffer = content_buf, noremap = true, silent = true, desc = "Toggle reading paragraph mode" }
-    )
-  end
-
-  -- Export keymap
-  local export_keymaps = context.config.export_keymaps or {}
-  if export_keymaps.current_book then
-    vim.keymap.set(
-      "n",
-      export_keymaps.current_book,
-      ":InkExport<CR>",
-      { buffer = content_buf, noremap = true, silent = true, desc = "Export current book" }
-    )
   end
 end
 
