@@ -97,4 +97,9 @@ function M.setup(config)
   M.config = vim.tbl_deep_extend("force", M.config, config or {})
 end
 
+-- Iterate all book contexts
+function M.all()
+  return contexts
+end
+
 return M

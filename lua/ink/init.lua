@@ -1,4 +1,5 @@
 local ui = require("ink.ui")
+local autocmds = require("ink.ui.autocmds")
 local config = require("ink.config")
 local highlights = require("ink.highlights")
 local commands = require("ink.commands")
@@ -23,6 +24,7 @@ function M.setup(opts)
   highlights.setup()
   commands.setup(M.config)
   keymaps_global.setup(M.config)
+  autocmds.setup()
 
   -- Setup padnotes
   if M.config.padnotes and M.config.padnotes.enabled then

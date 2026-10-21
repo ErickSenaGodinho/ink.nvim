@@ -7,6 +7,7 @@ local context = require("ink.ui.context")
 local render = require("ink.ui.render")
 local utils = require("ink.utils")
 local floating_toc = require("ink.ui.floating_toc")
+local autocmds = require("ink.ui.autocmds")
 
 local M = {}
 
@@ -88,45 +89,6 @@ end
 function M.setup_book_autocmds(content_buf, slug)
   local augroup = vim.api.nvim_create_augroup("Ink_" .. slug, { clear = true })
 
-  -- Window resize handler
-  vim.api.nvim_create_autocmd("WinResized", {
-    group = augroup,
-    callback = function()
-      local current_ctx = context.get(content_buf)
-
-      -- Check initialization status first (fast check, no API calls)
-      if not current_ctx or current_ctx._is_initializing then
-        return
-      end
-
-      -- Now check window validity (safer order)
-      if current_ctx.content_win and vim.api.nvim_win_is_valid(current_ctx.content_win) then
-        local resized_wins = vim.v.event.windows or {}
-        for _, win_id in ipairs(resized_wins) do
-          if win_id == current_ctx.content_win then
-            -- Adaptive width: adjust max_width based on window size (per-context)
-            local new_max_width = calculate_adaptive_width(current_ctx)
-            if new_max_width and current_ctx.current_max_width ~= new_max_width then
-              current_ctx.current_max_width = new_max_width
-
-              -- Invalidate caches when width changes
-              current_ctx.parsed_chapters = require("ink.cache.lru").new(15)
-              current_ctx.search_index = nil
-            end
-
-            -- Invalidate glossary cache since positions depend on window width
-            render.invalidate_glossary_cache(current_ctx)
-
-            -- Invalidate highlight positions cache since they depend on width
-            require("ink.user_highlights").clear_positions_cache(current_ctx.data.slug)
-            render.rerender_preserving_viewport(current_ctx)
-            break
-          end
-        end
-      end
-    end,
-  })
-
   -- Cursor move handler for statusline updates
   vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
     group = augroup,
@@ -145,18 +107,6 @@ function M.setup_book_autocmds(content_buf, slug)
         render.update_statusline(current_ctx)
       end
     end,
-  })
-
-  vim.api.nvim_create_autocmd({ "WinEnter", "BufEnter" }, {
-    callback = vim.schedule_wrap(function()
-      local current_win = vim.api.nvim_get_current_win()
-      local current_buf = vim.api.nvim_win_get_buf(current_win)
-      local ctx = context.get(current_buf)
-
-      if ctx then
-        ctx.content_win = current_win
-      end
-    end),
   })
 
   vim.api.nvim_create_autocmd("BufWinEnter", {
@@ -203,40 +153,10 @@ function M.setup_book_autocmds(content_buf, slug)
     buffer = content_buf,
     callback = function()
       local current_ctx = context.get(content_buf)
-      if not current_ctx or current_ctx._is_initializing or not current_ctx.rendered_lines then
+      if not current_ctx or current_ctx._is_initializing then
         return
       end
-
-      if not current_ctx.content_win or not vim.api.nvim_win_is_valid(current_ctx.content_win) then
-        return
-      end
-
-      -- Only save from content buffer
-      local win_buf = vim.api.nvim_win_get_buf(current_ctx.content_win)
-      if win_buf ~= content_buf then
-        return
-      end
-      local cursor = vim.api.nvim_win_get_cursor(current_ctx.content_win)
-      local cursor_line = cursor[1]
-
-      local get_position_ctx = render.get_current_position_context
-      if get_position_ctx then
-        local position_ctx = get_position_ctx(current_ctx, cursor_line)
-        local library_module = require("ink.library")
-
-        local state_data = { chapter = current_ctx.current_chapter_idx }
-        if position_ctx then
-          state_data.text = position_ctx.text
-          state_data.context_before = position_ctx.context_before
-          state_data.context_after = position_ctx.context_after
-          state_data.line = position_ctx.line_fallback
-        else
-          state_data.line = cursor_line
-        end
-
-        state.save(current_ctx.data.slug, state_data)
-        library_module.update_progress(current_ctx.data.slug, current_ctx.current_chapter_idx, #current_ctx.data.spine)
-      end
+      autocmds.save_position(current_ctx)
     end,
   })
 
@@ -245,7 +165,6 @@ function M.setup_book_autocmds(content_buf, slug)
     group = augroup,
     buffer = content_buf,
     callback = function(ev)
-      -- Only process if the buffer being deleted is the content buffer
       if ev.buf ~= content_buf then
         return
       end
@@ -254,52 +173,15 @@ function M.setup_book_autocmds(content_buf, slug)
       if current_ctx then
         -- Cleanup padnote before closing book
         if current_ctx.padnote_buf and vim.api.nvim_buf_is_valid(current_ctx.padnote_buf) then
-          local padnotes = require("ink.padnotes")
-          padnotes.close(true) -- Save before closing
+          require("ink.padnotes").close(true) -- Save before closing
         end
 
-        -- Save current reading position before closing (only from content buffer)
-        if
-          current_ctx.content_win
-          and vim.api.nvim_win_is_valid(current_ctx.content_win)
-          and current_ctx.rendered_lines
-        then
-          -- Verify the window is still showing the content buffer (not switched to TOC)
-          local win_buf = vim.api.nvim_win_get_buf(current_ctx.content_win)
-          if win_buf == content_buf then
-            local cursor = vim.api.nvim_win_get_cursor(current_ctx.content_win)
-            local cursor_line = cursor[1]
-
-            -- Extract position with text context
-            local get_position_ctx = render.get_current_position_context
-            if get_position_ctx then
-              local position_ctx = get_position_ctx(current_ctx, cursor_line)
-              local library_module = require("ink.library")
-
-              local state_data = { chapter = current_ctx.current_chapter_idx }
-              if position_ctx then
-                state_data.text = position_ctx.text
-                state_data.context_before = position_ctx.context_before
-                state_data.context_after = position_ctx.context_after
-                state_data.line = position_ctx.line_fallback
-              else
-                state_data.line = cursor_line
-              end
-
-              state.save(current_ctx.data.slug, state_data)
-              library_module.update_progress(
-                current_ctx.data.slug,
-                current_ctx.current_chapter_idx,
-                #current_ctx.data.spine
-              )
-            end
-          end
-        end
+        -- Save current reading position before closing
+        autocmds.save_position(current_ctx)
       end
 
       -- End reading session
-      local reading_sessions = require("ink.reading_sessions")
-      reading_sessions.end_session(slug)
+      require("ink.reading_sessions").end_session(slug)
 
       context.remove(content_buf)
     end,
