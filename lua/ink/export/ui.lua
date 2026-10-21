@@ -14,7 +14,7 @@ end
 
 -- Get default export directory from config
 local function get_default_export_dir()
-  local config = require("ink").config
+  local config = require("ink.config").get()
   if config and config.export_defaults and config.export_defaults.export_dir then
     return vim.fn.expand(config.export_defaults.export_dir)
   end
@@ -24,11 +24,11 @@ end
 -- Parse export command: <fmt> <flags> <path>
 -- Examples: "md -bc ~/Documents", "json", "md -b", "md -g"
 local function parse_export_command(input, slug)
-  local format = "markdown"  -- default
+  local format = "markdown" -- default
   local options = {
     include_bookmarks = false,
     include_context = false,
-    include_glossary = false
+    include_glossary = false,
   }
   local output_path = nil
 
@@ -105,10 +105,10 @@ function M.show_export_dialog()
   -- Single prompt for everything
   vim.ui.input({
     prompt = "Export [md|json] [-bcg] [path]: ",
-    default = "md"
+    default = "md",
   }, function(input)
     if not input then
-      return  -- User cancelled
+      return -- User cancelled
     end
 
     -- Parse command
