@@ -70,9 +70,9 @@ M.clear_book_cache = cache_ui.clear_book_cache
 M.clear_all_cache = cache_ui.clear_all_cache
 
 -- Re-export Related Resources
-local related_resources = require("ink.ui.linked_resources")
-M.show_related_resources = related_resources.show_related_resources
-M.add_related_resource = related_resources.add_related_resource
+local related_ui = require("ink.ui.related")
+M.show_related_resources = related_ui.show_related_resources
+M.add_related_resource = related_ui.add_related_resource
 
 -- Glossary functions
 function M.add_glossary_from_selection()
@@ -299,13 +299,11 @@ function M.open_last_book()
 end
 
 function M.enable_focused_mode(ctx)
-  vim.notify(ctx.content_win, vim.log.levels.INFO, {})
   if not ctx or not ctx.content_win or not vim.api.nvim_win_is_valid(ctx.content_win) then
     return
   end
 
   ctx.focused_windows = ctx.focused_windows or {}
-  vim.notify(vim.inspect(ctx.focused_windows), vim.log.levels.INFO, {})
 
   if ctx.focused_windows[ctx.content_win] then
     return
