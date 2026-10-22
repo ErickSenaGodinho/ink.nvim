@@ -23,7 +23,7 @@ local function new_context()
     justify_map = {},
     justify_text = M.config.justify_text or false,
     reading_paragraph_mode = M.config.reading_paragraph_mode or false,
-    focused_mode = M.config.focused_mode or true,
+    focused_mode = vim.F.if_nil(M.config.focused_mode, true),
     last_statusline_percent = 0,
     note_display_mode = M.config.note_display_mode or "indicator",
     rendered_lines = {},
@@ -36,7 +36,7 @@ local function new_context()
     glossary_detection_index = nil, -- Cache of detection index for performance
     glossary_matches = {}, -- Detected glossary terms in current chapter
     glossary_custom_types = {}, -- Custom types defined for this book
-    glossary_visible = M.config.glossary_visible or true, -- Whether to show glossary terms
+    glossary_visible = vim.F.if_nil(M.config.glossary_visible, true), -- Whether to show glossary terms
     glossary_matches_cache = { -- Versioned cache: { version = "hash", chapters = { [idx] = matches } }
       version = nil,
       chapters = {},
