@@ -81,7 +81,9 @@ function M.process_inline(text)
 
   -- Restore protected tags
   for placeholder, tag in pairs(protected_tags) do
-    text = text:gsub(util.escape_pattern(placeholder), tag)
+    text = text:gsub(util.escape_pattern(placeholder), function()
+      return tag
+    end)
   end
 
   return text
