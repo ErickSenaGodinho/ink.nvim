@@ -6,799 +6,794 @@ local M = {}
 
 -- Lazy loaders
 local function get_html()
-	if not _html then
-		_html = require("ink.html")
-	end
-	return _html
+  if not _html then
+    _html = require("ink.html")
+  end
+  return _html
 end
 
 local function get_fs()
-	if not _fs then
-		_fs = require("ink.fs")
-	end
-	return _fs
+  if not _fs then
+    _fs = require("ink.fs")
+  end
+  return _fs
 end
 
 local function get_state()
-	if not _state then
-		_state = require("ink.state")
-	end
-	return _state
+  if not _state then
+    _state = require("ink.state")
+  end
+  return _state
 end
 
 local function get_user_highlights()
-	if not _user_highlights then
-		_user_highlights = require("ink.user_highlights")
-	end
-	return _user_highlights
+  if not _user_highlights then
+    _user_highlights = require("ink.user_highlights")
+  end
+  return _user_highlights
 end
 
 local function get_bookmarks_data()
-	if not _bookmarks_data then
-		_bookmarks_data = require("ink.bookmarks")
-	end
-	return _bookmarks_data
+  if not _bookmarks_data then
+    _bookmarks_data = require("ink.bookmarks")
+  end
+  return _bookmarks_data
 end
 
 local function get_library()
-	if not _library then
-		_library = require("ink.library")
-	end
-	return _library
+  if not _library then
+    _library = require("ink.library")
+  end
+  return _library
 end
 
 local function get_extmarks()
-	if not _extmarks then
-		_extmarks = require("ink.ui.extmarks")
-	end
-	return _extmarks
+  if not _extmarks then
+    _extmarks = require("ink.ui.extmarks")
+  end
+  return _extmarks
 end
 
 -- Re-export footnote function (lazy loaded)
 function M.show_footnote_preview(...)
-	return require("ink.ui.footnotes").show_footnote_preview(...)
+  return require("ink.ui.footnotes").show_footnote_preview(...)
 end
 
 -- Extract current position as text + context for text-based position saving
 local function get_current_position_context(ctx, cursor_line)
-	if not ctx.rendered_lines or #ctx.rendered_lines == 0 then
-		return nil
-	end
+  if not ctx.rendered_lines or #ctx.rendered_lines == 0 then
+    return nil
+  end
 
-	local lines = ctx.rendered_lines
-	local util = require("ink.ui.util")
+  local lines = ctx.rendered_lines
+  local util = require("ink.ui.util")
 
-	-- Get the line text (or find next non-empty line)
-	local line_text = lines[cursor_line] or ""
-	local actual_line = cursor_line
+  -- Get the line text (or find next non-empty line)
+  local line_text = lines[cursor_line] or ""
+  local actual_line = cursor_line
 
-	-- If on empty line, find next non-empty line
-	if line_text:match("^%s*$") then
-		for i = cursor_line + 1, #lines do
-			if lines[i] and not lines[i]:match("^%s*$") then
-				actual_line = i
-				line_text = lines[i]
-				break
-			end
-		end
-	end
+  -- If on empty line, find next non-empty line
+  if line_text:match("^%s*$") then
+    for i = cursor_line + 1, #lines do
+      if lines[i] and not lines[i]:match("^%s*$") then
+        actual_line = i
+        line_text = lines[i]
+        break
+      end
+    end
+  end
 
-	-- Still empty? Use first non-empty line
-	if line_text:match("^%s*$") then
-		for i = 1, #lines do
-			if lines[i] and not lines[i]:match("^%s*$") then
-				actual_line = i
-				line_text = lines[i]
-				break
-			end
-		end
-	end
+  -- Still empty? Use first non-empty line
+  if line_text:match("^%s*$") then
+    for i = 1, #lines do
+      if lines[i] and not lines[i]:match("^%s*$") then
+        actual_line = i
+        line_text = lines[i]
+        break
+      end
+    end
+  end
 
-	-- Truncate line text to reasonable length
-	local max_text_len = 200
-	if #line_text > max_text_len then
-		line_text = line_text:sub(1, max_text_len)
-	end
+  -- Truncate line text to reasonable length
+  local max_text_len = 200
+  if #line_text > max_text_len then
+    line_text = line_text:sub(1, max_text_len)
+  end
 
-	-- Get context before and after
-	local full_text = util.get_full_text(lines)
-	local start_offset = util.line_col_to_offset(lines, actual_line, 0)
-	local context_len = 30
+  -- Get context before and after
+  local full_text = util.get_full_text(lines)
+  local start_offset = util.line_col_to_offset(lines, actual_line, 0)
+  local context_len = 30
 
-	local context_before = ""
-	if start_offset > 0 then
-		local ctx_start = math.max(0, start_offset - context_len)
-		context_before = full_text:sub(ctx_start + 1, start_offset)
-	end
+  local context_before = ""
+  if start_offset > 0 then
+    local ctx_start = math.max(0, start_offset - context_len)
+    context_before = full_text:sub(ctx_start + 1, start_offset)
+  end
 
-	local context_after = ""
-	local text_end_offset = start_offset + #line_text
-	if text_end_offset < #full_text then
-		local ctx_end = math.min(#full_text, text_end_offset + context_len)
-		context_after = full_text:sub(text_end_offset + 1, ctx_end)
-	end
+  local context_after = ""
+  local text_end_offset = start_offset + #line_text
+  if text_end_offset < #full_text then
+    local ctx_end = math.min(#full_text, text_end_offset + context_len)
+    context_after = full_text:sub(text_end_offset + 1, ctx_end)
+  end
 
-	return {
-		text = util.normalize_whitespace(line_text),
-		context_before = util.normalize_whitespace(context_before),
-		context_after = util.normalize_whitespace(context_after),
-		line_fallback = actual_line, -- Fallback for old format or if text not found
-	}
+  return {
+    text = util.normalize_whitespace(line_text),
+    context_before = util.normalize_whitespace(context_before),
+    context_after = util.normalize_whitespace(context_after),
+    line_fallback = actual_line, -- Fallback for old format or if text not found
+  }
 end
 
 -- Extract plain text from HTML (lightweight, for search indexing)
 function M.extract_plain_text(html_content)
-	if not html_content or html_content == "" then
-		return ""
-	end
+  if not html_content or html_content == "" then
+    return ""
+  end
 
-	local text = html_content
+  local text = html_content
 
-	-- Remove script and style tags with their content
-	text = text:gsub("<script[^>]*>.-</script>", " ")
-	text = text:gsub("<style[^>]*>.-</style>", " ")
-	text = text:gsub("<head[^>]*>.-</head>", " ")
+  -- Remove script and style tags with their content
+  text = text:gsub("<script[^>]*>.-</script>", " ")
+  text = text:gsub("<style[^>]*>.-</style>", " ")
+  text = text:gsub("<head[^>]*>.-</head>", " ")
 
-	-- Remove all HTML tags
-	text = text:gsub("<[^>]+>", " ")
+  -- Remove all HTML tags
+  text = text:gsub("<[^>]+>", " ")
 
-	-- Decode HTML entities
-	local entities = require("ink.html.entities")
-	text = entities.decode_entities(text)
+  -- Decode HTML entities
+  local entities = require("ink.html.entities")
+  text = entities.decode_entities(text)
 
-	-- Normalize whitespace
-	text = text:gsub("%s+", " ")
-	text = text:gsub("^%s+", "")
-	text = text:gsub("%s+$", "")
+  -- Normalize whitespace
+  text = text:gsub("%s+", " ")
+  text = text:gsub("^%s+", "")
+  text = text:gsub("%s+$", "")
 
-	return text
+  return text
 end
 
 -- Get chapter HTML content (raw, without parsing)
 function M.get_chapter_content(chapter_idx, ctx)
-	ctx = ctx or context.current()
-	if not ctx then
-		return nil
-	end
+  ctx = ctx or context.current()
+  if not ctx then
+    return nil
+  end
 
-	local chapter = ctx.data.spine[chapter_idx]
-	if not chapter then
-		return nil
-	end
+  local chapter = ctx.data.spine[chapter_idx]
+  if not chapter then
+    return nil
+  end
 
-	-- Get HTML content
-	local content
-	if chapter.content then
-		-- Markdown format: content is already HTML
-		content = chapter.content
-	elseif chapter.href then
-		-- EPUB format: need to read from file
-		local chapter_path = ctx.data.base_dir .. "/" .. chapter.href
-		content = get_fs().read_file(chapter_path)
-		if not content then
-			return nil
-		end
-	end
+  -- Get HTML content
+  local content
+  if chapter.content then
+    -- Markdown format: content is already HTML
+    content = chapter.content
+  elseif chapter.href then
+    -- EPUB format: need to read from file
+    local chapter_path = ctx.data.base_dir .. "/" .. chapter.href
+    content = get_fs().read_file(chapter_path)
+    if not content then
+      return nil
+    end
+  end
 
-	return content
+  return content
 end
 
 -- Get parsed chapter with caching (using LRU cache)
 function M.get_parsed_chapter(chapter_idx, ctx)
-	ctx = ctx or context.current()
-	if not ctx then
-		return nil
-	end
+  ctx = ctx or context.current()
+  if not ctx then
+    return nil
+  end
 
-	-- Migrate old table-based cache to LRU cache (backward compatibility)
-	if type(ctx.parsed_chapters) == "table" and not ctx.parsed_chapters.get then
-		local lru_cache = require("ink.cache.lru")
-		local old_cache = ctx.parsed_chapters
-		ctx.parsed_chapters = lru_cache.new(15)
-		-- Migrate existing cached chapters
-		for idx, parsed in pairs(old_cache) do
-			ctx.parsed_chapters:put(idx, parsed)
-		end
-	end
+  -- Migrate old table-based cache to LRU cache (backward compatibility)
+  if type(ctx.parsed_chapters) == "table" and not ctx.parsed_chapters.get then
+    local lru_cache = require("ink.cache.lru")
+    local old_cache = ctx.parsed_chapters
+    ctx.parsed_chapters = lru_cache.new(15)
+    -- Migrate existing cached chapters
+    for idx, parsed in pairs(old_cache) do
+      ctx.parsed_chapters:put(idx, parsed)
+    end
+  end
 
-	-- Return from cache if exists (LRU cache)
-	local cached = ctx.parsed_chapters:get(chapter_idx)
-	if cached then
-		return cached
-	end
+  -- Return from cache if exists (LRU cache)
+  local cached = ctx.parsed_chapters:get(chapter_idx)
+  if cached then
+    return cached
+  end
 
-	-- Get HTML content
-	local content = M.get_chapter_content(chapter_idx, ctx)
-	if not content then
-		return nil
-	end
+  -- Get HTML content
+  local content = M.get_chapter_content(chapter_idx, ctx)
+  if not content then
+    return nil
+  end
 
-	-- Parse HTML with current settings
-	local max_width = ctx.current_max_width or context.config.max_width or 120
-	local class_styles = ctx.data.class_styles or {}
-	local justify_text = ctx.justify_text or context.config.justify_text or false
-	local typography = context.config.typography
-		or {
-			line_spacing = 1,
-			paragraph_spacing = 1,
-			indent_size = 4,
-			list_indent = 2,
-		}
+  -- Parse HTML with current settings
+  local max_width = ctx.current_max_width or context.config.max_width or 120
+  local class_styles = ctx.data.class_styles or {}
+  local justify_text = ctx.justify_text or context.config.justify_text or false
+  local typography = context.config.typography
+    or {
+      line_spacing = 1,
+      paragraph_spacing = 1,
+      indent_size = 4,
+      list_indent = 2,
+    }
 
-	local parsed = get_html().parse(content, max_width, class_styles, justify_text, typography)
+  local parsed = get_html().parse(content, max_width, class_styles, justify_text, typography)
 
-	-- Cache parsed result (LRU cache)
-	ctx.parsed_chapters:put(chapter_idx, parsed)
+  -- Cache parsed result (LRU cache)
+  ctx.parsed_chapters:put(chapter_idx, parsed)
 
-	return parsed
+  return parsed
 end
 
 function M.update_statusline(ctx)
-	ctx = ctx or context.current()
-	if not ctx or not ctx.content_win or not vim.api.nvim_win_is_valid(ctx.content_win) then
-		return
-	end
+  ctx = ctx or context.current()
+  if not ctx or not ctx.content_win or not vim.api.nvim_win_is_valid(ctx.content_win) then
+    return
+  end
 
-	local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
-	local current_line = cursor[1]
-	local total_lines = vim.api.nvim_buf_line_count(ctx.content_buf)
-	local percent = math.floor((current_line / total_lines) * 100)
+  local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
+  local current_line = cursor[1]
+  local total_lines = vim.api.nvim_buf_line_count(ctx.content_buf)
+  local percent = math.floor((current_line / total_lines) * 100)
 
-	local bar_len = 10
-	local filled = math.floor((percent / 100) * bar_len)
-	local bar = string.rep("█", filled) .. string.rep("▒", bar_len - filled)
+  local bar_len = 10
+  local filled = math.floor((percent / 100) * bar_len)
+  local bar = string.rep("█", filled) .. string.rep("▒", bar_len - filled)
 
-	local total = #ctx.data.spine
-	local current = ctx.current_chapter_idx or 1
-	local chapter_name = require("ink.ui.floating_toc").get_current_chapter_name(ctx)
+  local total = #ctx.data.spine
+  local current = ctx.current_chapter_idx or 1
+  local chapter_name = require("ink.ui.floating_toc").get_current_chapter_name(ctx)
 
-	local status = string.format(" %s %d%%%% | %s | %d/%d ", bar, percent, chapter_name, current, total)
-	vim.api.nvim_set_option_value("statusline", status, { win = ctx.content_win })
+  local status = string.format(" %s %d%%%% | %s | %d/%d ", bar, percent, chapter_name, current, total)
+  vim.api.nvim_set_option_value("statusline", status, { win = ctx.content_win })
 end
 
 function M.render_chapter(idx, restore_line, ctx)
-	ctx = ctx or context.current()
-	if not ctx or idx < 1 or idx > #ctx.data.spine then
-		return
-	end
-	ctx.current_chapter_idx = idx
-	ctx.last_statusline_percent = 0
+  ctx = ctx or context.current()
+  if not ctx or idx < 1 or idx > #ctx.data.spine then
+    return
+  end
+  ctx.current_chapter_idx = idx
+  ctx.last_statusline_percent = 0
 
-	-- Ensure glossary fields are initialized (for backward compatibility with old contexts)
-	if not ctx.glossary_matches or type(ctx.glossary_matches) ~= "table" then
-		ctx.glossary_matches = {}
-	end
-	if not ctx.glossary_matches_cache then
-		ctx.glossary_matches_cache = { version = nil, chapters = {} }
-	end
-	if ctx.glossary_visible == nil then
-		ctx.glossary_visible = true
-	end
+  -- Ensure glossary fields are initialized (for backward compatibility with old contexts)
+  if not ctx.glossary_matches or type(ctx.glossary_matches) ~= "table" then
+    ctx.glossary_matches = {}
+  end
+  if not ctx.glossary_matches_cache then
+    ctx.glossary_matches_cache = { version = nil, chapters = {} }
+  end
+  if ctx.glossary_visible == nil then
+    ctx.glossary_visible = true
+  end
 
-	if not ctx.content_win or not vim.api.nvim_win_is_valid(ctx.content_win) then
-		local found_win = nil
-		for _, win in ipairs(vim.api.nvim_list_wins()) do
-			if vim.api.nvim_win_is_valid(win) then
-				local buf = vim.api.nvim_win_get_buf(win)
-				if buf == ctx.content_buf then
-					found_win = win
-					break
-				end
-			end
-		end
-		if found_win then
-			ctx.content_win = found_win
-		else
-			vim.cmd("vsplit")
-			local new_win = vim.api.nvim_get_current_win()
-			vim.api.nvim_win_set_buf(new_win, ctx.content_buf)
-			ctx.content_win = new_win
-		end
-	end
+  if not ctx.content_win or not vim.api.nvim_win_is_valid(ctx.content_win) then
+    local found_win = nil
+    for _, win in ipairs(vim.api.nvim_list_wins()) do
+      if vim.api.nvim_win_is_valid(win) then
+        local buf = vim.api.nvim_win_get_buf(win)
+        if buf == ctx.content_buf then
+          found_win = win
+          break
+        end
+      end
+    end
+    if found_win then
+      ctx.content_win = found_win
+    else
+      vim.cmd("vsplit")
+      local new_win = vim.api.nvim_get_current_win()
+      vim.api.nvim_win_set_buf(new_win, ctx.content_buf)
+      ctx.content_win = new_win
+    end
+  end
 
-	-- Use get_parsed_chapter instead of parsing directly
-	local parsed = M.get_parsed_chapter(idx, ctx)
-	if not parsed then
-		vim.api.nvim_buf_set_lines(ctx.content_buf, 0, -1, false, { "Error parsing chapter " .. idx })
-		return
-	end
+  -- Use get_parsed_chapter instead of parsing directly
+  local parsed = M.get_parsed_chapter(idx, ctx)
+  if not parsed then
+    vim.api.nvim_buf_set_lines(ctx.content_buf, 0, -1, false, { "Error parsing chapter " .. idx })
+    return
+  end
 
-	local max_width = ctx.current_max_width or context.config.max_width or 120
-	local typography = context.config.typography or { line_spacing = 1 }
+  local max_width = ctx.current_max_width or context.config.max_width or 120
+  local typography = context.config.typography or { line_spacing = 1 }
 
-	-- Apply line spacing if needed
-	local final_lines = parsed.lines
-	local final_highlights = parsed.highlights
-	local final_links = parsed.links
-	local final_images = parsed.images
-	local final_anchors = parsed.anchors
-	local final_centered_lines = parsed.centered_lines
-	local line_map = {} -- maps original line number to new line number
+  -- Apply line spacing if needed
+  local final_lines = parsed.lines
+  local final_highlights = parsed.highlights
+  local final_links = parsed.links
+  local final_images = parsed.images
+  local final_anchors = parsed.anchors
+  local final_centered_lines = parsed.centered_lines
+  local line_map = {} -- maps original line number to new line number
 
-	if typography.line_spacing > 1 then
-		local spaced_lines = {}
-		local spacing = typography.line_spacing - 1
+  if typography.line_spacing > 1 then
+    local spaced_lines = {}
+    local spacing = typography.line_spacing - 1
 
-		for i, line in ipairs(parsed.lines) do
-			table.insert(spaced_lines, line)
-			line_map[i] = #spaced_lines
+    for i, line in ipairs(parsed.lines) do
+      table.insert(spaced_lines, line)
+      line_map[i] = #spaced_lines
 
-			-- Add spacing lines (except after last line)
-			if i < #parsed.lines then
-				for j = 1, spacing do
-					table.insert(spaced_lines, "")
-				end
-			end
-		end
+      -- Add spacing lines (except after last line)
+      if i < #parsed.lines then
+        for j = 1, spacing do
+          table.insert(spaced_lines, "")
+        end
+      end
+    end
 
-		final_lines = spaced_lines
+    final_lines = spaced_lines
 
-		-- Create deep copies and adjust all line-based references
-		-- Deep copy highlights
-		final_highlights = {}
-		for _, hl in ipairs(parsed.highlights) do
-			local new_hl = { hl[1], hl[2], hl[3], hl[4] }
-			if line_map[new_hl[1]] then
-				new_hl[1] = line_map[new_hl[1]]
-			end
-			table.insert(final_highlights, new_hl)
-		end
+    -- Create deep copies and adjust all line-based references
+    -- Deep copy highlights
+    final_highlights = {}
+    for _, hl in ipairs(parsed.highlights) do
+      local new_hl = { hl[1], hl[2], hl[3], hl[4] }
+      if line_map[new_hl[1]] then
+        new_hl[1] = line_map[new_hl[1]]
+      end
+      table.insert(final_highlights, new_hl)
+    end
 
-		-- Deep copy links
-		final_links = {}
-		for _, link in ipairs(parsed.links) do
-			local new_link = { link[1], link[2], link[3], link[4] }
-			if line_map[new_link[1]] then
-				new_link[1] = line_map[new_link[1]]
-			end
-			table.insert(final_links, new_link)
-		end
+    -- Deep copy links
+    final_links = {}
+    for _, link in ipairs(parsed.links) do
+      local new_link = { link[1], link[2], link[3], link[4] }
+      if line_map[new_link[1]] then
+        new_link[1] = line_map[new_link[1]]
+      end
+      table.insert(final_links, new_link)
+    end
 
-		-- Deep copy images
-		final_images = {}
-		for _, img in ipairs(parsed.images) do
-			local new_img = {}
-			for k, v in pairs(img) do
-				new_img[k] = v
-			end
-			if new_img.line and line_map[new_img.line] then
-				new_img.line = line_map[new_img.line]
-			end
-			table.insert(final_images, new_img)
-		end
+    -- Deep copy images
+    final_images = {}
+    for _, img in ipairs(parsed.images) do
+      local new_img = {}
+      for k, v in pairs(img) do
+        new_img[k] = v
+      end
+      if new_img.line and line_map[new_img.line] then
+        new_img.line = line_map[new_img.line]
+      end
+      table.insert(final_images, new_img)
+    end
 
-		-- Create new anchors table
-		final_anchors = {}
-		for anchor_id, line_num in pairs(parsed.anchors) do
-			final_anchors[anchor_id] = line_map[line_num] or line_num
-		end
+    -- Create new anchors table
+    final_anchors = {}
+    for anchor_id, line_num in pairs(parsed.anchors) do
+      final_anchors[anchor_id] = line_map[line_num] or line_num
+    end
 
-		-- Create new centered_lines table
-		if parsed.centered_lines then
-			final_centered_lines = {}
-			for line_num, _ in pairs(parsed.centered_lines) do
-				final_centered_lines[line_map[line_num] or line_num] = true
-			end
-		end
-	else
-		-- No line spacing, create identity map
-		for i = 1, #parsed.lines do
-			line_map[i] = i
-		end
-	end
+    -- Create new centered_lines table
+    if parsed.centered_lines then
+      final_centered_lines = {}
+      for line_num, _ in pairs(parsed.centered_lines) do
+        final_centered_lines[line_map[line_num] or line_num] = true
+      end
+    end
+  else
+    -- No line spacing, create identity map
+    for i = 1, #parsed.lines do
+      line_map[i] = i
+    end
+  end
 
-	local win_width = vim.api.nvim_win_get_width(ctx.content_win)
-	local padding = 0
-	if win_width > max_width then
-		padding = math.floor((win_width - max_width) / 2)
-	end
+  local win_width = vim.api.nvim_win_get_width(ctx.content_win)
+  local padding = 0
+  if win_width > max_width then
+    padding = math.floor((win_width - max_width) / 2)
+  end
 
-	-- Use book title for buffer name (more user-friendly than slug)
-	local title = ctx.data and ctx.data.title or slug
-	local author = ctx.data and ctx.data.author
-	local chapter_name = require("ink.ui.floating_toc").get_current_chapter_name(ctx)
+  -- Use book title for buffer name (more user-friendly than slug)
+  local title = ctx.data and ctx.data.title or slug
+  local author = ctx.data and ctx.data.author
+  local chapter_name = require("ink.ui.floating_toc").get_current_chapter_name(ctx)
 
-	-- Create descriptive buffer names
-	local content_name
-	if author and author ~= "" then
-		content_name = "ink://" .. title .. " | " .. author .. " | " .. chapter_name
-	else
-		content_name = "ink://" .. title .. " | " .. chapter_name
-	end
+  -- Create descriptive buffer names
+  local content_name
+  if author and author ~= "" then
+    content_name = "ink://" .. title .. " | " .. author .. " | " .. chapter_name
+  else
+    content_name = "ink://" .. title .. " | " .. chapter_name
+  end
 
-	vim.api.nvim_buf_set_name(ctx.content_buf, content_name)
-	vim.api.nvim_set_option_value("modifiable", true, { buf = ctx.content_buf })
-	vim.api.nvim_buf_set_lines(ctx.content_buf, 0, -1, false, final_lines)
-	vim.api.nvim_set_option_value("modifiable", false, { buf = ctx.content_buf })
+  vim.api.nvim_buf_set_name(ctx.content_buf, content_name)
+  vim.api.nvim_set_option_value("modifiable", true, { buf = ctx.content_buf })
+  vim.api.nvim_buf_set_lines(ctx.content_buf, 0, -1, false, final_lines)
+  vim.api.nvim_set_option_value("modifiable", false, { buf = ctx.content_buf })
 
-	vim.api.nvim_buf_clear_namespace(ctx.content_buf, context.ns_id, 0, -1)
-	vim.api.nvim_buf_clear_namespace(ctx.content_buf, context.user_hl_ns_id, 0, -1)
-	vim.api.nvim_buf_clear_namespace(ctx.content_buf, context.ns_reading, 0, -1)
-	ctx._reading_para_start = nil
-	ctx._reading_para_end = nil
+  vim.api.nvim_buf_clear_namespace(ctx.content_buf, context.ns_id, 0, -1)
+  vim.api.nvim_buf_clear_namespace(ctx.content_buf, context.user_hl_ns_id, 0, -1)
+  vim.api.nvim_buf_clear_namespace(ctx.content_buf, context.ns_reading, 0, -1)
+  ctx._reading_para_start = nil
+  ctx._reading_para_end = nil
 
-	for i = 1, #final_lines do
-		local line_idx = i - 1
-		local line_padding = padding
+  for i = 1, #final_lines do
+    local line_idx = i - 1
+    local line_padding = padding
 
-		-- Add extra padding to center title lines within max_width
-		if final_centered_lines and final_centered_lines[i] then
-			local line_width = vim.fn.strdisplaywidth(final_lines[i])
-			if line_width < max_width then
-				line_padding = line_padding + math.floor((max_width - line_width) / 2)
-			end
-		end
+    -- Add extra padding to center title lines within max_width
+    if final_centered_lines and final_centered_lines[i] then
+      local line_width = vim.fn.strdisplaywidth(final_lines[i])
+      if line_width < max_width then
+        line_padding = line_padding + math.floor((max_width - line_width) / 2)
+      end
+    end
 
-		if line_padding > 0 then
-			local pad_str = string.rep(" ", line_padding)
-			vim.api.nvim_buf_set_extmark(ctx.content_buf, context.ns_id, line_idx, 0, {
-				virt_text = { { pad_str, "Normal" } },
-				virt_text_pos = "inline",
-				priority = 100,
-			})
-		end
-	end
+    if line_padding > 0 then
+      local pad_str = string.rep(" ", line_padding)
+      vim.api.nvim_buf_set_extmark(ctx.content_buf, context.ns_id, line_idx, 0, {
+        virt_text = { { pad_str, "Normal" } },
+        virt_text_pos = "inline",
+        priority = 100,
+      })
+    end
+  end
 
-	-- Apply syntax highlights using extmarks module
-	get_extmarks().apply_syntax_highlights(ctx.content_buf, final_highlights, context.ns_id, padding)
+  -- Apply syntax highlights using extmarks module
+  get_extmarks().apply_syntax_highlights(ctx.content_buf, final_highlights, context.ns_id, padding)
 
-	ctx.images = final_images or {}
-	ctx.links = final_links or {}
-	ctx.anchors = final_anchors or {}
-	ctx.justify_map = parsed.justify_map or {}
-	ctx.rendered_lines = final_lines
+  ctx.images = final_images or {}
+  ctx.links = final_links or {}
+  ctx.anchors = final_anchors or {}
+  ctx.justify_map = parsed.justify_map or {}
+  ctx.rendered_lines = final_lines
 
-	-- Apply user highlights using extmarks module (use separate namespace for lighter refresh)
-	local chapter_highlights = get_user_highlights().get_chapter_highlights(ctx.data.slug, idx)
-	local extmarks_module = get_extmarks()
-	extmarks_module.apply_user_highlights(
-		ctx.content_buf,
-		chapter_highlights,
-		context.user_hl_ns_id,
-		final_lines,
-		ctx.data.slug,
-		idx
-	)
+  -- Apply user highlights using extmarks module (use separate namespace for lighter refresh)
+  local chapter_highlights = get_user_highlights().get_chapter_highlights(ctx.data.slug, idx)
+  local extmarks_module = get_extmarks()
+  extmarks_module.apply_user_highlights(
+    ctx.content_buf,
+    chapter_highlights,
+    context.user_hl_ns_id,
+    final_lines,
+    ctx.data.slug,
+    idx
+  )
 
-	-- Apply note indicators or margin notes based on mode (use user_hl namespace)
-	if ctx.note_display_mode == "margin" then
-		local success = extmarks_module.apply_margin_notes(
-			ctx.content_buf,
-			chapter_highlights,
-			padding,
-			max_width,
-			win_width,
-			context.user_hl_ns_id,
-			ctx._margin_toggle_attempt -- Flag to show notification only on user toggle
-		)
+  -- Apply note indicators or margin notes based on mode (use user_hl namespace)
+  if ctx.note_display_mode == "margin" then
+    local success = extmarks_module.apply_margin_notes(
+      ctx.content_buf,
+      chapter_highlights,
+      padding,
+      max_width,
+      win_width,
+      context.user_hl_ns_id,
+      ctx._margin_toggle_attempt -- Flag to show notification only on user toggle
+    )
 
-		-- Silent fallback to expanded mode if margin notes fail
-		if not success then
-			extmarks_module.apply_note_indicators(
-				ctx.content_buf,
-				chapter_highlights,
-				"expanded",
-				padding,
-				max_width,
-				context.user_hl_ns_id
-			)
-		end
+    -- Silent fallback to expanded mode if margin notes fail
+    if not success then
+      extmarks_module.apply_note_indicators(
+        ctx.content_buf,
+        chapter_highlights,
+        "expanded",
+        padding,
+        max_width,
+        context.user_hl_ns_id
+      )
+    end
 
-		-- Clear the flag after first attempt
-		ctx._margin_toggle_attempt = false
-	elseif ctx.note_display_mode ~= "off" then
-		-- Use traditional note indicators for "indicator" and "expanded" modes
-		extmarks_module.apply_note_indicators(
-			ctx.content_buf,
-			chapter_highlights,
-			ctx.note_display_mode,
-			padding,
-			max_width,
-			context.user_hl_ns_id
-		)
-	end
-	-- If "off", don't apply any note indicators
+    -- Clear the flag after first attempt
+    ctx._margin_toggle_attempt = false
+  elseif ctx.note_display_mode ~= "off" then
+    -- Use traditional note indicators for "indicator" and "expanded" modes
+    extmarks_module.apply_note_indicators(
+      ctx.content_buf,
+      chapter_highlights,
+      ctx.note_display_mode,
+      padding,
+      max_width,
+      context.user_hl_ns_id
+    )
+  end
+  -- If "off", don't apply any note indicators
 
-	-- Render bookmarks using extmarks module
-	local chapter_bookmarks = get_bookmarks_data().get_chapter_bookmarks(ctx.data.slug, idx)
-	local bookmark_icon = context.config.bookmark_icon or "󰃀"
-	extmarks_module.apply_bookmarks(
-		ctx.content_buf,
-		chapter_bookmarks,
-		padding,
-		bookmark_icon,
-		context.ns_id,
-		final_lines,
-		max_width
-	)
+  -- Render bookmarks using extmarks module
+  local chapter_bookmarks = get_bookmarks_data().get_chapter_bookmarks(ctx.data.slug, idx)
+  local bookmark_icon = context.config.bookmark_icon or "󰃀"
+  extmarks_module.apply_bookmarks(
+    ctx.content_buf,
+    chapter_bookmarks,
+    padding,
+    bookmark_icon,
+    context.ns_id,
+    final_lines,
+    max_width
+  )
 
-	-- GLOSSARY: Detect and render glossary terms
-	local glossary_data = require("ink.glossary.data").load(ctx.data.slug)
+  -- GLOSSARY: Detect and render glossary terms
+  local glossary_data = require("ink.glossary.data").load(ctx.data.slug)
 
-	if glossary_data and glossary_data.entries and #glossary_data.entries > 0 then
-		local detection = require("ink.glossary.detection")
+  if glossary_data and glossary_data.entries and #glossary_data.entries > 0 then
+    local detection = require("ink.glossary.detection")
 
-		-- Calculate current version hash (Level 2 optimization)
-		-- Include max_width and typography in hash since positions depend on rendering
-		local base_version = detection.calculate_version_hash(glossary_data.entries)
-		local current_version = string.format(
-			"%s_w%d_ls%d_ps%d_j%s",
-			base_version,
-			max_width,
-			typography.line_spacing or 1,
-			typography.paragraph_spacing or 1,
-			tostring(justify_text or false)
-		)
+    -- Calculate current version hash (Level 2 optimization)
+    -- Include max_width and typography in hash since positions depend on rendering
+    local base_version = detection.calculate_version_hash(glossary_data.entries)
+    local current_version = string.format(
+      "%s_w%d_ls%d_ps%d_j%s",
+      base_version,
+      max_width,
+      typography.line_spacing or 1,
+      typography.paragraph_spacing or 1,
+      tostring(justify_text or false)
+    )
 
-		-- Load persistent cache if in-memory cache is empty (Level 3 optimization)
-		if not ctx.glossary_matches_cache.version then
-			local glossary_cache = require("ink.glossary.cache")
-			local persistent_cache = glossary_cache.load(ctx.data.slug)
+    -- Load persistent cache if in-memory cache is empty (Level 3 optimization)
+    if not ctx.glossary_matches_cache.version then
+      local glossary_cache = require("ink.glossary.cache")
+      local persistent_cache = glossary_cache.load(ctx.data.slug)
 
-			if persistent_cache and persistent_cache.version == current_version then
-				-- Persistent cache is valid, use it
-				ctx.glossary_matches_cache = persistent_cache
-			end
-		end
+      if persistent_cache and persistent_cache.version == current_version then
+        -- Persistent cache is valid, use it
+        ctx.glossary_matches_cache = persistent_cache
+      end
+    end
 
-		-- Check if cache is still valid (version matches)
-		if ctx.glossary_matches_cache.version ~= current_version then
-			-- Version mismatch: glossary structure changed, invalidate cache
-			ctx.glossary_matches_cache = {
-				version = current_version,
-				chapters = {},
-			}
-			-- Clear persistent cache (Level 3 optimization)
-			local glossary_cache = require("ink.glossary.cache")
-			glossary_cache.clear(ctx.data.slug)
+    -- Check if cache is still valid (version matches)
+    if ctx.glossary_matches_cache.version ~= current_version then
+      -- Version mismatch: glossary structure changed, invalidate cache
+      ctx.glossary_matches_cache = {
+        version = current_version,
+        chapters = {},
+      }
+      -- Clear persistent cache (Level 3 optimization)
+      local glossary_cache = require("ink.glossary.cache")
+      glossary_cache.clear(ctx.data.slug)
 
-			-- Also rebuild detection index
-			ctx.glossary_detection_index = detection.build_detection_index(glossary_data.entries)
-			ctx.glossary_custom_types = glossary_data.custom_types
-		elseif not ctx.glossary_detection_index then
-			-- Version matches but index not built yet (first load)
-			ctx.glossary_detection_index = detection.build_detection_index(glossary_data.entries)
-			ctx.glossary_custom_types = glossary_data.custom_types
-		end
+      -- Also rebuild detection index
+      ctx.glossary_detection_index = detection.build_detection_index(glossary_data.entries)
+      ctx.glossary_custom_types = glossary_data.custom_types
+    elseif not ctx.glossary_detection_index then
+      -- Version matches but index not built yet (first load)
+      ctx.glossary_detection_index = detection.build_detection_index(glossary_data.entries)
+      ctx.glossary_custom_types = glossary_data.custom_types
+    end
 
-		-- Check chapter cache (Level 1 optimization)
-		local cached_matches = ctx.glossary_matches_cache.chapters[idx]
+    -- Check chapter cache (Level 1 optimization)
+    local cached_matches = ctx.glossary_matches_cache.chapters[idx]
 
-		if cached_matches and type(cached_matches) == "table" then
-			-- Cache hit: use cached matches (validate it's a table, not vim.NIL)
-			ctx.glossary_matches = cached_matches
-		else
-			-- Cache miss: detect and store
-			ctx.glossary_matches = detection.detect_in_chapter(final_lines, ctx.glossary_detection_index)
-			ctx.glossary_matches_cache.chapters[idx] = ctx.glossary_matches
+    if cached_matches and type(cached_matches) == "table" then
+      -- Cache hit: use cached matches (validate it's a table, not vim.NIL)
+      ctx.glossary_matches = cached_matches
+    else
+      -- Cache miss: detect and store
+      ctx.glossary_matches = detection.detect_in_chapter(final_lines, ctx.glossary_detection_index)
+      ctx.glossary_matches_cache.chapters[idx] = ctx.glossary_matches
 
-			-- Persist cache to disk (Level 3 optimization)
-			local glossary_cache = require("ink.glossary.cache")
-			glossary_cache.save(ctx.data.slug, ctx.glossary_matches_cache)
-		end
+      -- Persist cache to disk (Level 3 optimization)
+      local glossary_cache = require("ink.glossary.cache")
+      glossary_cache.save(ctx.data.slug, ctx.glossary_matches_cache)
+    end
 
-		-- Ensure glossary_matches is always a table (defensive check)
-		if type(ctx.glossary_matches) ~= "table" then
-			ctx.glossary_matches = {}
-		end
+    -- Ensure glossary_matches is always a table (defensive check)
+    if type(ctx.glossary_matches) ~= "table" then
+      ctx.glossary_matches = {}
+    end
 
-		-- Only apply glossary marks if glossary_visible is true
-		if ctx.glossary_visible and #ctx.glossary_matches > 0 then
-			extmarks_module.apply_glossary_marks(
-				ctx.content_buf,
-				ctx.glossary_matches,
-				ctx.glossary_detection_index.entries,
-				ctx.glossary_custom_types,
-				context.ns_id
-			)
-		end
-	else
-		ctx.glossary_matches = {}
-	end
+    -- Only apply glossary marks if glossary_visible is true
+    if ctx.glossary_visible and #ctx.glossary_matches > 0 then
+      extmarks_module.apply_glossary_marks(
+        ctx.content_buf,
+        ctx.glossary_matches,
+        ctx.glossary_detection_index.entries,
+        ctx.glossary_custom_types,
+        context.ns_id
+      )
+    end
+  else
+    ctx.glossary_matches = {}
+  end
 
-	if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
-		if restore_line then
-			-- Get total lines in buffer to validate cursor position
-			local total_lines = vim.api.nvim_buf_line_count(ctx.content_buf)
+  if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
+    if restore_line then
+      -- Get total lines in buffer to validate cursor position
+      local total_lines = vim.api.nvim_buf_line_count(ctx.content_buf)
 
-			-- restore_line can be either a number (line only) or a table {line, col}
-			if type(restore_line) == "table" then
-				-- Validate that table has required fields and they are numbers
-				if type(restore_line[1]) == "number" then
-					local line = math.max(1, math.min(restore_line[1], total_lines))
-					local col = type(restore_line[2]) == "number" and restore_line[2] or 0
-					vim.api.nvim_win_set_cursor(ctx.content_win, { line, col })
-				else
-					-- Invalid table format, default to line 1
-					vim.api.nvim_win_set_cursor(ctx.content_win, { 1, 0 })
-				end
-			elseif type(restore_line) == "number" then
-				local line = math.max(1, math.min(restore_line, total_lines))
-				vim.api.nvim_win_set_cursor(ctx.content_win, { line, 0 })
-			else
-				-- Invalid type, default to line 1
-				vim.api.nvim_win_set_cursor(ctx.content_win, { 1, 0 })
-			end
-		else
-			vim.api.nvim_win_set_cursor(ctx.content_win, { 1, 0 })
-		end
-	end
+      -- restore_line can be either a number (line only) or a table {line, col}
+      if type(restore_line) == "table" then
+        -- Validate that table has required fields and they are numbers
+        if type(restore_line[1]) == "number" then
+          local line = math.max(1, math.min(restore_line[1], total_lines))
+          local col = type(restore_line[2]) == "number" and restore_line[2] or 0
+          vim.api.nvim_win_set_cursor(ctx.content_win, { line, col })
+        else
+          -- Invalid table format, default to line 1
+          vim.api.nvim_win_set_cursor(ctx.content_win, { 1, 0 })
+        end
+      elseif type(restore_line) == "number" then
+        local line = math.max(1, math.min(restore_line, total_lines))
+        vim.api.nvim_win_set_cursor(ctx.content_win, { line, 0 })
+      else
+        -- Invalid type, default to line 1
+        vim.api.nvim_win_set_cursor(ctx.content_win, { 1, 0 })
+      end
+    else
+      vim.api.nvim_win_set_cursor(ctx.content_win, { 1, 0 })
+    end
+  end
 
-	get_extmarks().refresh_reading_paragraph_mode(ctx)
+  get_extmarks().refresh_reading_paragraph_mode(ctx)
 
-	M.update_statusline(ctx)
+  M.update_statusline(ctx)
 
-	-- Don't save state during book initialization to prevent overwriting saved position
-	if not ctx._is_initializing and not ctx._rerendering then
-		local state_data = { chapter = idx }
-		get_state().save(ctx.data.slug, state_data)
-		get_library().update_progress(ctx.data.slug, idx, #ctx.data.spine)
-	end
+  -- Don't save state during book initialization to prevent overwriting saved position
+  if not ctx._is_initializing and not ctx._rerendering then
+    local state_data = { chapter = idx }
+    get_state().save(ctx.data.slug, state_data)
+    get_library().update_progress(ctx.data.slug, idx, #ctx.data.spine)
+  end
 end
 
 function M.toggle_note_display(ctx)
-	ctx = ctx or context.current()
-	if not ctx then
-		return
-	end
-	if ctx.note_display_mode == "off" then
-		ctx.note_display_mode = "indicator"
-	elseif ctx.note_display_mode == "indicator" then
-		ctx.note_display_mode = "margin"
-		ctx._margin_toggle_attempt = true -- Flag to show notification if margin fails
-	elseif ctx.note_display_mode == "margin" then
-		ctx.note_display_mode = "expanded"
-	else
-		ctx.note_display_mode = "off"
-	end
+  ctx = ctx or context.current()
+  if not ctx then
+    return
+  end
+  if ctx.note_display_mode == "off" then
+    ctx.note_display_mode = "indicator"
+  elseif ctx.note_display_mode == "indicator" then
+    ctx.note_display_mode = "margin"
+    ctx._margin_toggle_attempt = true -- Flag to show notification if margin fails
+  elseif ctx.note_display_mode == "margin" then
+    ctx.note_display_mode = "expanded"
+  else
+    ctx.note_display_mode = "off"
+  end
 
-	if M.rerender_preserving_viewport(ctx, { focus = true }) then
-		vim.notify("Note display: " .. ctx.note_display_mode, vim.log.levels.INFO)
-	end
+  if M.rerender_preserving_viewport(ctx, { focus = true }) then
+    vim.notify("Note display: " .. ctx.note_display_mode, vim.log.levels.INFO)
+  end
 end
 
 function M.toggle_glossary_display(ctx)
-	ctx = ctx or context.current()
-	if not ctx then
-		return
-	end
+  ctx = ctx or context.current()
+  if not ctx then
+    return
+  end
 
-	-- Toggle the visibility state
-	ctx.glossary_visible = not ctx.glossary_visible
+  -- Toggle the visibility state
+  ctx.glossary_visible = not ctx.glossary_visible
 
-	-- Re-render the chapter to apply/remove glossary marks
-	if M.rerender_preserving_viewport(ctx, { focus = true }) then
-		local status = ctx.glossary_visible and "visible" or "hidden"
-		vim.notify("Glossary terms: " .. status, vim.log.levels.INFO)
-	end
+  -- Re-render the chapter to apply/remove glossary marks
+  if M.rerender_preserving_viewport(ctx, { focus = true }) then
+    local status = ctx.glossary_visible and "visible" or "hidden"
+    vim.notify("Glossary terms: " .. status, vim.log.levels.INFO)
+  end
 end
 
 -- Invalidate glossary cache (for when glossary is modified)
 -- Note: With Level 2 versioning, this is rarely needed as the system
 -- automatically detects version changes. This is kept for manual invalidation.
 function M.invalidate_glossary_cache(ctx)
-	ctx = ctx or context.current()
-	if not ctx then
-		return
-	end
+  ctx = ctx or context.current()
+  if not ctx then
+    return
+  end
 
-	ctx.glossary_detection_index = nil
-	ctx.glossary_matches_cache = {
-		version = nil,
-		chapters = {},
-	}
-	ctx.glossary_matches = {}
+  ctx.glossary_detection_index = nil
+  ctx.glossary_matches_cache = {
+    version = nil,
+    chapters = {},
+  }
+  ctx.glossary_matches = {}
 
-	-- Clear persistent cache (Level 3 optimization)
-	if ctx.data and ctx.data.slug then
-		local glossary_cache = require("ink.glossary.cache")
-		glossary_cache.clear(ctx.data.slug)
-	end
+  -- Clear persistent cache (Level 3 optimization)
+  if ctx.data and ctx.data.slug then
+    local glossary_cache = require("ink.glossary.cache")
+    glossary_cache.clear(ctx.data.slug)
+  end
 end
 
 -- Get text-based viewport position (for preserving scroll during re-renders)
 local function get_viewport_text_context(ctx)
-	if not ctx.content_win or not vim.api.nvim_win_is_valid(ctx.content_win) then
-		return nil
-	end
+  if not ctx.content_win or not vim.api.nvim_win_is_valid(ctx.content_win) then
+    return nil
+  end
 
-	if not ctx.content_buf or not vim.api.nvim_buf_is_valid(ctx.content_buf) then
-		return nil
-	end
+  if not ctx.content_buf or not vim.api.nvim_buf_is_valid(ctx.content_buf) then
+    return nil
+  end
 
-	-- Get cursor position and total lines for relative positioning
-	local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
-	local cursor_line = cursor[1]
-	local total_lines = vim.api.nvim_buf_line_count(ctx.content_buf)
+  -- Get cursor position and total lines for relative positioning
+  local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
+  local cursor_line = cursor[1]
+  local total_lines = vim.api.nvim_buf_line_count(ctx.content_buf)
 
-	local result = {
-		cursor_fallback = cursor_line,
-		total_lines = total_lines,
-	}
+  local result = {
+    cursor_fallback = cursor_line,
+    total_lines = total_lines,
+  }
 
-	-- Prefer saved state (text + context_before/after), but only if it belongs to the current chapter
-	local state_data = get_state().load(ctx.data.slug)
-	local pos
-	if
-		state_data
-		and state_data.chapter == ctx.current_chapter_idx
-		and state_data.text
-		and not state_data.text:match("^%s*$")
-	then
-		pos = {
-			text = state_data.text,
-			context_before = state_data.context_before,
-			context_after = state_data.context_after,
-		}
-	else
-		-- Fallback: extracted live from the buffer
-		pos = get_current_position_context(ctx, cursor_line)
-	end
+  -- Prefer saved state (text + context_before/after), but only if it belongs to the current chapter
+  local state_data = get_state().load(ctx.data.slug)
+  local pos
+  if
+    state_data
+    and state_data.chapter == ctx.current_chapter_idx
+    and state_data.text
+    and not state_data.text:match("^%s*$")
+  then
+    pos = {
+      text = state_data.text,
+      context_before = state_data.context_before,
+      context_after = state_data.context_after,
+    }
+  else
+    -- Fallback: extracted live from the buffer
+    pos = get_current_position_context(ctx, cursor_line)
+  end
 
-	if pos and pos.text and not pos.text:match("^%s*$") then
-		result.text = pos.text
-		result.context_before = pos.context_before or ""
-		result.context_after = pos.context_after or ""
-	end
+  if pos and pos.text and not pos.text:match("^%s*$") then
+    result.text = pos.text
+    result.context_before = pos.context_before or ""
+    result.context_after = pos.context_after or ""
+  end
 
-	return result
+  return result
 end
 
 local function center_cursor(win)
-	vim.api.nvim_win_call(win, function()
-		vim.cmd("normal! zz")
-	end)
+  vim.api.nvim_win_call(win, function()
+    vim.cmd("normal! zz")
+  end)
 end
 
 -- Restore viewport based on text context
 local function restore_viewport_from_context(ctx, viewport_ctx)
-	if not viewport_ctx or not ctx.content_win or not vim.api.nvim_win_is_valid(ctx.content_win) then
-		return false
-	end
+  if not viewport_ctx or not ctx.content_win or not vim.api.nvim_win_is_valid(ctx.content_win) then
+    return false
+  end
 
-	local total_lines = vim.api.nvim_buf_line_count(ctx.content_buf)
+  local total_lines = vim.api.nvim_buf_line_count(ctx.content_buf)
 
-	-- If we have text, locate it using text + surrounding context (disambiguates repeated text)
-	if viewport_ctx.text then
-		local util = require("ink.ui.util")
-		local lines = vim.api.nvim_buf_get_lines(ctx.content_buf, 0, -1, false)
-		local line, col = util.find_text_position(
-			lines,
-			viewport_ctx.text,
-			viewport_ctx.context_before,
-			viewport_ctx.context_after,
-			false
-		)
+  -- If we have text, locate it using text + surrounding context (disambiguates repeated text)
+  if viewport_ctx.text then
+    local util = require("ink.ui.util")
+    local lines = vim.api.nvim_buf_get_lines(ctx.content_buf, 0, -1, false)
+    local line, col =
+      util.find_text_position(lines, viewport_ctx.text, viewport_ctx.context_before, viewport_ctx.context_after, false)
 
-		if type(line) == "number" and line >= 1 and line <= total_lines then
-			-- Found it! Position cursor here and center it
-			local line_len = #(lines[line] or "")
-			local safe_col = math.max(0, math.min(col or 0, line_len))
-			vim.api.nvim_win_set_cursor(ctx.content_win, { line, safe_col })
-			center_cursor(ctx.content_win)
-			return true
-		end
-	end
+    if type(line) == "number" and line >= 1 and line <= total_lines then
+      -- Found it! Position cursor here and center it
+      local line_len = #(lines[line] or "")
+      local safe_col = math.max(0, math.min(col or 0, line_len))
+      vim.api.nvim_win_set_cursor(ctx.content_win, { line, safe_col })
+      center_cursor(ctx.content_win)
+      return true
+    end
+  end
 
-	-- Fallback: estimate relative position based on line ratio
-	if viewport_ctx.cursor_fallback then
-		-- Try to maintain relative position in the chapter
-		-- If we had cursor at 20% through the old buffer, try to put it at ~20% in new buffer
-		if viewport_ctx.total_lines and viewport_ctx.total_lines > 0 then
-			local relative_pos = viewport_ctx.cursor_fallback / viewport_ctx.total_lines
-			local new_cursor_line = math.floor(total_lines * relative_pos)
-			local cursor_target = math.max(1, math.min(new_cursor_line, total_lines))
-			vim.api.nvim_win_set_cursor(ctx.content_win, { cursor_target, 0 })
-			center_cursor(ctx.content_win)
-		else
-			-- Simple fallback: just use the old line number (clamped to new buffer size)
-			local cursor_target = math.min(viewport_ctx.cursor_fallback, total_lines)
-			vim.api.nvim_win_set_cursor(ctx.content_win, { cursor_target, 0 })
-			center_cursor(ctx.content_win)
-		end
-	end
+  -- Fallback: estimate relative position based on line ratio
+  if viewport_ctx.cursor_fallback then
+    -- Try to maintain relative position in the chapter
+    -- If we had cursor at 20% through the old buffer, try to put it at ~20% in new buffer
+    if viewport_ctx.total_lines and viewport_ctx.total_lines > 0 then
+      local relative_pos = viewport_ctx.cursor_fallback / viewport_ctx.total_lines
+      local new_cursor_line = math.floor(total_lines * relative_pos)
+      local cursor_target = math.max(1, math.min(new_cursor_line, total_lines))
+      vim.api.nvim_win_set_cursor(ctx.content_win, { cursor_target, 0 })
+      center_cursor(ctx.content_win)
+    else
+      -- Simple fallback: just use the old line number (clamped to new buffer size)
+      local cursor_target = math.min(viewport_ctx.cursor_fallback, total_lines)
+      vim.api.nvim_win_set_cursor(ctx.content_win, { cursor_target, 0 })
+      center_cursor(ctx.content_win)
+    end
+  end
 
-	return false
+  return false
 end
 
 -- Export for use in other modules
@@ -810,107 +805,107 @@ M.restore_viewport_from_context = restore_viewport_from_context
 -- opts.focus: also move focus to the content window (used by toggles)
 -- Returns true on success.
 function M.rerender_preserving_viewport(ctx, opts)
-	opts = opts or {}
-	ctx = ctx or context.current()
-	if not ctx then
-		return false
-	end
+  opts = opts or {}
+  ctx = ctx or context.current()
+  if not ctx then
+    return false
+  end
 
-	-- Save viewport position (text-based, survives word wrap changes)
-	local viewport_ctx = M.get_viewport_text_context(ctx)
+  -- Save viewport position (text-based, survives word wrap changes)
+  local viewport_ctx = M.get_viewport_text_context(ctx)
 
-	ctx._rerendering = true
-	local ok, err = pcall(M.render_chapter, ctx.current_chapter_idx, nil, ctx)
-	ctx._rerendering = false
-	if not ok then
-		vim.notify("Render error: " .. tostring(err), vim.log.levels.ERROR)
-		return false
-	end
+  ctx._rerendering = true
+  local ok, err = pcall(M.render_chapter, ctx.current_chapter_idx, nil, ctx)
+  ctx._rerendering = false
+  if not ok then
+    vim.notify("Render error: " .. tostring(err), vim.log.levels.ERROR)
+    return false
+  end
 
-	-- Restore viewport immediately (render_chapter is synchronous)
-	if vim.api.nvim_win_is_valid(ctx.content_win) then
-		if opts.focus then
-			vim.api.nvim_set_current_win(ctx.content_win)
-		end
-		M.restore_viewport_from_context(ctx, viewport_ctx)
-		get_extmarks().refresh_reading_paragraph_mode(ctx)
-	end
+  -- Restore viewport immediately (render_chapter is synchronous)
+  if vim.api.nvim_win_is_valid(ctx.content_win) then
+    if opts.focus then
+      vim.api.nvim_set_current_win(ctx.content_win)
+    end
+    M.restore_viewport_from_context(ctx, viewport_ctx)
+    get_extmarks().refresh_reading_paragraph_mode(ctx)
+  end
 
-	return true
+  return true
 end
 
 -- Lightweight refresh: only update user highlights without rewriting buffer
 function M.refresh_highlights(ctx)
-	ctx = ctx or context.current()
-	if not ctx or not ctx.content_buf then
-		return
-	end
-	if not vim.api.nvim_buf_is_valid(ctx.content_buf) then
-		return
-	end
-	if not ctx.current_chapter_idx then
-		return
-	end
+  ctx = ctx or context.current()
+  if not ctx or not ctx.content_buf then
+    return
+  end
+  if not vim.api.nvim_buf_is_valid(ctx.content_buf) then
+    return
+  end
+  if not ctx.current_chapter_idx then
+    return
+  end
 
-	local lines = ctx.rendered_lines
-	if not lines or #lines == 0 then
-		M.render_chapter(ctx.current_chapter_idx, nil, ctx)
-		return
-	end
+  local lines = ctx.rendered_lines
+  if not lines or #lines == 0 then
+    M.render_chapter(ctx.current_chapter_idx, nil, ctx)
+    return
+  end
 
-	local extmarks_module = get_extmarks()
-	local max_width = ctx.current_max_width or context.config.max_width or 120
-	local win_width = ctx.content_win
-			and vim.api.nvim_win_is_valid(ctx.content_win)
-			and vim.api.nvim_win_get_width(ctx.content_win)
-		or max_width
-	local padding = 0
-	if win_width > max_width then
-		padding = math.floor((win_width - max_width) / 2)
-	end
+  local extmarks_module = get_extmarks()
+  local max_width = ctx.current_max_width or context.config.max_width or 120
+  local win_width = ctx.content_win
+      and vim.api.nvim_win_is_valid(ctx.content_win)
+      and vim.api.nvim_win_get_width(ctx.content_win)
+    or max_width
+  local padding = 0
+  if win_width > max_width then
+    padding = math.floor((win_width - max_width) / 2)
+  end
 
-	vim.api.nvim_buf_clear_namespace(ctx.content_buf, context.user_hl_ns_id, 0, -1)
+  vim.api.nvim_buf_clear_namespace(ctx.content_buf, context.user_hl_ns_id, 0, -1)
 
-	local chapter_highlights = get_user_highlights().get_chapter_highlights(ctx.data.slug, ctx.current_chapter_idx)
-	extmarks_module.apply_user_highlights(
-		ctx.content_buf,
-		chapter_highlights,
-		context.user_hl_ns_id,
-		lines,
-		ctx.data.slug,
-		ctx.current_chapter_idx
-	)
+  local chapter_highlights = get_user_highlights().get_chapter_highlights(ctx.data.slug, ctx.current_chapter_idx)
+  extmarks_module.apply_user_highlights(
+    ctx.content_buf,
+    chapter_highlights,
+    context.user_hl_ns_id,
+    lines,
+    ctx.data.slug,
+    ctx.current_chapter_idx
+  )
 
-	if ctx.note_display_mode == "margin" then
-		local success = extmarks_module.apply_margin_notes(
-			ctx.content_buf,
-			chapter_highlights,
-			padding,
-			max_width,
-			win_width,
-			context.user_hl_ns_id,
-			false
-		)
-		if not success then
-			extmarks_module.apply_note_indicators(
-				ctx.content_buf,
-				chapter_highlights,
-				"expanded",
-				padding,
-				max_width,
-				context.user_hl_ns_id
-			)
-		end
-	elseif ctx.note_display_mode ~= "off" then
-		extmarks_module.apply_note_indicators(
-			ctx.content_buf,
-			chapter_highlights,
-			ctx.note_display_mode,
-			padding,
-			max_width,
-			context.user_hl_ns_id
-		)
-	end
+  if ctx.note_display_mode == "margin" then
+    local success = extmarks_module.apply_margin_notes(
+      ctx.content_buf,
+      chapter_highlights,
+      padding,
+      max_width,
+      win_width,
+      context.user_hl_ns_id,
+      false
+    )
+    if not success then
+      extmarks_module.apply_note_indicators(
+        ctx.content_buf,
+        chapter_highlights,
+        "expanded",
+        padding,
+        max_width,
+        context.user_hl_ns_id
+      )
+    end
+  elseif ctx.note_display_mode ~= "off" then
+    extmarks_module.apply_note_indicators(
+      ctx.content_buf,
+      chapter_highlights,
+      ctx.note_display_mode,
+      padding,
+      max_width,
+      context.user_hl_ns_id
+    )
+  end
 end
 
 return M

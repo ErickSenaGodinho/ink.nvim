@@ -119,10 +119,8 @@ function M.setup_book_autocmds(content_buf, slug)
           return
         end
 
-        local win = vim.api.nvim_get_current_win()
-
         if ctx.focused_mode then
-          require("ink.ui").enable_focused_mode(ctx, win)
+          require("ink.ui").enable_focused_mode(ctx)
         end
 
         if ctx.reading_paragraph_mode then
@@ -140,10 +138,7 @@ function M.setup_book_autocmds(content_buf, slug)
       if not ctx then
         return
       end
-
-      local win = vim.api.nvim_get_current_win()
-
-      require("ink.ui").disable_focused_mode(ctx, win)
+      require("ink.ui").disable_focused_mode(ctx)
     end,
   })
 
