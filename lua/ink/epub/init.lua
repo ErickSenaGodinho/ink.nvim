@@ -8,6 +8,10 @@ local util = require("ink.epub.util")
 
 local M = {}
 
+local function is_web_cache(dir)
+  return fs.exists(dir .. "/page.html") or fs.exists(dir .. "/page_metadata.json")
+end
+
 local function get_cache_dir()
   return vim.fn.stdpath("data") .. "/ink.nvim/cache"
 end
@@ -19,31 +23,42 @@ function M.clear_cache(slug)
   if slug then
     -- Clear specific book cache
     local cache_dir = cache_root .. "/" .. slug
-    if fs.dir_exists(cache_dir) then
-      local success = fs.remove_dir(cache_dir)
-      if success then
-        return true, "Cleared cache for: " .. slug
-      else
-        return false, "Failed to clear cache for: " .. slug
-      end
-    else
+    if not fs.dir_exists(cache_dir) then
       return false, "Cache not found for: " .. slug
     end
-  else
-    -- Clear all cache
-    if fs.dir_exists(cache_root) then
-      local success = fs.remove_dir(cache_root)
-      if success then
-        -- Recreate empty cache directory
-        fs.ensure_dir(cache_root)
-        return true, "Cleared all EPUB cache"
+    if is_web_cache(cache_dir) then
+      return false, "Skipped (web cache is the update baseline): " .. slug
+    end
+    if fs.remove_dir(cache_dir) then
+      return true, "Cleared cache for: " .. slug
+    end
+    return false, "Failed to clear cache for: " .. slug
+  end
+
+  -- Clear all cache, keeping web caches (update baseline)
+  if not fs.dir_exists(cache_root) then
+    return true, "Cache directory already empty"
+  end
+
+  local cleared, skipped, failed = 0, 0, 0
+  for name, t in vim.fs.dir(cache_root) do
+    if t == "directory" then
+      local dir = cache_root .. "/" .. name
+      if is_web_cache(dir) then
+        skipped = skipped + 1
+      elseif fs.remove_dir(dir) then
+        cleared = cleared + 1
       else
-        return false, "Failed to clear cache"
+        failed = failed + 1
       end
-    else
-      return true, "Cache directory already empty"
     end
   end
+
+  local msg = ("Cleared %d EPUB caches (%d web kept)"):format(cleared, skipped)
+  if failed > 0 then
+    return false, msg .. (", %d failed"):format(failed)
+  end
+  return true, msg
 end
 
 -- Get cache size information
