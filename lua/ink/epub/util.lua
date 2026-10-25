@@ -6,10 +6,10 @@ function M.get_slug(path)
 end
 
 function M.validate_path(path, base_dir)
-  local resolved = vim.fn.resolve(path)
-  local base = vim.fn.resolve(base_dir)
+  local resolved = vim.fs.normalize(vim.fn.resolve(path))
+  local base = vim.fs.normalize(vim.fn.resolve(base_dir))
 
-  if resolved:sub(1, #base) ~= base then
+  if resolved ~= base and resolved:sub(1, #base + 1) ~= base .. "/" then
     error("Path traversal attempt detected: " .. path)
   end
 
