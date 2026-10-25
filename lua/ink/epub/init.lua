@@ -182,18 +182,17 @@ function M.open(epub_path, opts)
   end
 
   if needs_extraction then
-    -- vim.notify("📦 Extracting EPUB to cache...", vim.log.levels.INFO)  -- DEBUG
     fs.ensure_dir(cache_dir) -- Ensure parent cache dir exists
     local success = fs.unzip(epub_path, epub_dir)
     if not success then
       error("Failed to unzip epub")
     end
 
+    require("ink.cache.css").clear(slug)
+    require("ink.cache.toc").clear(slug)
+
     -- Create extraction flag to mark successful extraction
     fs.write_file(extraction_flag, tostring(os.time()))
-    -- vim.notify("✅ EPUB extracted to cache", vim.log.levels.INFO)  -- DEBUG
-    -- else
-    -- vim.notify("⚡ Using cached EPUB (no extraction needed)", vim.log.levels.INFO)  -- DEBUG
   end
 
   -- 1. Container
@@ -300,4 +299,3 @@ function M.open(epub_path, opts)
 end
 
 return M
-
