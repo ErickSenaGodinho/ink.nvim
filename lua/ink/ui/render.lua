@@ -194,7 +194,7 @@ function M.get_parsed_chapter(chapter_idx, ctx)
   if type(ctx.parsed_chapters) == "table" and not ctx.parsed_chapters.get then
     local lru_cache = require("ink.cache.lru")
     local old_cache = ctx.parsed_chapters
-    ctx.parsed_chapters = lru_cache.new(15)
+    ctx.parsed_chapters = lru_cache.new()
     -- Migrate existing cached chapters
     for idx, parsed in pairs(old_cache) do
       ctx.parsed_chapters:put(idx, parsed)
@@ -532,7 +532,7 @@ function M.render_chapter(idx, restore_line, ctx)
 
     -- Load persistent cache if in-memory cache is empty (Level 3 optimization)
     if not ctx.glossary_matches_cache.version then
-      local glossary_cache = require("ink.glossary.cache")
+      local glossary_cache = require("ink.cache.glossary")
       local persistent_cache = glossary_cache.load(ctx.data.slug)
 
       if persistent_cache and persistent_cache.version == current_version then
@@ -549,7 +549,7 @@ function M.render_chapter(idx, restore_line, ctx)
         chapters = {},
       }
       -- Clear persistent cache (Level 3 optimization)
-      local glossary_cache = require("ink.glossary.cache")
+      local glossary_cache = require("ink.cache.glossary")
       glossary_cache.clear(ctx.data.slug)
 
       -- Also rebuild detection index
@@ -573,7 +573,7 @@ function M.render_chapter(idx, restore_line, ctx)
       ctx.glossary_matches_cache.chapters[idx] = ctx.glossary_matches
 
       -- Persist cache to disk (Level 3 optimization)
-      local glossary_cache = require("ink.glossary.cache")
+      local glossary_cache = require("ink.cache.glossary")
       glossary_cache.save(ctx.data.slug, ctx.glossary_matches_cache)
     end
 
@@ -691,7 +691,7 @@ function M.invalidate_glossary_cache(ctx)
 
   -- Clear persistent cache (Level 3 optimization)
   if ctx.data and ctx.data.slug then
-    local glossary_cache = require("ink.glossary.cache")
+    local glossary_cache = require("ink.cache.glossary")
     glossary_cache.clear(ctx.data.slug)
   end
 end

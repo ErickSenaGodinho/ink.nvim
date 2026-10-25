@@ -53,7 +53,7 @@ function M.get_cache_info()
   if not fs.dir_exists(cache_root) then
     return {
       total_books = 0,
-      exists = false
+      exists = false,
     }
   end
 
@@ -64,7 +64,9 @@ function M.get_cache_info()
   if handle then
     while true do
       local name, type = vim.loop.fs_scandir_next(handle)
-      if not name then break end
+      if not name then
+        break
+      end
       if type == "directory" then
         count = count + 1
       end
@@ -74,7 +76,7 @@ function M.get_cache_info()
   return {
     total_books = count,
     exists = true,
-    path = cache_root
+    path = cache_root,
   }
 end
 
@@ -91,11 +93,13 @@ function M.get_cached_books()
   if handle then
     while true do
       local name, type = vim.loop.fs_scandir_next(handle)
-      if not name then break end
+      if not name then
+        break
+      end
       if type == "directory" then
         table.insert(books, {
           slug = name,
-          path = cache_root .. "/" .. name
+          path = cache_root .. "/" .. name,
         })
       end
     end
@@ -129,7 +133,7 @@ function M.build_toc_from_content(spine, base_dir, class_styles)
           table.insert(toc, {
             label = heading.text,
             href = href,
-            level = heading.level
+            level = heading.level,
           })
         end
       end
@@ -179,21 +183,25 @@ function M.open(epub_path, opts)
 
   if needs_extraction then
     -- vim.notify("📦 Extracting EPUB to cache...", vim.log.levels.INFO)  -- DEBUG
-    fs.ensure_dir(cache_dir)  -- Ensure parent cache dir exists
+    fs.ensure_dir(cache_dir) -- Ensure parent cache dir exists
     local success = fs.unzip(epub_path, epub_dir)
-    if not success then error("Failed to unzip epub") end
+    if not success then
+      error("Failed to unzip epub")
+    end
 
     -- Create extraction flag to mark successful extraction
     fs.write_file(extraction_flag, tostring(os.time()))
     -- vim.notify("✅ EPUB extracted to cache", vim.log.levels.INFO)  -- DEBUG
-  -- else
+    -- else
     -- vim.notify("⚡ Using cached EPUB (no extraction needed)", vim.log.levels.INFO)  -- DEBUG
   end
 
   -- 1. Container
   local container_path = epub_dir .. "/META-INF/container.xml"
   local container_xml = fs.read_file(container_path)
-  if not container_xml then error("Invalid EPUB: Missing META-INF/container.xml") end
+  if not container_xml then
+    error("Invalid EPUB: Missing META-INF/container.xml")
+  end
   local opf_rel_path = container.parse_container_xml(container_xml)
   local opf_path = epub_dir .. "/" .. opf_rel_path
   opf_path = util.validate_path(opf_path, epub_dir)
@@ -201,7 +209,9 @@ function M.open(epub_path, opts)
 
   -- 2. OPF
   local opf_content = fs.read_file(opf_path)
-  if not opf_content then error("Could not read OPF file: " .. opf_path) end
+  if not opf_content then
+    error("Could not read OPF file: " .. opf_path)
+  end
   local manifest = opf.parse_manifest(opf_content)
   local spine = opf.parse_spine(opf_content, manifest)
   local metadata = opf.parse_metadata(opf_content, slug)
@@ -216,11 +226,15 @@ function M.open(epub_path, opts)
     if toc_content then
       local toc_dir_rel = vim.fn.fnamemodify(toc_href, ":h")
       local function resolve_href(href)
-        if not href then return nil end
+        if not href then
+          return nil
+        end
         local path_part = href:match("^([^#]+)") or href
         local anchor_part = href:match("(#.+)$") or ""
         local full_path = path_part
-        if toc_dir_rel ~= "." then full_path = toc_dir_rel .. "/" .. path_part end
+        if toc_dir_rel ~= "." then
+          full_path = toc_dir_rel .. "/" .. path_part
+        end
         local normalized = util.normalize_path(full_path)
         return normalized .. anchor_part
       end
@@ -233,7 +247,7 @@ function M.open(epub_path, opts)
   end
 
   -- 4. CSS - with caching
-  local css_cache = require("ink.css_cache")
+  local css_cache = require("ink.cache.css")
   local class_styles = css_cache.load(slug)
 
   if not class_styles then
@@ -245,7 +259,7 @@ function M.open(epub_path, opts)
   -- 5. Build TOC from content headings (H1-H3)
   -- Priority: cached TOC > force_content_toc > official TOC > build from content
   local force_content_toc = opts.force_content_toc or false
-  local toc_cache = require("ink.toc_cache")
+  local toc_cache = require("ink.cache.toc")
 
   -- Always check cache first (user might have rebuilt TOC with :InkRebuildTOC)
   local cached_toc = toc_cache.load(slug)
@@ -281,8 +295,9 @@ function M.open(epub_path, opts)
     slug = slug,
     cache_dir = cache_dir,
     class_styles = class_styles,
-    path = epub_path
+    path = epub_path,
   }
 end
 
 return M
+

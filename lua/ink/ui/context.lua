@@ -30,7 +30,7 @@ local function new_context()
     default_max_width = nil,
     current_max_width = nil, -- Current max_width for this book (adaptive width), nil = use config default
     manual_width_override = false, -- If true, user manually adjusted width, disable adaptive until reset
-    parsed_chapters = lru_cache.new(15), -- LRU cache with max 15 chapters
+    parsed_chapters = lru_cache.new(), -- LRU cache with max 15 chapters
     search_index = nil,
     -- Glossary fields
     glossary_detection_index = nil, -- Cache of detection index for performance

@@ -1,4 +1,3 @@
--- lua/ink/cache/lru.lua
 -- Generic LRU (Least Recently Used) cache implementation with O(1) operations
 -- Uses double-linked list + hash table for constant time access/eviction
 
@@ -9,11 +8,11 @@ local M = {}
 -- @return cache object with get/put methods
 function M.new(max_size)
   local cache = {
-    max_size = max_size or 10,
-    entries = {},      -- key -> node mapping
-    count = 0,         -- current number of entries
-    head = nil,        -- most recently used (dummy head for easier manipulation)
-    tail = nil,        -- least recently used (dummy tail for easier manipulation)
+    max_size = max_size or 15,
+    entries = {}, -- key -> node mapping
+    count = 0, -- current number of entries
+    head = nil, -- most recently used (dummy head for easier manipulation)
+    tail = nil, -- least recently used (dummy tail for easier manipulation)
   }
 
   -- Initialize dummy head and tail nodes
@@ -48,7 +47,7 @@ function M.new(max_size)
   local function pop_tail()
     local node = cache.tail.prev
     if node == cache.head then
-      return nil  -- Empty cache
+      return nil -- Empty cache
     end
     remove_node(node)
     return node
@@ -116,23 +115,6 @@ function M.new(max_size)
     -- Reset linked list
     self.head.next = self.tail
     self.tail.prev = self.head
-  end
-
-  -- Get cache size
-  -- @return number of entries
-  -- Time complexity: O(1)
-  function cache:size()
-    return self.count
-  end
-
-  -- Get cache statistics
-  -- @return table with stats
-  function cache:stats()
-    return {
-      size = self.count,
-      max_size = self.max_size,
-      utilization = string.format("%.1f%%", (self.count / self.max_size) * 100),
-    }
   end
 
   return cache

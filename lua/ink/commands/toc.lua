@@ -20,7 +20,7 @@ return {
       end
 
       -- Clear TOC cache
-      local toc_cache = require("ink.toc_cache")
+      local toc_cache = require("ink.cache.toc")
       toc_cache.clear(ctx.data.slug)
 
       -- Rebuild TOC from content

@@ -1,6 +1,3 @@
--- lua/ink/css_cache.lua
--- Cache parsed CSS styles to disk for faster book opening
-
 local fs = require("ink.fs")
 local data = require("ink.data")
 
