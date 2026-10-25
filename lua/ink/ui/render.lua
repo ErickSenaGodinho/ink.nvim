@@ -527,7 +527,7 @@ function M.render_chapter(idx, restore_line, ctx)
       max_width,
       typography.line_spacing or 1,
       typography.paragraph_spacing or 1,
-      tostring(justify_text or false)
+      tostring(ctx.justify_text or context.config.justify_text or false)
     )
 
     -- Load persistent cache if in-memory cache is empty (Level 3 optimization)
