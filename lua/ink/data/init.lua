@@ -1,41 +1,20 @@
 local fs = require("ink.fs")
+local paths = require("ink.data.paths")
 
 local M = {}
 
 -- Base data directory
 function M.get_data_dir()
-  return vim.fn.stdpath("data") .. "/ink.nvim"
+  return paths.root()
 end
 
--- Validate slug for safe file operations
--- Slug should only contain alphanumeric, underscore, and dash
 function M.validate_slug(slug)
-  if not slug or type(slug) ~= "string" or slug == "" then
-    return false, "Invalid slug: empty or not a string"
-  end
-
-  -- Slug should only contain safe characters: alphanumeric, underscore, dash
-  if not slug:match("^[%w_-]+$") then
-    return false, "Invalid slug: contains unsafe characters"
-  end
-
-  -- Prevent directory traversal
-  if slug:match("%.%.") or slug:match("^%.") then
-    return false, "Invalid slug: contains path traversal"
-  end
-
-  return true, nil
+  return paths.validate_slug(slug)
 end
 
 -- Book-specific directory (creates if needed)
 function M.get_book_dir(slug)
-  -- Validate slug before using it
-  local valid, err = M.validate_slug(slug)
-  if not valid then
-    error("get_book_dir: " .. err)
-  end
-
-  local dir = M.get_data_dir() .. "/books/" .. slug
+  local dir = paths.book_dir(slug)
   fs.ensure_dir(dir)
   return dir
 end
