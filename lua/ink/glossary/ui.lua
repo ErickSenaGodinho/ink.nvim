@@ -1,7 +1,6 @@
 local glossary = require("ink.glossary")
 local context = require("ink.ui.context")
 local modals = require("ink.ui.modals")
-local util = require("ink.ui.util")
 
 local M = {}
 
@@ -35,21 +34,27 @@ function M.add_from_selection(slug, callback)
 
   if start_line ~= end_line then
     vim.notify("Glossary entries must be on a single line", vim.log.levels.WARN)
-    if callback then callback(nil) end
+    if callback then
+      callback(nil)
+    end
     return
   end
 
   -- Get the selected text
   local line = vim.api.nvim_buf_get_lines(0, start_line - 1, start_line, false)[1]
   if not line then
-    if callback then callback(nil) end
+    if callback then
+      callback(nil)
+    end
     return
   end
 
   local selected_text = line:sub(start_col, end_col)
   if not selected_text or selected_text == "" then
     vim.notify("No text selected", vim.log.levels.WARN)
-    if callback then callback(nil) end
+    if callback then
+      callback(nil)
+    end
     return
   end
 
@@ -81,7 +86,7 @@ local function parse_definition_content(content)
   local relationships = {}
   local definition_lines = {}
 
-  local mode = "metadata"  -- metadata → definition
+  local mode = "metadata" -- metadata → definition
   local line_idx = 1
 
   while line_idx <= #lines do
@@ -141,7 +146,7 @@ local function parse_definition_content(content)
   return {
     aliases = aliases,
     relationships = relationships,
-    definition = definition
+    definition = definition,
   }
 end
 
@@ -202,8 +207,8 @@ local function open_definition_editor(term_name, initial_aliases, initial_relati
 
   -- Calculate window size (large and centered)
   local ui = vim.api.nvim_list_uis()[1]
-  local width = math.floor(ui.width * 0.5)  -- 70% of screen width
-  local height = math.floor(ui.height * 0.6)  -- 60% of screen height
+  local width = math.floor(ui.width * 0.5) -- 70% of screen width
+  local height = math.floor(ui.height * 0.6) -- 60% of screen height
   local row = math.floor((ui.height - height) / 2)
   local col = math.floor((ui.width - width) / 2)
 
@@ -220,7 +225,7 @@ local function open_definition_editor(term_name, initial_aliases, initial_relati
     style = "minimal",
     border = "rounded",
     title = title,
-    title_pos = "center"
+    title_pos = "center",
   })
 
   -- Configure window options
@@ -256,35 +261,51 @@ end
 -- allow_type_edit: if true, allows changing the type; if false, only edits definition
 function M.show_edit_entry_modal(slug, entry, callback, allow_type_edit)
   if allow_type_edit == nil then
-    allow_type_edit = true  -- Default to full edit
+    allow_type_edit = true -- Default to full edit
   end
 
   local function edit_definition(updated_type)
-    open_definition_editor(entry.term, entry.aliases or {}, entry.relationships or {}, entry.definition or "", function(parsed)
-      if not parsed then
-        if callback then callback(nil) end
-        return
+    open_definition_editor(
+      entry.term,
+      entry.aliases or {},
+      entry.relationships or {},
+      entry.definition or "",
+      function(parsed)
+        if not parsed then
+          if callback then
+            callback(nil)
+          end
+          return
+        end
+
+        -- Update entry with aliases, relationships, and definition
+        glossary.update(slug, entry.id, {
+          type = updated_type,
+          definition = parsed.definition or "",
+          aliases = parsed.aliases or {},
+          relationships = parsed.relationships or {},
+        })
+
+        -- Reload entry for callback
+        local updated_entry = glossary.get_by_id(slug, entry.id)
+        if callback then
+          callback(updated_entry)
+        end
       end
-
-      -- Update entry with aliases, relationships, and definition
-      glossary.update(slug, entry.id, {
-        type = updated_type,
-        definition = parsed.definition or "",
-        aliases = parsed.aliases or {},
-        relationships = parsed.relationships or {}
-      })
-
-      -- Reload entry for callback
-      local updated_entry = glossary.get_by_id(slug, entry.id)
-      if callback then callback(updated_entry) end
-    end)
+    )
   end
 
   if allow_type_edit then
     -- Step 1: Edit type
     local types = {
-      "character", "place", "concept", "organization",
-      "object", "event", "foreign_word", "other"
+      "character",
+      "place",
+      "concept",
+      "organization",
+      "object",
+      "event",
+      "foreign_word",
+      "other",
     }
 
     vim.ui.select(types, {
@@ -298,17 +319,19 @@ function M.show_edit_entry_modal(slug, entry, callback, allow_type_edit)
           object = "⚔️  Object",
           event = "⚡ Event",
           foreign_word = "🌐 Foreign Word",
-          other = "📝 Other"
+          other = "📝 Other",
         }
         local label = icons[item] or item
         if item == entry.type then
           label = label .. " (current)"
         end
         return label
-      end
+      end,
     }, function(choice)
       if not choice then
-        if callback then callback(nil) end
+        if callback then
+          callback(nil)
+        end
         return
       end
 
@@ -335,21 +358,29 @@ function M.show_add_entry_modal(slug, initial_term, callback)
     term = initial_term,
     type = "other",
     definition = "",
-    aliases = {}
+    aliases = {},
   }
 
   -- Step 1: Get term
   modals.open_text_input(initial_term, function(term)
     if not term or term == "" then
-      if callback then callback(nil) end
+      if callback then
+        callback(nil)
+      end
       return
     end
     entry.term = term
 
     -- Step 2: Type selection (simplified for now)
     local types = {
-      "character", "place", "concept", "organization",
-      "object", "event", "foreign_word", "other"
+      "character",
+      "place",
+      "concept",
+      "organization",
+      "object",
+      "event",
+      "foreign_word",
+      "other",
     }
 
     vim.ui.select(types, {
@@ -363,13 +394,15 @@ function M.show_add_entry_modal(slug, initial_term, callback)
           object = "⚔️  Object",
           event = "⚡ Event",
           foreign_word = "🌐 Foreign Word",
-          other = "📝 Other"
+          other = "📝 Other",
         }
         return icons[item] or item
-      end
+      end,
     }, function(choice)
       if not choice then
-        if callback then callback(nil) end
+        if callback then
+          callback(nil)
+        end
         return
       end
       entry.type = choice
@@ -377,7 +410,9 @@ function M.show_add_entry_modal(slug, initial_term, callback)
       -- Step 3: Get definition using custom editor
       open_definition_editor(entry.term, {}, {}, "", function(parsed)
         if not parsed then
-          if callback then callback(nil) end
+          if callback then
+            callback(nil)
+          end
           return
         end
         entry.definition = parsed.definition or ""
@@ -386,23 +421,30 @@ function M.show_add_entry_modal(slug, initial_term, callback)
 
         -- Save entry
         local saved_entry = glossary.add(slug, entry)
-        if callback then callback(saved_entry) end
+        if callback then
+          callback(saved_entry)
+        end
       end)
     end)
   end, {
     title = " Glossary Term (Esc to continue) ",
     multiline = false,
-    width = 50
+    width = 50,
   })
 end
 
 -- Preview entry in floating window
 function M.show_entry_preview(match)
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
 
-  local entry = ctx.glossary_detection_index.entries[match.entry_id]
-  if not entry then return end
+  local index = ctx.glossary_detection_index
+  local entry = index and index.entries[match.entry_id]
+  if not entry then
+    return
+  end
 
   -- Create buffer for preview
   local buf = vim.api.nvim_create_buf(false, true)
@@ -446,14 +488,14 @@ function M.show_entry_preview(match)
         if ctx.glossary_detection_index and ctx.glossary_detection_index.entries then
           for _, existing_entry in pairs(ctx.glossary_detection_index.entries) do
             if existing_entry.term:lower() == term_name:lower() then
-              table.insert(resolved_terms, term_name)  -- Found: normal display
+              table.insert(resolved_terms, term_name) -- Found: normal display
               found = true
               break
             end
           end
         end
         if not found then
-          table.insert(resolved_terms, term_name .. " (not found)")  -- Not found: indicate missing
+          table.insert(resolved_terms, term_name .. " (not found)") -- Not found: indicate missing
         end
       end
 
@@ -486,8 +528,8 @@ function M.show_entry_preview(match)
 
   -- Calculate window size (large and centered, same as editor)
   local ui = vim.api.nvim_list_uis()[1]
-  local width = math.floor(ui.width * 0.5)  -- 70% of screen width
-  local height = math.floor(ui.height * 0.6)  -- 60% of screen height
+  local width = math.floor(ui.width * 0.5) -- 70% of screen width
+  local height = math.floor(ui.height * 0.6) -- 60% of screen height
   local row = math.floor((ui.height - height) / 2)
   local col = math.floor((ui.width - width) / 2)
 
@@ -504,7 +546,7 @@ function M.show_entry_preview(match)
     style = "minimal",
     border = "rounded",
     title = title,
-    title_pos = "center"
+    title_pos = "center",
   })
 
   -- Configure window options
@@ -531,11 +573,13 @@ end
 -- @param entry: the entry to remove
 -- @param reopen_browser: whether to reopen the glossary browser after deletion (default: false)
 function M.remove_glossary_entry(slug, entry, reopen_browser)
-  if not entry then return end
+  if not entry then
+    return
+  end
 
   -- Confirm deletion
   local response = vim.fn.input("Delete glossary entry '" .. entry.term .. "'? (y/N): ")
-  vim.cmd('redraw')  -- Clear the input prompt
+  vim.cmd("redraw") -- Clear the input prompt
 
   if response:lower() == "y" then
     -- Remove from glossary
@@ -618,189 +662,191 @@ function M.show_glossary_telescope(slug, entries)
     table.insert(formatted_entries, {
       display = display,
       entry = entry,
-      ordinal = entry.term .. " " .. type_name .. " " .. (entry.definition or "")
+      ordinal = entry.term .. " " .. type_name .. " " .. (entry.definition or ""),
     })
   end
 
-  pickers.new({}, {
-    prompt_title = "Glossary (<C-e> edit, <C-d> delete)",
-    finder = finders.new_table({
-      results = formatted_entries,
-      entry_maker = function(item)
-        return {
-          value = item.entry,
-          display = item.display,
-          ordinal = item.ordinal
-        }
-      end
-    }),
-    sorter = conf.generic_sorter({}),
-    previewer = previewers.new_buffer_previewer({
-      title = "Definition",
-      define_preview = function(self, entry)
-        local e = entry.value
-        local lines = {}
+  pickers
+    .new({}, {
+      prompt_title = "Glossary (<C-e> edit, <C-d> delete)",
+      finder = finders.new_table({
+        results = formatted_entries,
+        entry_maker = function(item)
+          return {
+            value = item.entry,
+            display = item.display,
+            ordinal = item.ordinal,
+          }
+        end,
+      }),
+      sorter = conf.generic_sorter({}),
+      previewer = previewers.new_buffer_previewer({
+        title = "Definition",
+        define_preview = function(self, entry)
+          local e = entry.value
+          local lines = {}
 
-        -- Aliases
-        if e.aliases and #e.aliases > 0 then
-          table.insert(lines, "Aliases: " .. table.concat(e.aliases, ", "))
-          table.insert(lines, "")
-        end
-
-        -- Relationships (with term resolution)
-        if e.relationships and next(e.relationships) ~= nil then
-          -- Sort labels for consistent display
-          local labels = {}
-          for label, _ in pairs(e.relationships) do
-            table.insert(labels, label)
+          -- Aliases
+          if e.aliases and #e.aliases > 0 then
+            table.insert(lines, "Aliases: " .. table.concat(e.aliases, ", "))
+            table.insert(lines, "")
           end
-          table.sort(labels)
 
-          for _, label in ipairs(labels) do
-            local terms = e.relationships[label]
-            -- Display label with proper capitalization
-            local display_label = label:gsub("_", " "):gsub("(%a)([%w_']*)", function(first, rest)
-              return first:upper() .. rest
-            end)
+          -- Relationships (with term resolution)
+          if e.relationships and next(e.relationships) ~= nil then
+            -- Sort labels for consistent display
+            local labels = {}
+            for label, _ in pairs(e.relationships) do
+              table.insert(labels, label)
+            end
+            table.sort(labels)
 
-            -- Resolve terms (try to find entries)
-            local resolved_terms = {}
-            for _, term_name in ipairs(terms) do
-              -- Try to find entry by term name in all entries
-              local found = false
-              for _, existing_entry in ipairs(entries) do
-                if existing_entry.term:lower() == term_name:lower() then
-                  table.insert(resolved_terms, term_name)  -- Found
-                  found = true
-                  break
+            for _, label in ipairs(labels) do
+              local terms = e.relationships[label]
+              -- Display label with proper capitalization
+              local display_label = label:gsub("_", " "):gsub("(%a)([%w_']*)", function(first, rest)
+                return first:upper() .. rest
+              end)
+
+              -- Resolve terms (try to find entries)
+              local resolved_terms = {}
+              for _, term_name in ipairs(terms) do
+                -- Try to find entry by term name in all entries
+                local found = false
+                for _, existing_entry in ipairs(entries) do
+                  if existing_entry.term:lower() == term_name:lower() then
+                    table.insert(resolved_terms, term_name) -- Found
+                    found = true
+                    break
+                  end
+                end
+                if not found then
+                  table.insert(resolved_terms, term_name .. " (not found)")
                 end
               end
-              if not found then
-                table.insert(resolved_terms, term_name .. " (not found)")
-              end
+
+              table.insert(lines, display_label .. ": " .. table.concat(resolved_terms, ", "))
             end
 
-            table.insert(lines, display_label .. ": " .. table.concat(resolved_terms, ", "))
+            table.insert(lines, "")
           end
 
+          -- Separator before definition
+          table.insert(lines, "---")
           table.insert(lines, "")
-        end
 
-        -- Separator before definition
-        table.insert(lines, "---")
-        table.insert(lines, "")
-
-        -- Definition
-        if e.definition and e.definition ~= "" then
-          for _, line in ipairs(vim.split(e.definition, "\n")) do
-            table.insert(lines, line)
+          -- Definition
+          if e.definition and e.definition ~= "" then
+            for _, line in ipairs(vim.split(e.definition, "\n")) do
+              table.insert(lines, line)
+            end
+          else
+            table.insert(lines, "(No definition)")
           end
-        else
-          table.insert(lines, "(No definition)")
-        end
 
-        vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, lines)
-      end
-    }),
-    attach_mappings = function(prompt_bufnr, map)
-      -- Enter: preview entry
-      actions.select_default:replace(function()
-        local selection = action_state.get_selected_entry()
-        actions.close(prompt_bufnr)
+          vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, lines)
+        end,
+      }),
+      attach_mappings = function(prompt_bufnr, map)
+        -- Enter: preview entry
+        actions.select_default:replace(function()
+          local selection = action_state.get_selected_entry()
+          actions.close(prompt_bufnr)
 
-        if selection then
-          -- Create a mock match object for preview
-          local mock_match = {
-            entry_id = selection.value.id
-          }
-
-          -- Temporarily set the entry in a detection index for preview
-          local ctx = context.current()
-          local temp_index = {
-            entries = {
-              [selection.value.id] = selection.value
+          if selection then
+            -- Create a mock match object for preview
+            local mock_match = {
+              entry_id = selection.value.id,
             }
-          }
 
-          -- Save current index and replace temporarily
-          local saved_index = ctx and ctx.glossary_detection_index
-          if ctx then
-            ctx.glossary_detection_index = temp_index
-          end
+            -- Temporarily set the entry in a detection index for preview
+            local ctx = context.current()
+            local temp_index = {
+              entries = {
+                [selection.value.id] = selection.value,
+              },
+            }
 
-          M.show_entry_preview(mock_match)
-
-          -- Restore index
-          if ctx then
-            ctx.glossary_detection_index = saved_index
-          end
-        end
-      end)
-
-      -- Ctrl-E: edit entry
-      map("i", "<C-e>", function()
-        local selection = action_state.get_selected_entry()
-        actions.close(prompt_bufnr)
-
-        if selection then
-          M.show_edit_entry_modal(slug, selection.value, function(updated_entry)
-            if updated_entry then
-              vim.notify("Glossary entry '" .. updated_entry.term .. "' updated", vim.log.levels.INFO)
-              -- Re-render if book is open
-              local ctx = context.current()
-              if ctx and ctx.data and ctx.data.slug == slug then
-                local render = require("ink.ui.render")
-                render.invalidate_glossary_cache(ctx)
-                local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
-                render.render_chapter(ctx.current_chapter_idx, cursor[1], ctx)
-              end
+            -- Save current index and replace temporarily
+            local saved_index = ctx and ctx.glossary_detection_index
+            if ctx then
+              ctx.glossary_detection_index = temp_index
             end
-          end, true)
-        end
-      end)
 
-      map("n", "<C-e>", function()
-        local selection = action_state.get_selected_entry()
-        actions.close(prompt_bufnr)
+            M.show_entry_preview(mock_match)
 
-        if selection then
-          M.show_edit_entry_modal(slug, selection.value, function(updated_entry)
-            if updated_entry then
-              vim.notify("Glossary entry '" .. updated_entry.term .. "' updated", vim.log.levels.INFO)
-              -- Re-render if book is open
-              local ctx = context.current()
-              if ctx and ctx.data and ctx.data.slug == slug then
-                local render = require("ink.ui.render")
-                render.invalidate_glossary_cache(ctx)
-                local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
-                render.render_chapter(ctx.current_chapter_idx, cursor[1], ctx)
-              end
+            -- Restore index
+            if ctx then
+              ctx.glossary_detection_index = saved_index
             end
-          end, true)
-        end
-      end)
+          end
+        end)
 
-      -- Ctrl-D: delete entry (insert mode)
-      map("i", "<C-d>", function()
-        local selection = action_state.get_selected_entry()
-        if selection then
+        -- Ctrl-E: edit entry
+        map("i", "<C-e>", function()
+          local selection = action_state.get_selected_entry()
           actions.close(prompt_bufnr)
-          M.remove_glossary_entry(slug, selection.value, true)  -- Reopen browser after deletion
-        end
-      end)
 
-      -- Ctrl-D: delete entry (normal mode)
-      map("n", "<C-d>", function()
-        local selection = action_state.get_selected_entry()
-        if selection then
+          if selection then
+            M.show_edit_entry_modal(slug, selection.value, function(updated_entry)
+              if updated_entry then
+                vim.notify("Glossary entry '" .. updated_entry.term .. "' updated", vim.log.levels.INFO)
+                -- Re-render if book is open
+                local ctx = context.current()
+                if ctx and ctx.data and ctx.data.slug == slug then
+                  local render = require("ink.ui.render")
+                  render.invalidate_glossary_cache(ctx)
+                  local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
+                  render.render_chapter(ctx.current_chapter_idx, cursor[1], ctx)
+                end
+              end
+            end, true)
+          end
+        end)
+
+        map("n", "<C-e>", function()
+          local selection = action_state.get_selected_entry()
           actions.close(prompt_bufnr)
-          M.remove_glossary_entry(slug, selection.value, true)  -- Reopen browser after deletion
-        end
-      end)
 
-      return true
-    end
-  }):find()
+          if selection then
+            M.show_edit_entry_modal(slug, selection.value, function(updated_entry)
+              if updated_entry then
+                vim.notify("Glossary entry '" .. updated_entry.term .. "' updated", vim.log.levels.INFO)
+                -- Re-render if book is open
+                local ctx = context.current()
+                if ctx and ctx.data and ctx.data.slug == slug then
+                  local render = require("ink.ui.render")
+                  render.invalidate_glossary_cache(ctx)
+                  local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
+                  render.render_chapter(ctx.current_chapter_idx, cursor[1], ctx)
+                end
+              end
+            end, true)
+          end
+        end)
+
+        -- Ctrl-D: delete entry (insert mode)
+        map("i", "<C-d>", function()
+          local selection = action_state.get_selected_entry()
+          if selection then
+            actions.close(prompt_bufnr)
+            M.remove_glossary_entry(slug, selection.value, true) -- Reopen browser after deletion
+          end
+        end)
+
+        -- Ctrl-D: delete entry (normal mode)
+        map("n", "<C-d>", function()
+          local selection = action_state.get_selected_entry()
+          if selection then
+            actions.close(prompt_bufnr)
+            M.remove_glossary_entry(slug, selection.value, true) -- Reopen browser after deletion
+          end
+        end)
+
+        return true
+      end,
+    })
+    :find()
 end
 
 -- Floating window fallback for glossary browser
@@ -815,9 +861,9 @@ function M.show_glossary_floating(slug, entries)
 
   -- Format lines
   local lines = {}
-  local entry_map = {}  -- Map line number to entry
+  local entry_map = {} -- Map line number to entry
 
-  table.insert(lines, "Glossary - " .. (#entries) .. " entries")
+  table.insert(lines, "Glossary - " .. #entries .. " entries")
   table.insert(lines, "")
   table.insert(lines, "Enter: edit  d: delete  q: close")
   table.insert(lines, string.rep("─", 60))
@@ -854,7 +900,7 @@ function M.show_glossary_floating(slug, entries)
     style = "minimal",
     border = "rounded",
     title = " Glossary Browser ",
-    title_pos = "center"
+    title_pos = "center",
   })
 
   -- Close on q or Esc
@@ -970,7 +1016,7 @@ function M.show_term_graph(slug, term_or_entry)
     style = "minimal",
     border = "rounded",
     title = string.format(" %s - Relationships ", entry.term),
-    title_pos = "center"
+    title_pos = "center",
   })
 
   vim.api.nvim_set_option_value("wrap", true, { win = win })
@@ -1032,7 +1078,7 @@ function M.show_full_graph(slug)
     style = "minimal",
     border = "rounded",
     title = " Glossary Graph ",
-    title_pos = "center"
+    title_pos = "center",
   })
 
   vim.api.nvim_set_option_value("wrap", false, { win = win })

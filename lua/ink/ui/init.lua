@@ -112,7 +112,8 @@ function M.add_glossary_under_cursor()
 
   if glossary_match then
     -- Cursor is on existing glossary term - open full edit
-    local entry = ctx.glossary_detection_index.entries[glossary_match.entry_id]
+    local index = ctx.glossary_detection_index
+    local entry = index and index.entries[glossary_match.entry_id]
     if entry then
       glossary_ui.show_edit_entry_modal(ctx.data.slug, entry, function(updated_entry)
         if updated_entry then
@@ -188,7 +189,8 @@ function M.show_term_graph_under_cursor()
   local glossary_match = glossary_ui.get_match_at_cursor(line, col)
 
   if glossary_match then
-    local entry = ctx.glossary_detection_index.entries[glossary_match.entry_id]
+    local index = ctx.glossary_detection_index
+    local entry = index and index.entries[glossary_match.entry_id]
     if entry then
       glossary_ui.show_term_graph(ctx.data.slug, entry)
     end
@@ -209,14 +211,14 @@ function M.edit_glossary_under_cursor()
   local col = cursor[2]
 
   local glossary_ui = require("ink.glossary.ui")
-  local glossary = require("ink.glossary")
 
   -- Check if cursor is on a glossary term
   local glossary_match = glossary_ui.get_match_at_cursor(line, col)
 
   if glossary_match then
     -- Get the entry
-    local entry = ctx.glossary_detection_index.entries[glossary_match.entry_id]
+    local index = ctx.glossary_detection_index
+    local entry = index and index.entries[glossary_match.entry_id]
     if entry then
       -- Quick edit: only definition, keep type unchanged
       glossary_ui.show_edit_entry_modal(ctx.data.slug, entry, function(updated_entry)
@@ -245,14 +247,14 @@ function M.remove_glossary_under_cursor()
   local col = cursor[2]
 
   local glossary_ui = require("ink.glossary.ui")
-  local glossary = require("ink.glossary")
 
   -- Check if cursor is on a glossary term
   local glossary_match = glossary_ui.get_match_at_cursor(line, col)
 
   if glossary_match then
     -- Get the entry
-    local entry = ctx.glossary_detection_index.entries[glossary_match.entry_id]
+    local index = ctx.glossary_detection_index
+    local entry = index and index.entries[glossary_match.entry_id]
     if entry then
       -- Use the centralized removal function
       glossary_ui.remove_glossary_entry(ctx.data.slug, entry)
