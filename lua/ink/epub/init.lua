@@ -13,7 +13,7 @@ local function is_web_cache(dir)
 end
 
 local function get_cache_dir()
-  return vim.fn.stdpath("data") .. "/ink.nvim/cache"
+  return require("ink.data.paths").root() .. "/cache"
 end
 
 -- Clear cache for a specific slug or all cache

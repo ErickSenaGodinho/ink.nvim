@@ -5,7 +5,7 @@ local fs = require("ink.fs")
 
 -- Get cache file path for a book
 local function get_cache_file_path(slug)
-  local cache_dir = vim.fn.stdpath("data") .. "/ink.nvim/cache/" .. slug
+  local cache_dir = require("ink.data.paths").root() .. "/cache/" .. slug
   return cache_dir .. "/glossary_matches.json"
 end
 

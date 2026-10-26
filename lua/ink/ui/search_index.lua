@@ -1,7 +1,6 @@
 -- lua/ink/ui/search_index.lua
 -- Responsabilidade: Construção de índice de busca com cache persistente
 
-local context = require("ink.ui.context")
 local render = require("ink.ui.render")
 local data = require("ink.data")
 
@@ -9,85 +8,87 @@ local M = {}
 
 -- Get path to persistent search index cache
 local function get_index_cache_path(slug)
-	local cache_dir = vim.fn.stdpath("data") .. "/ink.nvim/cache/" .. slug
-	local fs = require("ink.fs")
-	fs.ensure_dir(cache_dir)
-	return cache_dir .. "/search_index.json"
+  local cache_dir = require("ink.data.paths").root() .. "/cache/" .. slug
+  local fs = require("ink.fs")
+  fs.ensure_dir(cache_dir)
+  return cache_dir .. "/search_index.json"
 end
 
 -- Load search index from disk cache
 function M.load_cached_index(slug, total_chapters)
-	local path = get_index_cache_path(slug)
-	local fs = require("ink.fs")
+  local path = get_index_cache_path(slug)
+  local fs = require("ink.fs")
 
-	if not fs.exists(path) then
-		return nil
-	end
+  if not fs.exists(path) then
+    return nil
+  end
 
-	local content = fs.read_file(path)
-	if not content or content == "" then
-		return nil
-	end
+  local content = fs.read_file(path)
+  if not content or content == "" then
+    return nil
+  end
 
-	local ok, cached = pcall(vim.json.decode, content)
-	if not ok or not cached then
-		-- Corrupted cache, delete it
-		os.remove(path)
-		return nil
-	end
+  local ok, cached = pcall(vim.json.decode, content)
+  if not ok or not cached then
+    -- Corrupted cache, delete it
+    os.remove(path)
+    return nil
+  end
 
-	-- Validate cache
-	if cached.version ~= 2 or cached.total_chapters ~= total_chapters then
-		-- Cache is invalid (different version or chapter count)
-		-- Delete old cache file
-		os.remove(path)
-		return nil
-	end
+  -- Validate cache
+  if cached.version ~= 2 or cached.total_chapters ~= total_chapters then
+    -- Cache is invalid (different version or chapter count)
+    -- Delete old cache file
+    os.remove(path)
+    return nil
+  end
 
-	return cached.entries
+  return cached.entries
 end
 
 -- Save search index to disk cache
 function M.save_index_to_cache(slug, entries, total_chapters)
-	local path = get_index_cache_path(slug)
-	-- Cache directory is ensured in get_index_cache_path()
+  local path = get_index_cache_path(slug)
+  -- Cache directory is ensured in get_index_cache_path()
 
-	-- Create cache data
-	local cache_data = {
-		version = 2,  -- Version 2: uses parsed chapters (line numbers match rendered output)
-		created_at = os.time(),
-		total_chapters = total_chapters,
-		total_entries = #entries,
-		entries = entries,
-	}
+  -- Create cache data
+  local cache_data = {
+    version = 2, -- Version 2: uses parsed chapters (line numbers match rendered output)
+    created_at = os.time(),
+    total_chapters = total_chapters,
+    total_entries = #entries,
+    entries = entries,
+  }
 
-	-- Write to file
-	local json_content = data.json_encode(cache_data)
-	local file = io.open(path, "w")
-	if not file then
-		return false
-	end
+  -- Write to file
+  local json_content = data.json_encode(cache_data)
+  local file = io.open(path, "w")
+  if not file then
+    return false
+  end
 
-	file:write(json_content)
-	file:close()
+  file:write(json_content)
+  file:close()
 
-	return true
+  return true
 end
 
 -- Clear cached index
 function M.clear_cached_index(slug)
-	local path = get_index_cache_path(slug)
-	local fs = require("ink.fs")
+  local path = get_index_cache_path(slug)
+  local fs = require("ink.fs")
 
-	if fs.exists(path) then
-		os.remove(path)
-	end
+  if fs.exists(path) then
+    os.remove(path)
+  end
 end
 
 -- Helper to get chapter name from TOC
 function M.get_chapter_name(chapter_idx, ctx)
   local chapter = ctx.data.spine[chapter_idx]
-  if not chapter then return "Chapter " .. chapter_idx end
+  if not chapter then
+    return "Chapter " .. chapter_idx
+  end
 
   local chapter_href = chapter.href
   for _, toc_item in ipairs(ctx.data.toc) do
@@ -153,7 +154,7 @@ function M.build_search_index_async(ctx, callback, progress_callback)
     end
 
     chapter_idx = chapter_idx + 1
-    vim.schedule(process_next)  -- Yield to not block UI
+    vim.schedule(process_next) -- Yield to not block UI
   end
 
   process_next()
@@ -189,7 +190,7 @@ function M.build_search_index(ctx)
 
           table.insert(entries, {
             display = string.format("[%d] %s: %s", chapter_idx, chapter_name, display_text),
-            text = trimmed,  -- Full text for search
+            text = trimmed, -- Full text for search
             chapter_idx = chapter_idx,
             chapter_name = chapter_name,
             line_num = line_num,
@@ -238,7 +239,7 @@ function M.get_or_build_index(ctx, callback)
   end
 
   -- No cache found, need to build
-  local use_async = total_chapters > 50  -- Use async for books with more than 50 chapters
+  local use_async = total_chapters > 50 -- Use async for books with more than 50 chapters
 
   if use_async and callback then
     -- Build asynchronously with progress

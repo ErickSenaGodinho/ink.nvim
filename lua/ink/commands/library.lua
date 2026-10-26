@@ -9,7 +9,7 @@ return {
   {
     name = "InkEditLibrary",
     fn = function()
-      local library_path = vim.fn.stdpath("data") .. "/ink.nvim/library.json"
+      local library_path = require("ink.data.paths").root() .. "/library.json"
       vim.cmd("edit " .. library_path)
     end,
     opts = { nargs = "?", desc = "Opens library.json for manual editing" },

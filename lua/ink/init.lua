@@ -15,12 +15,6 @@ function M.setup(opts)
   local reading_sessions = require("ink.reading_sessions")
   reading_sessions.setup(M.config.tracking)
 
-  -- Run directory migration (async, non-blocking)
-  vim.schedule(function()
-    local migration = require("ink.data.directory_migration")
-    migration.migrate()
-  end)
-
   highlights.setup()
   commands.setup(M.config)
   keymaps_global.setup(M.config)
