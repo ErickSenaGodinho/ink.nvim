@@ -216,7 +216,7 @@ function M.get_parsed_chapter(chapter_idx, ctx)
   -- Parse HTML with current settings
   local max_width = ctx.current_max_width or context.config.max_width or 120
   local class_styles = ctx.data.class_styles or {}
-  local justify_text = ctx.justify_text or context.config.justify_text or false
+  local justify_text = vim.F.if_nil(ctx.justify_text, context.config.justify_text)
   local typography = context.config.typography
     or {
       line_spacing = 1,
@@ -394,7 +394,7 @@ function M.render_chapter(idx, restore_line, ctx)
   end
 
   -- Use book title for buffer name (more user-friendly than slug)
-  local title = ctx.data and ctx.data.title or slug
+  local title = ctx.data and ctx.data.title or ctx.data.slug
   local author = ctx.data and ctx.data.author
   local chapter_name = require("ink.ui.floating_toc").get_current_chapter_name(ctx)
 
@@ -527,7 +527,7 @@ function M.render_chapter(idx, restore_line, ctx)
       max_width,
       typography.line_spacing or 1,
       typography.paragraph_spacing or 1,
-      tostring(ctx.justify_text or context.config.justify_text or false)
+      tostring(vim.F.if_nil(ctx.justify_text, context.config.justify_text))
     )
 
     -- Load persistent cache if in-memory cache is empty (Level 3 optimization)
