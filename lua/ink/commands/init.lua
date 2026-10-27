@@ -128,9 +128,8 @@ local function core_commands(deps)
 end
 
 --- Registers all plugin commands.
----@param deps? { config: table }
-function M.setup(deps)
-  deps = deps or { config = require("ink.config").get() or {} }
+function M.setup()
+  local deps = { config = require("ink.config").get() or {} }
 
   -- General commands
   for _, cmd in ipairs(core_commands(deps)) do

@@ -10,11 +10,14 @@
 > - Nenhum arquivo do projeto foi alterado. Este documento é só para leitura e planejamento.
 >
 > **Notação:** `arquivo:linha` é relativo a `lua/ink/`, salvo quando indicado de outra forma.
+>
+> **Revisão 1 (2026-10-27):** o código foi reanalisado depois das alterações do mantenedor (33 commits, 52 arquivos alterados, 21 criados, 6 removidos). O status de cada item e os problemas novos estão na [seção 0](#0-revisão-1-2026-10-27-o-que-mudou). **As seções 1 a 14 continuam descrevendo o estado do commit `7b6ac03`.** Para os arquivos que mudaram, os números de linha dessas seções podem estar desatualizados. Use a seção 0 como referência do estado atual.
 
 ---
 
 ## Sumário
 
+0. [Revisão 1 (2026-10-27): o que mudou](#0-revisão-1-2026-10-27-o-que-mudou)
 1. [Resumo executivo](#1-resumo-executivo)
 2. [Bugs encontrados (corrigir primeiro)](#2-bugs-encontrados-corrigir-primeiro)
 3. [Padrões inconsistentes (transversais)](#3-padrões-inconsistentes-transversais)
@@ -29,6 +32,229 @@
 12. [Divergências entre README e código](#12-divergências-entre-readme-e-código)
 13. [Roteiro sugerido de refatoração](#13-roteiro-sugerido-de-refatoração)
 14. [Apêndice: convenções por arquivo](#14-apêndice-convenções-por-arquivo)
+
+---
+
+## 0. Revisão 1 (2026-10-27): o que mudou
+
+> Comparação do código atual com o commit `7b6ac03`.
+>
+> Como foi verificado:
+> - Os 133 módulos carregam sem erro e o `setup()` roda sem erro.
+> - Não há `require` apontando para módulos removidos ou movidos.
+> - Os 33 comandos ativos e os keymaps do leitor foram preservados 1:1. A análise original falava em "37 comandos", mas eram 33 ativos mais 3 comentados.
+> - Os itens marcados com **[testado]** foram reproduzidos em `nvim --headless -u NONE`.
+
+### 0.1 Placar
+
+| | Corrigido | Parcial | Obsoleto | Pendente | Total |
+|---|---|---|---|---|---|
+| Bugs críticos (C1-C25) | 8 | 3 | 1 | 13 | 25 |
+| Bugs importantes (I1-I66) | 8 | 5 | — | 53 | 66 |
+| **Problemas novos encontrados nesta revisão** | | | | **28** (2 críticos) | |
+
+**Resumo:**
+- **Avanço forte:** estrutura de inicialização, persistência segura de JSON, consolidação dos caches e alguns bugs graves (C1, C3, C8, C9, C11, C12).
+- **Regressões:**
+  - `:InkOpen` de EPUB **quebra sempre** (R1);
+  - `:InkClearCache` pode apagar os dados do usuário (R2, já existia, mas o conserto é trivial);
+  - resize, focused mode e justify voltaram a ter bugs (R4-R6).
+- **Fora da revisão:** 20 dos 34 arquivos das áreas parsers/web/export/dashboard/features não foram alterados. Os itens deles continuam pendentes com as mesmas linhas.
+
+### 0.2 Métricas antes × depois
+
+| Métrica | `7b6ac03` | Agora | Comentário |
+|---|---|---|---|
+| `init.lua` | 898 linhas (`setup` de ~720) | **37 linhas** | ✅ Dividido em `config`, `highlights`, `commands/*` e `keymaps/*` |
+| `ui/book_loader.lua` | 821 | **366** | ✅ Keymaps declarativos em `keymaps/reader.lua`, autocmds em `ui/autocmds.lua` |
+| `ui/render.lua` / `ui/extmarks.lua` | 916 / 757 | 911 / 763 | ⚠️ Só foram reformatados (21 e 8 linhas de lógica mudaram) |
+| `glossary/ui.lua` | 1055 | 1101 | ⚠️ Só foi reformatado |
+| `export/html_graph.lua` | 1955 | 1955 | ❌ Intocado |
+| Indentação (2 espaços / 4 espaços / tab) | 75 / 14 / 21 | 108 / 3 / 17 | ⚠️ Melhorou, mas o `stylua` **não foi rodado em tudo**; `state.lua` e `fs.lua` **passaram de 2 espaços para tab** (R23) |
+| Arquivos com `io.open` direto | ~19 | 14 | ⚠️ `fs.write_file` virou atômico, mas os caches, `reading_sessions` e `data/migrate` ainda não o usam |
+| Arquivos com `---@param` válido | 1 | 5 | ⚠️ Só os módulos novos |
+| `vim.notify` (com `title`) | 339 (0) | 329 (0) | ❌ Sem `notify.lua` |
+| Variações de "nenhum livro aberto" | 5 | 4 (+5 cópias novas em `commands/*`) | ❌ Sem `require_current` |
+| Arquivos mortos | 6 + shim | 5 + shim | ⚠️ Saiu `chapter_cache.lua`; continuam `html/pool.lua`, `html/string_builder.lua`, `dashboard/utils/box_drawing.lua`, `collections/maintenance.lua`, `web/test_migration.lua` e `library.lua` |
+| Testes automatizados | nenhum | nenhum | ❌ A Fase 0 do roteiro continua pendente |
+| `notify.lua`, `types.lua`, `data/json.lua`, `data/store.lua`, `ui/picker.lua`, `ui/float.lua` | — | não criados | ❌ |
+| `data/paths.lua`, `config.lua`, `cache/*` | — | criados | ✅ (falta `paths.cache_dir`, ver R25) |
+
+### 0.3 Problemas novos (corrigir antes de seguir)
+
+Numeração `R` = revisão 1.
+
+#### Críticos
+
+| # | Local | Problema | Correção |
+|---|---|---|---|
+| **R1** | `init.lua:19` → `commands/init.lua:132-133,59` | **[testado]** `:InkOpen arquivo.epub` **sempre quebra**: *"attempt to index field 'config' (a nil value)"*. `init.lua` chama `commands.setup(M.config)`, mas `commands.setup` espera `{ config = ... }`. Abrir EPUB pelo comando está quebrado para todo mundo. | Em `init.lua:19`, passar `commands.setup({ config = M.config })`. Melhor ainda: eliminar `deps` e ler `require("ink.config").get()` dentro do comando (nenhum módulo usa a flexibilidade "function(deps)" descrita em `commands/init.lua:3-4`). |
+| **R2** | `epub/init.lua:20-34` ← `commands/cache.lua:17` | **[testado]** Path traversal: `:InkClearCache ../books` apaga `books/` inteiro (highlights, bookmarks, notas), e `:InkClearCache ..` apaga `stdpath("data")/ink.nvim`. O slug não é validado antes de `fs.remove_dir` (`delete(path, "rf")`). | Chamar `require("ink.data.paths").validate_slug(slug)` no início (a função já existe em `data/paths.lua:11`). |
+| **R3** | `ui/related.lua:199-206`, `commands/init.lua:52,66`, `commands/web.lua:27,125`, `library/core.lua:176-181` | C7 continua e reapareceu no código novo: `markdown.open` e `web.open` retornam `nil, err`, os chamadores usam `pcall`, e o fluxo cai em `ui.open_book(nil)`, que quebra em `book_loader.lua:244`. `ui/related.lua` também não checa `fs.exists`. | Correção rápida: `if not ok or not data then notify(err) return end`. Correção definitiva: contrato único dos loaders (seção 3.4 e Fase 5). |
+
+#### Regressões
+
+| # | Local | Problema | Correção |
+|---|---|---|---|
+| R4 | `ui/autocmds.lua:42-56` | O resize **não recentraliza mais o texto**: só re-renderiza quando o `max_width` adaptativo muda. Com `adaptive_width=false`, ou com uma janela larga em que a largura fica presa em `max_width`, o padding e as margin notes ficam errados depois de redimensionar. | Guardar `ctx._last_win_width`. Se a janela mudou, chamar `rerender_preserving_viewport`. Invalidar LRU, glossário e posições **só** quando o `max_width` mudar. |
+| R5 | `ui/book_loader.lua:133-143`, `ui/init.lua:303-372` | Focused mode com o mesmo livro em duas janelas: `enable`/`disable` sempre agem sobre `ctx.content_win`. No BufWinLeave de outra janela, a restauração é feita na janela errada; a guarda `focused_windows[ctx.content_win]` impede aplicar na segunda janela. | Receber `win` explicitamente (`vim.fn.win_findbuf(args.buf)` no Enter; janela corrente no Leave). |
+| R6 | `ui/render.lua:219,530` | Com `config.justify_text = true`, **não dá para desligar a justificação**: `ctx.justify_text or config.justify_text` cai no `true` quando `ctx` é `false`. `toggle_justify` avisa "off", mas o texto continua justificado. A correção do C16 copiou esse padrão. | `vim.F.if_nil(ctx.justify_text, context.config.justify_text)` |
+| R7 | `ui/book_loader.lua:186-226` + `ui/autocmds.lua:100-107` | VimLeavePre salva duas vezes: o handler global salva todos os contextos, e o handler por livro, que sobrou, salva de novo. São duas escritas de `state.json` e de `library.json` por livro, além de manter a última cópia inline de `save_position`. | Apagar `book_loader.lua:185-226`. |
+| R8 | `reading_sessions.lua:118-122,181-184` | Tempo de leitura contado em dobro em sessão órfã: o auto-save já somou a parcial em `total_time`; `fix_orphaned_session` troca a duração por 3600 e o chamador soma 3600 inteiros. | Somar só a diferença `nova - anterior`, e manter a duração real se ela for maior que zero. |
+| R9 | `reading_sessions.lua:151-153` | C2 só parcialmente corrigido: usa `context.current()`, que pode ser **outro livro**. No `end_session(nil)` do VimLeavePre, o capítulo atual é aplicado a todas as sessões. A camada de dados continua importando a UI. | Receber o capítulo por parâmetro. |
+| R10 | `ui/render.lua:633-634` + `state.lua:8` (já existia) | Ao trocar de capítulo, grava só `{chapter = idx}`, e o deep merge mantém `text`/`context_*` do capítulo anterior. Ao reabrir, a posição pode casar errado. | Gravar `text = vim.NIL` ao trocar de capítulo, ou chamar `save_position` depois do render. |
+| R11 | `ui/extmarks.lua:708,723-725` | Resto do I3: o reading paragraph `enable/disable` usa `nvim_win_get_buf(ctx.content_win)` sem validar; `nvim_del_augroup_by_name` continua sem `pcall`. | Usar `ctx.content_buf` + `pcall`. |
+
+#### Persistência e dados
+
+| # | Local | Problema | Correção |
+|---|---|---|---|
+| R12 | `library/data.lua:134-137`, `user_highlights.lua:51-56` | Resíduo do C11: uma falha de **leitura** (`content == nil`) vira "vazio" e o próximo save sobrescreve o arquivo. | Seguir o padrão `load_checked` de `data/related.lua`. |
+| R13 | `data/related.lua:32-37` | O comentário supõe que `json_decode_safe` sempre move o arquivo corrompido. Se o backup falhar (`data/init.lua:44-51`), o arquivo fica no lugar, `load_checked` devolve `{}` e o próximo save sobrescreve. | Após falha de decode: `if fs.exists(path) then return nil, err end`. |
+| R14 | `collections/data.lua:37-50` | `load` continua frágil: um root que não é tabela (`null` vira `vim.NIL`) quebra em `data.version`; `os.rename(..., ".corrupt")` falha no Windows se o destino já existir; não tenta ler o `.backup`. | `data.json_decode_safe` + `type(x) == "table"`. |
+| R15 | `health.lua:94-95,78` | `:InkHealth` agora tem efeito colateral: `library_data.load()` → `json_decode_safe` **move o `library.json` corrompido** durante o health check. A mensagem cita `library.json.backup`, mas o arquivo real é `.backup.<ts>`. | No health, usar só `pcall(vim.json.decode)` e corrigir a mensagem. |
+| R16 | `state.lua:26-31` | Notificação duplicada: com JSON corrompido sai WARN (de `json_decode_safe`) e depois ERROR. Com `state.json` vazio, sai ERROR "empty content" **em todo load**. | Não notificar no `load`, ou tratar o caso vazio à parte. |
+| R17 | `epub/init.lua:206-207` | I32 parcial: a re-extração limpa CSS e TOC, mas não `glossary_matches.json` nem `search_index.json`. O índice de busca só é invalidado por versão ou contagem de capítulos. | Limpar também esses dois arquivos (ou, melhor, um `cache/registry.lua`). |
+| R18 | `epub/init.lua:30-32,100-124` | Um slug web em `clear_cache` retorna `false`, e a UI mostra isso como **ERROR**. `get_cached_books` e `get_cache_info` continuam listando as pastas web, então a UI oferece apagar algo que sempre "falha". | Filtrar `is_web_cache` na listagem, ou retornar INFO. |
+| R19 | Remoção de `data/directory_migration.lua` | É seguro para os dados do usuário (só mexia em caches regeneráveis), mas instalações antigas ficam com lixo: arquivos extraídos na raiz de `cache/<slug>/`, `books/<slug>/{css_cache,toc_cache,search_index}.json`, `<slug>_toc.json`, `.directory_migration`. | Registrar no CHANGELOG ou fazer uma limpeza única opcional. |
+
+#### Markdown, entidades e Windows
+
+| # | Local | Problema |
+|---|---|---|
+| R20 | `markdown/inline.lua:20` | **[testado]** `(.?)_([^_]+)_(.?)` consome o contexto: `a_b _c_` não vira `a_b <em>c</em>`. Usar fronteiras `%f[%w_]`. |
+| R21 | `markdown/inline.lua:50-52` | **[testado]** `safe_url` só escapa `"`: `[x](a>b)` quebra o HTML e o texto do link some. Usar percent-encoding para `<`, `>`, `'`, espaço e `&`. Ênfase aninhada (`**a *b* c**`) e dentro de links (`[**b**](u)`) continuam sem funcionar (já era assim). |
+| R22 | `html/entities.lua` | **[testado]** C4 parcial: faltam `ecirc` ("você"), `Atilde`, `Otilde`, `Ocirc`, `Ecirc`, `Iacute`, `Uacute`, `Agrave`, `Acirc`, `uuml`, `ntilde`, `szlig`, `shy`, `times`, `euro`, `sect` e espaços tipográficos. Faltam também: códigos de controle (`&#1;`, `&#129;`, `&#xFFFE;`) geram caracteres de controle no buffer (usar U+FFFD), e títulos antigos no `library.json` não são migrados de novo (a flag `entities_decoded_v2` já está `true`). |
+| R22b | `epub/util.lua:12` | **[testado]** `validate_path` diferencia maiúsculas no Windows (impacto baixo). |
+
+#### Estilo, organização e duplicação novos
+
+| # | Onde | Problema |
+|---|---|---|
+| R23 | `state.lua`, `fs.lua`, `reading_sessions.lua` (151-161, 181-185, 217-245), `utils.lua`, `library/{migration,queries,scanning,statistics}.lua`, `collections/{associations,management,queries,maintenance}.lua`, `dashboard/*`, `ui/{footnotes,util,navigation,modals,library_view}.lua`, `css_parser/*` | O `.stylua.toml` existe, mas **o stylua não foi rodado no projeto todo**. `state.lua` e `fs.lua` foram convertidos de 2 espaços para **tab**, contra a própria config. A pasta `collections/` tem estilos misturados (só `data.lua` em 2 espaços). |
+| R24 | `config.lua`, `ui/context.lua:5,96-97`, `ui/init.lua:16` | **Três tabelas de config**: `ink.config` (fonte), `ui.context.config` (cópia via deep extend) e `ui.config` (referência antiga, I6). `keymaps/reader.lua` lê `context.config`; `commands` e `keymaps/global` leem `ink.config`. Mutações em tempo de execução (`navigation` alterando `typography`) divergem. Os defaults continuam duplicados em `reading_sessions.lua:5-10` e `padnotes/init.lua:7-12`. |
+| R25 | `cache/css.lua:8`, `cache/toc.lua:7`, `cache/glossary.lua:8`, `ui/search_index.lua:11`, `epub/init.lua:16,25,174`, `web/fetcher.lua:22` | `root .. "/cache/" .. slug` montado em 6 lugares **sem validar o slug**, e o caminho de `library.json` em 3. Os 3 módulos `cache/*` ainda usam `io.open("w")` e `data.json_encode` (que transforma `{}` em `[]`). Proposta: `paths.cache_dir(slug, kind)` e `paths.library_file()`. |
+| R26 | `commands/related.lua:1-9`, `commands/glossary.lua:2-10`, `commands/web.lua:2-12`, `commands/toc.lua:15-20`, `commands/cache.lua:39-44`, `ui/related.lua:219-223,292-296` | O padrão "pegar o ctx ou avisar" foi **copiado mais 7 vezes** nos módulos novos, com 3 textos e 2 níveis diferentes. `data/related.lua:49-80` reimplementa a escrita atômica que já existe em `fs.write_file`. Os helpers bons de `ui/related.lua` (`fit_string`, `progress_percent`, `format_row`, `preview_lines`, `open_book_picker`) são `local`, enquanto `ui/library_view.lua` mantém as cópias antigas com bugs (I14, I15, I16, P18). Mover para `ui/format.lua` e `ui/picker.lua` corrige `library_view` de uma vez. |
+| R27 | `commands/related.lua`, `ui/related.lua:126,252,265` | `InkCleanupRelated` ignora o `err` (mostra "no changes needed" quando falha); `InkRemoveRelated` descarta a mensagem. A mensagem em `ui/related.lua:252` manda rodar `:InkHealth`, mas o comando certo é `:InkCleanupRelated`. O fallback sem Telescope não oferece remover, mas o título diz "Ctrl-d: remove". |
+| R28 | vários | Detalhes: |
+| | `commands/library.lua:7,15` | `InkLibrary`/`InkEditLibrary` ganharam `nargs="?"` e ignoram o argumento. |
+| | `keymaps/reader.lua:374-412` | O predicado `when` de padnotes está repetido 4×. |
+| | `keymaps/reader.lua:10` | `noremap` redundante. |
+| | `ui/book_loader.lua:54-64` | `find_buf_by_name` sem uso. |
+| | `ui/render.lua:879-908` | `refresh_highlights` duplica o bloco de modo de notas de `render_chapter`. |
+| | `ui/autocmds.lua:49` | `lru.new(15)` enquanto o resto usa `new()`/`:clear()`. |
+| | `ui/autocmds.lua:43` | Lazy require de `book_loader` (ciclo não documentado). |
+| | `ui/autocmds.lua` | `save_position` (persistência) mora num módulo de autocmds. |
+| | `commands/web.lua:30,66-138`, `fs.lua:67` | Mensagens e comentários novos em português. |
+
+### 0.4 Status dos bugs da seção 2
+
+Legenda: ✅ corrigido · 🟡 parcial · ⚪ obsoleto · ❌ pendente. "Inalterado" = o arquivo não mudou, então as linhas da seção 2 continuam valendo.
+
+**Críticos**
+
+| ID | Status | Evidência / observação |
+|---|---|---|
+| C1 | ✅ | `reading_sessions.lua:222-242` itera as sessões ativas quando `slug == nil`; agora grava `end_time` também. |
+| C2 | 🟡 | Ver R9. |
+| C3 | ✅ | `html/entities.lua:36-67` tem encoder UTF-8 + cp1252 [testado]. |
+| C4 | 🟡 | 36 entidades nomeadas; faltam várias (R22). |
+| C5 | ❌ | `web/planalto_parser.lua:198` (inalterado). |
+| C6 | ❌ | `web/migrate_highlights.lua` (inalterado). |
+| C7 | ❌ | Ver R3. |
+| C8 | ✅ | `markdown/inline.lua:61-68` [testado]. |
+| C9 | ✅ | `markdown/inline.lua:19-30,55-57,71` [testado]; casos novos em R20/R21. |
+| C10 | ❌ | `epub/container.lua:4-9` [testado, ainda quebra]. |
+| C11 | ✅ | `fs.write_file` atômico (`.tmp` + rename, `wb`); `json_decode_safe` com backup; resíduos em R12/R13. |
+| C12 | ✅ | `collections/data.lua:64-83`; `load` frágil em R14. |
+| C13 | ✅ | Exports removidos de `library/init.lua`. |
+| C14 | ⚪ | Funções `*_related_resource` removidas. |
+| C15 | ❌ | `ui/render.lua:397`, `slug` global continua. |
+| C16 | 🟡 | A global saiu, mas a expressão nova tem o bug R6. |
+| C17 | ❌ | `ui/floating_toc.lua:259` (inalterado). |
+| C18 | ✅ | `ui/context.lua:26,39` usa `vim.F.if_nil`. |
+| C19 | ❌ | `ui/book_loader.lua:333` → `render.lua:261`. **Ficou mais provável**, porque o state agora guarda as preferências (justify, focused, paragraph) antes da posição. E como roda em `vim.schedule`, `_is_initializing` fica `true` para sempre e nada mais é salvo. |
+| C20 | ❌ | `notes/ui.lua:40-47` (inalterado). |
+| C21 | ❌ | `ui/notes.lua:104-110,247-252` (inalterado). |
+| C22, C23, C24, C25 | ❌ | Dashboard e export inalterados. |
+
+**Importantes**
+
+| ID | Status | Evidência / observação |
+|---|---|---|
+| I1 | ✅ | `ui/autocmds.lua:58-98`: grupo `Ink_Global`, idempotente; também ignora o `padnote_buf`. |
+| I2 | ✅ | `ui/autocmds.lua:42-56`, mas com a regressão R4. |
+| I3 | 🟡 | `update_*` valida (`extmarks.lua:670-674`); `enable/disable` não (R11). |
+| I4 | ✅ | `ui/init.lua:115,192,220,256`, com falha silenciosa; `glossary/ui.lua:443-447` também tem guarda. |
+| I5 | ❌ | `ui/util.lua:298-311` |
+| I6 | ❌ | `ui/init.lua:16` (sem consumidores, dá para apagar; ver R24). |
+| I7 | ✅ | `keymaps/reader.lua:437` |
+| I8, I9 | ❌ | `ui/floating_toc.lua` (inalterado). |
+| I10, I11, I12 | ❌ | `ui/modals.lua` (inalterado). |
+| I13 | ❌ | `ui/footnotes.lua` (inalterado). |
+| I14 | 🟡 | ✅ em `ui/related.lua:271-274`; ❌ em `ui/library_view.lua` e `ui/bookmarks.lua`. |
+| I15 | 🟡 | ✅ em `ui/related.lua:42-49`; ❌ em `ui/library_view.lua:54,100,213`. |
+| I16 | 🟡 | ✅ em `ui/related.lua:171-184`; ❌ em `ui/library_view.lua:121`, `ui/search.lua:85,316`. |
+| I17 | ✅ | `ui/related.lua:128-139` (fallback `vim.ui.select`). |
+| I18 | ❌ | `ui/search.lua:32`, `ui/search_index.lua:95`, `ui/navigation.lua:76,202`. |
+| I19 | ❌ | `glossary/ui.lua:762-781`. |
+| I20 | ❌ | `glossary/ui.lua:958`. |
+| I21 | ❌ | `glossary/ui.lua:799,820,936,965`, `ui/bookmarks.lua:472,489,556`. |
+| I22, I23 | ❌ | Inalterados. |
+| I24 | ✅ | `library/data.lua:149-155` só grava se a migração mudou algo (ainda sem cache em memória). |
+| I25, I26, I27 | ❌ | |
+| I28 | ✅ | Mas com o bug R8. |
+| I29, I30, I31 | ❌ | |
+| I32 | 🟡 | Ver R17. |
+| I33 | ✅ | `epub/util.lua:8-17` [testado]; R22b para maiúsculas no Windows. |
+| I34 a I66 | ❌ | Exceto I32/I33 acima. Os arquivos de html/epub (`opf`/`nav`)/markdown (`toc`/`parser`)/web/export/dashboard/collections/padnotes estão inalterados. **Nota sobre I52:** `vim.fn.expand` na URL migrou para `commands/init.lua:45`. **Nota sobre I59:** `export_defaults` agora está em `config.lua:92-98`. |
+
+### 0.5 Status dos itens transversais (seções 3 a 12)
+
+| Item | Status | Observação |
+|---|---|---|
+| 3.1 Formatador | 🟡 | `.stylua.toml` criado; não foi aplicado no projeto todo (R23); falta `.editorconfig`. |
+| 3.2 Cabeçalhos em PT | ❌ | `ui/book_loader.lua`, `ui/cache.lua`, `ui/modals.lua`, `ui/search_index.lua`, `html/*`, `padnotes/*`. |
+| 3.3 Anotações | 🟡 | Os módulos novos usam `---@param`; `book_loader.lua:230` ainda usa `-- @param`; não existe `types.lua`. |
+| 3.4 Tratamento de erro | 🟡 | `fs.write_file`, `data/related`, `state` e `collections` retornam `ok, err`. Loaders e chamadores continuam inconsistentes (R3). |
+| 3.5 Notify / idioma | ❌ | Sem wrapper; os comandos web continuam em PT. |
+| 3.6 Config | 🟡 | `config.lua` concentra os defaults, mas há 3 tabelas e defaults duplicados (R24). |
+| 3.7 Requires | 🟡 | `init.lua` não carrega mais epub, markdown e web no setup; `ink.ui` continua eager. `book_loader` passou de 40 para 2 `require("ink.ui")`; `render.lua` mantém 7 lazy getters. |
+| 3.8 Nomes | 🟡 | "linked" virou "related" na UI (`ui/related.lua`). |
+| 3.9 APIs depreciadas | ❌ | `nvim_buf_add_highlight` (`ui/search.lua:279,292,295`, `health.lua`), `nvim_buf_set_option` (`dashboard/*`, `health.lua`), `vim.loop` (`epub/init.lua`, `web/init.lua`, `collections/data.lua:128`). |
+| 3.11 Keymaps | 🟡 | Agora declarativos, mas `noremap` e strings `":Cmd<CR>"` continuam. |
+| 4.1 Persistência JSON | 🟡 | Escrita atômica disponível; não existem `data/store.lua` nem `data/json.lua`; `data.json_encode` com bugs continua em uso (`cache/*`, `ui/search_index.lua:64`). |
+| 4.2 Caminhos | 🟡 | `stdpath` só aparece em `data/paths.lua`; falta `cache_dir` (R25); `ensure_dir` continua em toda leitura. |
+| 4.3-4.11 Utilidades compartilhadas | ❌ | Nenhuma criada; `ui/related.lua` resolveu localmente (R26). |
+| 5 Código morto | 🟡 | Saíram `chapter_cache`, comandos comentados, funções `*_related_resource`, `lru.size/stats`, requires mortos de `glossary/ui` e `search`. Continuam os demais da seção 5, mais os novos de R28. |
+| 6.1 `init.lua` god-file | ✅ | |
+| 6.1 caches espalhados | 🟡 | `cache/{lru,css,toc,glossary}`; `ui/search_index` e `ui/cache` fora; sem `registry`. |
+| 6.1 migrações | 🟡 | `directory_migration` removido (R19); `data/migrate` ainda roda em todo `state.load` e em todo acesso a highlights (P7). |
+| 6.1 camadas | ❌ | `reading_sessions` → `ui.context`; ciclo `data/related` ↔ `library`. |
+| 7.2 `navigation.lua` (bloco 10×, tipografia global) | ❌ | Arquivo inalterado; `rerender_preserving_viewport` existe e não é usado. |
+| 7.2 `save_reading_position` 3× | 🟡 | Extraído para `ui/autocmds.lua:9-40`; sobrou a cópia de R7. |
+| 7.2 Tabela `PRIORITY`, objetos de dados mutados, `context.get` linear | ❌ | `context.get` agora roda em **todo** WinEnter/BufEnter global. |
+| 8 Desempenho | 🟡 | ✅ P1 (parcial), P3. ❌ os demais. |
+| 10 Funções longas | 🟡 | ✅ `M.setup`, `setup_book_keymaps`, `show_related_telescope`/`add_related_resource`. 🟡 `setup_book_autocmds` (~140 linhas). ❌ os demais. |
+| 11 Windows | 🟡 | `fs.write_file` usa `wb`; `validate_path` normaliza `\`; o health continua com `du`/`rm`; sem fallback para `unzip`. |
+| 12 README | ❌ | `export_defaults.include_*`, `cleanup_after_days` e `padnotes.template` continuam sem efeito. |
+
+### 0.6 Próximos passos recomendados (em ordem)
+
+1. **Hotfix** (mudanças de 1 a 3 linhas cada):
+   - R1: `commands.setup({ config = M.config })`;
+   - R2: `validate_slug` em `clear_cache`;
+   - R3: checar `data` depois do `pcall`;
+   - R6: `vim.F.if_nil` no justify;
+   - R7: apagar o VimLeavePre duplicado;
+   - C15: `ctx.data.slug`;
+   - C19: `state_data.chapter or 1`;
+   - C17: `local function`.
+2. **Rodar `stylua lua/`** num commit isolado (resolve R23 e boa parte da 3.1).
+3. **Fase 0 do roteiro (testes).** A regressão R1 passou despercebida justamente por falta de um teste simples de "abrir um EPUB". Um teste headless que faça `setup()` + `:InkOpen ink-test.epub` já pegaria isso.
+4. **R4, R5, R8, R9, R10, R12-R16.**
+5. Criar `context.require_current()`, `notify.lua`, `paths.cache_dir`, `ui/format.lua` + `ui/picker.lua` (reaproveitando o código de `ui/related.lua`). Esses três primeiros param a duplicação que voltou a crescer nos módulos novos (R25, R26).
+6. Continuar o roteiro da seção 13 a partir da Fase 3.
 
 ---
 
@@ -711,7 +937,7 @@ Além disso, `glossary/ui.lua` redeclara dentro de funções os módulos `glossa
    - o merge da config (179-184);
    - a migração de diretórios (187-190);
    - os highlight groups e o autocmd de ColorScheme (193-258);
-   - **37 comandos de usuário com lógica de negócio inline** (261-849). Exemplos: `InkWebUpdateSafe` faz backup de highlights lendo JSON à mão; `InkRebuildTOC`, `InkAddLibrary`, `InkCleanupRelated`, `InkGlossaryAdd`;
+   - **33 comandos de usuário ativos (mais 3 comentados) com lógica de negócio inline** (261-849). Exemplos: `InkWebUpdateSafe` faz backup de highlights lendo JSON à mão; `InkRebuildTOC`, `InkAddLibrary`, `InkCleanupRelated`, `InkGlossaryAdd`;
    - os keymaps globais (852-882);
    - o setup de padnotes, tracking e which-key (885-895).
    
@@ -1197,6 +1423,8 @@ Candidatas a quebrar, em ordem de tamanho:
 
 ## 13. Roteiro sugerido de refatoração
 
+> **Revisão 1:** as caixas marcadas `[x]` estão concluídas e as `[~]` estão parciais. Antes de continuar, aplique o hotfix da seção 0.6.
+
 As fases estão em ordem e cada uma pode virar um ou mais PRs pequenos. A regra geral é: **primeiro corrigir e padronizar, depois deduplicar, e só no fim mover arquivos de lugar.**
 
 ### Fase 0: Rede de segurança (antes de tudo)
@@ -1209,24 +1437,24 @@ As fases estão em ordem e cada uma pode virar um ou mais PRs pequenos. A regra 
 Corrigir **C1-C25** (seção 2.1), com cada correção acompanhada de um teste quando possível. São mudanças pequenas e localizadas.
 
 ### Fase 2: Padronização mecânica
-- [ ] `.stylua.toml` + `.editorconfig`. Formatar tudo em **um commit isolado**.
-- [ ] Remover o código morto da seção 5 (um commit por área).
-- [ ] Remover requires e locais não usados.
+- [~] `.stylua.toml` + `.editorconfig`. Formatar tudo em **um commit isolado**. *(O `.stylua.toml` foi criado, mas a formatação não foi aplicada em tudo e falta o `.editorconfig`; ver R23.)*
+- [~] Remover o código morto da seção 5 (um commit por área). *(Parcial; ver 0.5.)*
+- [~] Remover requires e locais não usados. *(Parcial.)*
 - [ ] Trocar as APIs depreciadas (3.9) e declarar Neovim 0.10+.
 - [ ] Escrever `CONTRIBUTING.md` com as convenções: idioma inglês, cabeçalho de uma linha, `---@param`, tratamento de erro (3.4), notify (3.5), requires (3.7).
 
 ### Fase 3: Infraestrutura compartilhada (o maior ganho)
 - [ ] `notify.lua` + mensagens padrão. Trocar as 339 chamadas de forma incremental.
-- [ ] `config.lua` (defaults únicos; corrigir C18 e I6).
-- [ ] `data/json.lua` + `data/paths.lua` + `data/store.lua`. Migrar um módulo por PR: bookmarks → glossary → highlights → collections → state → library → sessions → caches.
+- [~] `config.lua` (defaults únicos; corrigir C18 e I6). *(Criado e C18 corrigido; falta unificar as 3 tabelas e remover I6; ver R24.)*
+- [~] `data/json.lua` + `data/paths.lua` + `data/store.lua`. *(Só `paths.lua` foi criado, e sem `cache_dir`. A escrita atômica foi para `fs.write_file`.)* Migrar um módulo por PR: bookmarks → glossary → highlights → collections → state → library → sessions → caches.
 - [ ] `text/*` (4.3) + `util/date.lua` + `util/id.lua`.
 - [ ] `ui/float.lua` + `ui/picker.lua` + `ui/format.lua` + `modals.confirm`.
 - [ ] `context.require_current()`.
 - [ ] `types.lua` com as classes principais.
 
 ### Fase 4: Desmontar os god-files
-- [ ] `init.lua` → `config` / `highlights` / `commands/*` / `keymaps/global`.
-- [ ] `ui/book_loader.lua` → keymaps declarativos + `autocmds` + `save_reading_position`.
+- [x] `init.lua` → `config` / `highlights` / `commands/*` / `keymaps/global`. *(Atenção à regressão R1.)*
+- [~] `ui/book_loader.lua` → keymaps declarativos + `autocmds` + `save_reading_position`. *(Falta remover o VimLeavePre duplicado, R7.)*
 - [ ] `ui/navigation.lua` → `links` + `typography` (usando `rerender_preserving_viewport`).
 - [ ] `ui/render.lua` → `chapter_source` / `layout` / `viewport` / `statusline`.
 - [ ] `ui/extmarks.lua` → `extmarks/*` + `modes/reading_paragraph`.

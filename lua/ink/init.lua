@@ -16,7 +16,7 @@ function M.setup(opts)
   reading_sessions.setup(M.config.tracking)
 
   highlights.setup()
-  commands.setup(M.config)
+  commands.setup()
   keymaps_global.setup(M.config)
   autocmds.setup()
 
