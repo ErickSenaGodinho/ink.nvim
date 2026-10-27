@@ -181,49 +181,6 @@ function M.setup_book_autocmds(content_buf, slug)
       context.remove(content_buf)
     end,
   })
-
-  -- VimLeavePre: Save position before Vim closes (safety net)
-  vim.api.nvim_create_autocmd("VimLeavePre", {
-    group = augroup,
-    callback = function()
-      local current_ctx = context.get(content_buf)
-      if not current_ctx or not current_ctx.content_win or not current_ctx.rendered_lines then
-        return
-      end
-
-      -- Only save if the content window is still valid and showing content buffer
-      if vim.api.nvim_win_is_valid(current_ctx.content_win) then
-        local win_buf = vim.api.nvim_win_get_buf(current_ctx.content_win)
-        if win_buf == content_buf then
-          local cursor = vim.api.nvim_win_get_cursor(current_ctx.content_win)
-          local cursor_line = cursor[1]
-
-          local get_position_ctx = render.get_current_position_context
-          if get_position_ctx then
-            local position_ctx = get_position_ctx(current_ctx, cursor_line)
-            local library_module = require("ink.library")
-
-            local state_data = { chapter = current_ctx.current_chapter_idx }
-            if position_ctx then
-              state_data.text = position_ctx.text
-              state_data.context_before = position_ctx.context_before
-              state_data.context_after = position_ctx.context_after
-              state_data.line = position_ctx.line_fallback
-            else
-              state_data.line = cursor_line
-            end
-
-            state.save(current_ctx.data.slug, state_data)
-            library_module.update_progress(
-              current_ctx.data.slug,
-              current_ctx.current_chapter_idx,
-              #current_ctx.data.spine
-            )
-          end
-        end
-      end
-    end,
-  })
 end
 
 -- Main function to open a book
