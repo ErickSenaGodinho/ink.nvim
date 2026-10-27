@@ -45,7 +45,7 @@ function M.handle_closing_tag(state, tag_name)
     -- Save heading information before closing
     if state.current_heading_level then
       local level = tonumber(tag_name:match("h([1-6])"))
-      local heading_text = state.current_heading_text:match("^%s*(.-)%s*$")  -- trim
+      local heading_text = state.current_heading_text:match("^%s*(.-)%s*$") -- trim
 
       -- Check if this is a title (has title attribute OR CSS class with title)
       local is_title = (state.current_heading_title_attr ~= nil) or state.current_heading_is_title
@@ -64,7 +64,7 @@ function M.handle_closing_tag(state, tag_name)
             level = 0,
             text = display_text,
             id = state.current_heading_id,
-            line = #state.lines + 1
+            line = #state.lines + 1,
           })
         elseif level <= 3 then
           -- This is a regular H1-H3 heading
@@ -72,7 +72,7 @@ function M.handle_closing_tag(state, tag_name)
             level = level,
             text = display_text,
             id = state.current_heading_id,
-            line = #state.lines + 1
+            line = #state.lines + 1,
           })
         end
       end

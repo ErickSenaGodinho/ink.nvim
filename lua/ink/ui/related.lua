@@ -326,4 +326,3 @@ function M.add_related_resource()
 end
 
 return M
-

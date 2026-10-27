@@ -2,7 +2,7 @@ local M = {}
 
 local function get_attribute(tag_string, attr)
   local escaped_attr = attr:gsub("([%-%^%$%(%)%%%.%[%]%*%+%?])", "%%%1")
-  return tag_string:match(escaped_attr .. '=["\']([^"\']+)["\']')
+  return tag_string:match(escaped_attr .. "=[\"']([^\"']+)[\"']")
 end
 
 function M.parse_nav(toc_content, resolve_href)

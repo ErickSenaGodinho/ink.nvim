@@ -3,15 +3,17 @@ local entities = require("ink.html.entities")
 local M = {}
 
 -- Security limits
-local MAX_HTML_SIZE = 10 * 1024 * 1024  -- 10MB max HTML size
-local MAX_ARTICLES = 10000  -- Maximum number of articles to process
-local MAX_LOOP_ITERATIONS = 10000  -- Maximum iterations for any loop
+local MAX_HTML_SIZE = 10 * 1024 * 1024 -- 10MB max HTML size
+local MAX_ARTICLES = 10000 -- Maximum number of articles to process
+local MAX_LOOP_ITERATIONS = 10000 -- Maximum iterations for any loop
 
 -- Escape HTML special characters to prevent XSS
 -- This is critical for user-controlled data inserted into HTML
 local function html_escape(str)
-  if not str then return "" end
-  str = tostring(str)  -- Ensure it's a string
+  if not str then
+    return ""
+  end
+  str = tostring(str) -- Ensure it's a string
   str = str:gsub("&", "&amp;")
   str = str:gsub("<", "&lt;")
   str = str:gsub(">", "&gt;")
@@ -23,12 +25,14 @@ end
 -- Helper function to clean and normalize text
 -- Consolidates multiple gsub operations that are repeated throughout the code
 local function clean_text(text)
-  if not text then return nil end
+  if not text then
+    return nil
+  end
   -- Decode HTML entities, normalize whitespace, and trim in one pass
   text = entities.decode_entities(text)
-  text = text:gsub("%s+", " ")  -- Normalize multiple whitespace to single space
-  text = text:gsub("^%s+", "")  -- Trim leading whitespace
-  text = text:gsub("%s+$", "")  -- Trim trailing whitespace
+  text = text:gsub("%s+", " ") -- Normalize multiple whitespace to single space
+  text = text:gsub("^%s+", "") -- Trim leading whitespace
+  text = text:gsub("%s+$", "") -- Trim trailing whitespace
   return text
 end
 
@@ -58,7 +62,7 @@ local function extract_page_info(url, html)
   return {
     number = number or "unknown",
     year = year or "unknown",
-    title = title or "Página Web"
+    title = title or "Página Web",
   }
 end
 
@@ -66,7 +70,7 @@ end
 local function extract_ementa(html)
   local ementa = html:match('<p[^>]*class="ementa"[^>]*>(.-)</p>')
   if ementa then
-    ementa = ementa:gsub("<[^>]+>", "")  -- Remove HTML tags
+    ementa = ementa:gsub("<[^>]+>", "") -- Remove HTML tags
     return clean_text(ementa)
   end
   return nil
@@ -82,7 +86,7 @@ local function normalize_strikethrough(html)
   end
 
   local result = html
-  local max_iterations = 100  -- Lower limit for safety
+  local max_iterations = 100 -- Lower limit for safety
   local iterations = 0
 
   while iterations < max_iterations do
@@ -90,7 +94,9 @@ local function normalize_strikethrough(html)
 
     -- Find next occurrence
     local style_start = result:find("text%-decoration%s*:%s*line%-through")
-    if not style_start then break end
+    if not style_start then
+      break
+    end
 
     -- Find opening tag (search backwards using plain find)
     local tag_start = result:find("<[%w]", math.max(1, style_start - 200))
@@ -190,10 +196,14 @@ local function remove_strikethrough(html)
     iterations = iterations + 1
 
     local start_pos = result:find(strike_pattern)
-    if not start_pos then break end
+    if not start_pos then
+      break
+    end
 
     local tag_end = result:find(">", start_pos, true)
-    if not tag_end then break end
+    if not tag_end then
+      break
+    end
 
     local end_pos = result:find(strike_end_pattern, tag_end + 1, true)
     if not end_pos then
@@ -251,7 +261,7 @@ local function parse_articles(html)
     table.insert(article_parts, {
       pos = match_start,
       num = article_num,
-      marker = article_marker
+      marker = article_marker,
     })
   end
 
@@ -269,7 +279,9 @@ local function parse_articles(html)
     while iterations < MAX_LOOP_ITERATIONS do
       iterations = iterations + 1
       local tag_end = before_article:find(">", search_from, true)
-      if not tag_end then break end
+      if not tag_end then
+        break
+      end
       last_tag_end = tag_end + 1
       search_from = tag_end + 1
     end
@@ -297,7 +309,9 @@ local function parse_articles(html)
       while search_from < next_article_pos and iterations < MAX_LOOP_ITERATIONS do
         iterations = iterations + 1
         local p_close = body:find("</[pP]>", search_from)
-        if not p_close or p_close >= next_article_pos then break end
+        if not p_close or p_close >= next_article_pos then
+          break
+        end
         last_p_pos = p_close
         search_from = p_close + 1
       end
@@ -310,7 +324,9 @@ local function parse_articles(html)
         while search_from < next_article_pos and iterations < MAX_LOOP_ITERATIONS do
           iterations = iterations + 1
           local p_open = body:find("<[pP][^>]->", search_from)
-          if not p_open or p_open >= next_article_pos then break end
+          if not p_open or p_open >= next_article_pos then
+            break
+          end
           last_p_pos = p_open - 1
           search_from = p_open + 1
         end
@@ -341,7 +357,9 @@ local function parse_articles(html)
     while iterations < MAX_LOOP_ITERATIONS do
       iterations = iterations + 1
       local p_pos = search_area:find("<[pP]", search_from)
-      if not p_pos then break end
+      if not p_pos then
+        break
+      end
       last_p = p_pos
       search_from = p_pos + 1
     end
@@ -426,7 +444,7 @@ local function parse_articles(html)
       title = title,
       raw = raw_content,
       compiled = compiled_content,
-      has_modifications = has_any_strike
+      has_modifications = has_any_strike,
     })
   end
 
@@ -486,7 +504,7 @@ function M.parse(html, url)
     ementa = ementa,
     articles = articles,
     header = header,
-    url = url
+    url = url,
   }
 end
 
@@ -533,7 +551,7 @@ function M.build_raw_spine(parsed_page)
         text-decoration: line-through !important;
         color: #666 !important;
       }
-    </style>]]
+    </style>]],
   }
 
   -- Start with header content (brasão, título, ementa, preâmbulo)
@@ -542,7 +560,7 @@ function M.build_raw_spine(parsed_page)
     local cleaned_header = remove_blockquotes(parsed_page.header)
     table.insert(content_parts, '<div class="law-header">')
     table.insert(content_parts, cleaned_header)
-    table.insert(content_parts, '</div>')
+    table.insert(content_parts, "</div>")
   end
 
   -- Add all articles
@@ -554,10 +572,16 @@ function M.build_raw_spine(parsed_page)
     local safe_number = html_escape(article.number)
 
     -- Use concatenation to avoid string.format issues with % in content
-    local article_html = '<div class="article" id="article-' .. safe_number .. '">\n'
-      .. '  <h2>Artigo ' .. safe_number .. '</h2>\n'
-      .. '  ' .. cleaned_content .. '\n'
-      .. '</div>\n'
+    local article_html = '<div class="article" id="article-'
+      .. safe_number
+      .. '">\n'
+      .. "  <h2>Artigo "
+      .. safe_number
+      .. "</h2>\n"
+      .. "  "
+      .. cleaned_content
+      .. "\n"
+      .. "</div>\n"
     table.insert(content_parts, article_html)
   end
 
@@ -569,8 +593,8 @@ function M.build_raw_spine(parsed_page)
       content = full_content,
       href = "pagina-completa",
       title = parsed_page.title or "Página Completa",
-      index = 1
-    }
+      index = 1,
+    },
   }
 end
 
@@ -606,7 +630,7 @@ function M.build_compiled_spine(parsed_page)
       p[align="justify"], p[style*="text-align:justify"] {
         text-align: justify;
       }
-    </style>]]
+    </style>]],
   }
 
   -- Start with header content (brasão, título, ementa, preâmbulo)
@@ -617,7 +641,7 @@ function M.build_compiled_spine(parsed_page)
     compiled_header = remove_blockquotes(compiled_header)
     table.insert(content_parts, '<div class="law-header">')
     table.insert(content_parts, compiled_header)
-    table.insert(content_parts, '</div>')
+    table.insert(content_parts, "</div>")
   end
 
   -- Add all articles
@@ -628,7 +652,7 @@ function M.build_compiled_spine(parsed_page)
 
     if content_text == "" or content_text:match("^%s*$") then
       -- Article is completely revoked - show placeholder
-      article_content = '<p><em>(Artigo revogado)</em></p>'
+      article_content = "<p><em>(Artigo revogado)</em></p>"
     else
       -- Remove blockquotes from compiled content
       article_content = remove_blockquotes(article.compiled)
@@ -638,10 +662,16 @@ function M.build_compiled_spine(parsed_page)
     local safe_number = html_escape(article.number)
 
     -- Use concatenation to avoid string.format issues with % in content
-    local article_html = '<div class="article" id="article-' .. safe_number .. '">\n'
-      .. '  <h2>Artigo ' .. safe_number .. '</h2>\n'
-      .. '  ' .. article_content .. '\n'
-      .. '</div>\n'
+    local article_html = '<div class="article" id="article-'
+      .. safe_number
+      .. '">\n'
+      .. "  <h2>Artigo "
+      .. safe_number
+      .. "</h2>\n"
+      .. "  "
+      .. article_content
+      .. "\n"
+      .. "</div>\n"
     table.insert(content_parts, article_html)
   end
 
@@ -653,8 +683,8 @@ function M.build_compiled_spine(parsed_page)
       content = full_content,
       href = "pagina-completa",
       title = parsed_page.title or "Página Completa",
-      index = 1
-    }
+      index = 1,
+    },
   }
 end
 
@@ -669,7 +699,7 @@ function M.build_toc(parsed_page)
     table.insert(toc, {
       label = "Art. " .. article.number .. ": " .. article.title,
       href = "pagina-completa#article-" .. safe_number,
-      level = 1
+      level = 1,
     })
   end
 

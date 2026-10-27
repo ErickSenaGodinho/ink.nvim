@@ -21,7 +21,7 @@ function M.load(slug)
     return {
       slug = slug,
       changes = {},
-      last_update = nil
+      last_update = nil,
     }
   end
 
@@ -36,7 +36,7 @@ function M.load(slug)
     return {
       slug = slug,
       changes = {},
-      last_update = nil
+      last_update = nil,
     }
   end
 
@@ -87,7 +87,7 @@ local function detect_changes(old_articles, new_articles)
         type = "added",
         article_number = new_article.number,
         title = new_article.title,
-        timestamp = os.time()
+        timestamp = os.time(),
       })
     elseif old_article.compiled ~= new_article.compiled then
       -- Modified article
@@ -95,7 +95,7 @@ local function detect_changes(old_articles, new_articles)
         type = "modified",
         article_number = new_article.number,
         title = new_article.title,
-        timestamp = os.time()
+        timestamp = os.time(),
       })
     end
   end
@@ -107,7 +107,7 @@ local function detect_changes(old_articles, new_articles)
         type = "removed",
         article_number = old_article.number,
         title = old_article.title,
-        timestamp = os.time()
+        timestamp = os.time(),
       })
     end
   end
@@ -148,7 +148,7 @@ function M.update(slug, old_html, new_html, url)
         type = "modified",
         article_number = "page",
         title = "Conteúdo da página",
-        timestamp = os.time()
+        timestamp = os.time(),
       })
     end
   end
@@ -160,7 +160,7 @@ function M.update(slug, old_html, new_html, url)
       changes = changes,
       total_added = 0,
       total_modified = 0,
-      total_removed = 0
+      total_removed = 0,
     }
 
     -- Count changes by type

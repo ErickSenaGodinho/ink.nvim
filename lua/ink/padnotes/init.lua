@@ -6,8 +6,8 @@ local M = {}
 -- Default configuration
 M.config = {
   enabled = true,
-  path = "default",  -- "default" or custom path template
-  auto_save_interval = 120,  -- seconds
+  path = "default", -- "default" or custom path template
+  auto_save_interval = 120, -- seconds
   template = "default",
 }
 

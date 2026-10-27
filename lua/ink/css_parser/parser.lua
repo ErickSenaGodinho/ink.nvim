@@ -19,7 +19,9 @@ function M.parse_css(css_content)
     -- Find class selector: .classname
     local class_start, class_end, class_name = css_content:find("%s*%.([%w%._-]+)%s*{", pos)
 
-    if not class_start then break end
+    if not class_start then
+      break
+    end
 
     -- Find the closing brace
     local brace_count = 1
@@ -43,14 +45,12 @@ function M.parse_css(css_content)
     local style = {}
 
     -- Check for bold
-    if properties:match("font%-weight%s*:%s*bold") or
-       properties:match("font%-weight%s*:%s*[6-9]00") then
+    if properties:match("font%-weight%s*:%s*bold") or properties:match("font%-weight%s*:%s*[6-9]00") then
       style.bold = true
     end
 
     -- Check for italic
-    if properties:match("font%-style%s*:%s*italic") or
-       properties:match("font%-style%s*:%s*oblique") then
+    if properties:match("font%-style%s*:%s*italic") or properties:match("font%-style%s*:%s*oblique") then
       style.italic = true
     end
 

@@ -7,7 +7,7 @@ local M = {}
 function M.new()
   return {
     buffer = {},
-    length = 0
+    length = 0,
   }
 end
 
@@ -21,7 +21,7 @@ end
 
 -- Append multiple strings at once
 function M.append_many(sb, ...)
-  local args = {...}
+  local args = { ... }
   for i = 1, #args do
     if args[i] and #args[i] > 0 then
       sb.length = sb.length + 1

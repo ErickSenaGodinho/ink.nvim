@@ -20,9 +20,9 @@ function M.open_text_input(initial_text, callback, opts)
 
   local initial_lines
   if opts.multiline then
-    initial_lines = (initial_text and initial_text ~= "") and vim.split(initial_text, "\n") or {""}
+    initial_lines = (initial_text and initial_text ~= "") and vim.split(initial_text, "\n") or { "" }
   else
-    initial_lines = (initial_text and initial_text ~= "") and {initial_text} or {""}
+    initial_lines = (initial_text and initial_text ~= "") and { initial_text } or { "" }
   end
 
   if initial_text and initial_text ~= "" then
@@ -48,14 +48,16 @@ function M.open_text_input(initial_text, callback, opts)
   end
 
   local function resize_win()
-    if not vim.api.nvim_win_is_valid(win) then return end
+    if not vim.api.nvim_win_is_valid(win) then
+      return
+    end
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     local new_height = calc_height(lines)
     vim.api.nvim_win_set_config(win, { height = new_height })
   end
 
   local augroup = vim.api.nvim_create_augroup("InkModalResize", { clear = true })
-  vim.api.nvim_create_autocmd({"TextChanged", "TextChangedI"}, {
+  vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
     group = augroup,
     buffer = buf,
     callback = resize_win,
@@ -79,7 +81,9 @@ function M.open_text_input(initial_text, callback, opts)
       text = table.concat(lines, " "):match("^%s*(.-)%s*$")
     end
     vim.api.nvim_win_close(win, true)
-    if callback then callback(text) end
+    if callback then
+      callback(text)
+    end
   end, { buffer = buf })
 end
 
@@ -90,7 +94,7 @@ function M.open_bookmark_input(initial_name, callback)
     multiline = false,
     min_height = 1,
     max_height = 5,
-    wrap = false
+    wrap = false,
   })
 end
 
@@ -101,7 +105,7 @@ function M.open_note_input(initial_note, callback)
     multiline = true,
     min_height = 3,
     max_height = 15,
-    wrap = true
+    wrap = true,
   })
 end
 

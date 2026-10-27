@@ -19,7 +19,9 @@ function M.apply_justification(lines, highlights, links, images, no_justify, max
           while pos <= #line and line:sub(pos, pos) == " " do
             pos = pos + 1
           end
-          if pos > #line then break end
+          if pos > #line then
+            break
+          end
 
           local word_start = pos
           while pos <= #line and line:sub(pos, pos) ~= " " do
@@ -31,7 +33,7 @@ function M.apply_justification(lines, highlights, links, images, no_justify, max
           table.insert(word_info, {
             word = word,
             orig_start = word_start - 1,
-            orig_end = word_end
+            orig_end = word_end,
           })
         end
 

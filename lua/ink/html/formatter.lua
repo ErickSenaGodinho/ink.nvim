@@ -23,18 +23,21 @@ M.apply_justification = justification.apply_justification
 -- Classify image type and return symbol if bullet
 local function classify_image(src)
   local filename = src:match("([^/]+)$")
-  if not filename then return "figure", nil end
+  if not filename then
+    return "figure", nil
+  end
 
   filename = filename:lower()
 
   -- Bullet patterns
-  if filename:match("^squ") or
-     filename:match("bullet") or
-     filename:match("^icon") or
-     filename:match("^arrow") then
+  if filename:match("^squ") or filename:match("bullet") or filename:match("^icon") or filename:match("^arrow") then
     -- Return bullet type and symbol
-    if filename:match("^squ") then return "bullet", "■" end
-    if filename:match("arrow") then return "bullet", "→" end
+    if filename:match("^squ") then
+      return "bullet", "■"
+    end
+    if filename:match("arrow") then
+      return "bullet", "→"
+    end
     return "bullet", "▪"
   end
 
@@ -62,7 +65,7 @@ function M.process_tag(state, tag_name, tag_content, is_closing, start_tag, end_
           col_end = 0,
           src = src,
           type = "bullet",
-          symbol = symbol
+          symbol = symbol,
         })
       elseif img_type == "bullet" and state.table_state.in_table then
         -- Inside table: ignore bullet images completely
@@ -79,7 +82,7 @@ function M.process_tag(state, tag_name, tag_content, is_closing, start_tag, end_
           col_start = 0,
           col_end = #img_text,
           src = src,
-          type = "figure"
+          type = "figure",
         })
         table.insert(state.highlights, { #state.lines + 1, 0, #img_text, "Special" })
         text.new_line(state)
@@ -171,8 +174,14 @@ end
 
 function M.handle_closing_tag(state, tag_name)
   -- Handle table tags
-  if tag_name == "table" or tag_name == "thead" or tag_name == "tbody" or
-     tag_name == "tr" or tag_name == "th" or tag_name == "td" then
+  if
+    tag_name == "table"
+    or tag_name == "thead"
+    or tag_name == "tbody"
+    or tag_name == "tr"
+    or tag_name == "th"
+    or tag_name == "td"
+  then
     M.handle_table_tag(state, tag_name, true)
     return
   end
@@ -183,8 +192,14 @@ end
 
 function M.handle_opening_tag(state, tag_name, tag_content, start_tag, end_tag, content)
   -- Handle table tags
-  if tag_name == "table" or tag_name == "thead" or tag_name == "tbody" or
-     tag_name == "tr" or tag_name == "th" or tag_name == "td" then
+  if
+    tag_name == "table"
+    or tag_name == "thead"
+    or tag_name == "tbody"
+    or tag_name == "tr"
+    or tag_name == "th"
+    or tag_name == "td"
+  then
     M.handle_table_tag(state, tag_name, false)
     return
   end

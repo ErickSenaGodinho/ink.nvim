@@ -36,13 +36,19 @@ function M.migrate_bookmarks()
   local data_dir = data.get_data_dir()
   local old_path = data_dir .. "/bookmarks.json"
 
-  if not fs.exists(old_path) then return end
+  if not fs.exists(old_path) then
+    return
+  end
 
   local content = fs.read_file(old_path)
-  if not content then return end
+  if not content then
+    return
+  end
 
   local ok, old_data = pcall(vim.json.decode, content)
-  if not ok or not old_data or not old_data.bookmarks then return end
+  if not ok or not old_data or not old_data.bookmarks then
+    return
+  end
 
   -- Group bookmarks by book slug
   local by_book = {}

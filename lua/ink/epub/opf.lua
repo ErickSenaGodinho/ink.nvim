@@ -3,7 +3,7 @@ local entities = require("ink.html.entities")
 
 local function get_attribute(tag_string, attr)
   local escaped_attr = attr:gsub("([%-%^%$%(%)%%%.%[%]%*%+%?])", "%%%1")
-  return tag_string:match(escaped_attr .. '=["\']([^"\']+)["\']')
+  return tag_string:match(escaped_attr .. "=[\"']([^\"']+)[\"']")
 end
 
 local function get_tag_content(xml, tag)
@@ -26,7 +26,9 @@ function M.parse_spine(opf_content, manifest)
   local spine = {}
   for itemref in opf_content:gmatch("<itemref[^>]+>") do
     local idref = get_attribute(itemref, "idref")
-    if manifest[idref] then table.insert(spine, manifest[idref]) end
+    if manifest[idref] then
+      table.insert(spine, manifest[idref])
+    end
   end
   return spine
 end
@@ -44,7 +46,9 @@ function M.parse_metadata(opf_content, slug)
 
   if date then
     local year = date:match("^(%d%d%d%d)")
-    if year then date = year end
+    if year then
+      date = year
+    end
   end
 
   if description then
@@ -58,7 +62,7 @@ function M.parse_metadata(opf_content, slug)
     author = author,
     language = language,
     date = date,
-    description = description
+    description = description,
   }
 end
 

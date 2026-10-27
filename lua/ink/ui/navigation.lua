@@ -7,13 +7,17 @@ local M = {}
 
 function M.jump_to_link()
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
   local cursor = vim.api.nvim_win_get_cursor(0)
   local line = cursor[1]
   local col = cursor[2]
   local buf = vim.api.nvim_get_current_buf()
 
-  if buf ~= ctx.content_buf then return end
+  if buf ~= ctx.content_buf then
+    return
+  end
 
   local href = util.get_link_at_cursor(line, col, ctx)
   if not href then
@@ -36,7 +40,7 @@ function M.jump_to_link()
     -- First try current chapter
     local anchor_line = ctx.anchors[anchor]
     if anchor_line then
-      vim.api.nvim_win_set_cursor(ctx.content_win, {anchor_line, 0})
+      vim.api.nvim_win_set_cursor(ctx.content_win, { anchor_line, 0 })
       vim.cmd("normal! zz")
       return
     end
@@ -53,7 +57,7 @@ function M.jump_to_link()
             vim.schedule(function()
               if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
                 if ctx.anchors[anchor] then
-                  vim.api.nvim_win_set_cursor(ctx.content_win, {ctx.anchors[anchor], 0})
+                  vim.api.nvim_win_set_cursor(ctx.content_win, { ctx.anchors[anchor], 0 })
                   vim.cmd("normal! zz")
                 end
               end
@@ -78,7 +82,7 @@ function M.jump_to_link()
     if spine_filename == target_filename then
       render.render_chapter(i, nil, ctx)
       if target_anchor and ctx.anchors[target_anchor] then
-        vim.api.nvim_win_set_cursor(ctx.content_win, {ctx.anchors[target_anchor], 0})
+        vim.api.nvim_win_set_cursor(ctx.content_win, { ctx.anchors[target_anchor], 0 })
       end
       vim.cmd("normal! zz")
       return
@@ -89,19 +93,25 @@ end
 
 function M.next_chapter()
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
   render.render_chapter(ctx.current_chapter_idx + 1, nil, ctx)
 end
 
 function M.prev_chapter()
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
   render.render_chapter(ctx.current_chapter_idx - 1, nil, ctx)
 end
 
 function M.handle_enter()
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
   local cursor = vim.api.nvim_win_get_cursor(0)
   local line = cursor[1]
   local col = cursor[2]
@@ -138,8 +148,14 @@ function M.handle_enter()
       end
 
       -- Check if it's an image link (starts with common image extensions)
-      if href:match("%.jpe?g$") or href:match("%.png$") or href:match("%.gif$") or
-         href:match("%.webp$") or href:match("%.svg$") or href:match("%.bmp$") then
+      if
+        href:match("%.jpe?g$")
+        or href:match("%.png$")
+        or href:match("%.gif$")
+        or href:match("%.webp$")
+        or href:match("%.svg$")
+        or href:match("%.bmp$")
+      then
         -- It's an image, open it
         util.open_image(href, ctx)
         return
@@ -175,7 +191,7 @@ function M.handle_enter()
                 vim.schedule(function()
                   if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
                     if ctx.anchors[anchor] then
-                      vim.api.nvim_win_set_cursor(ctx.content_win, {ctx.anchors[anchor], 0})
+                      vim.api.nvim_win_set_cursor(ctx.content_win, { ctx.anchors[anchor], 0 })
                       vim.cmd("normal! zz")
                     end
                   end
@@ -204,7 +220,7 @@ function M.handle_enter()
         if spine_filename == target_filename then
           render.render_chapter(i, nil, ctx)
           if target_anchor and ctx.anchors[target_anchor] then
-            vim.api.nvim_win_set_cursor(ctx.content_win, {ctx.anchors[target_anchor], 0})
+            vim.api.nvim_win_set_cursor(ctx.content_win, { ctx.anchors[target_anchor], 0 })
           end
           vim.cmd("normal! zz")
           return
@@ -217,11 +233,13 @@ end
 
 function M.increase_width()
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
   local step = context.config.width_step or 10
   local current = ctx.current_max_width or context.config.max_width or 120
   ctx.current_max_width = current + step
-  ctx.manual_width_override = true  -- Disable adaptive width until reset
+  ctx.manual_width_override = true -- Disable adaptive width until reset
 
   -- Save viewport position (text-based, survives word wrap changes)
   local viewport_ctx = render.get_viewport_text_context(ctx)
@@ -244,12 +262,14 @@ end
 
 function M.decrease_width()
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
   local step = context.config.width_step or 10
   local current = ctx.current_max_width or context.config.max_width or 120
   local new_width = math.max(40, current - step)
   ctx.current_max_width = new_width
-  ctx.manual_width_override = true  -- Disable adaptive width until reset
+  ctx.manual_width_override = true -- Disable adaptive width until reset
 
   -- Save viewport position (text-based, survives word wrap changes)
   local viewport_ctx = render.get_viewport_text_context(ctx)
@@ -272,7 +292,9 @@ end
 
 function M.set_width(width)
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
 
   local new_width = tonumber(width)
   if not new_width or new_width < 40 then
@@ -281,7 +303,7 @@ function M.set_width(width)
   end
 
   ctx.current_max_width = new_width
-  ctx.manual_width_override = true  -- Disable adaptive width until reset
+  ctx.manual_width_override = true -- Disable adaptive width until reset
 
   -- Save viewport position (text-based, survives word wrap changes)
   local viewport_ctx = render.get_viewport_text_context(ctx)
@@ -304,10 +326,12 @@ end
 
 function M.reset_width()
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
   if ctx.default_max_width then
     ctx.current_max_width = ctx.default_max_width
-    ctx.manual_width_override = false  -- Re-enable adaptive width
+    ctx.manual_width_override = false -- Re-enable adaptive width
 
     -- Recalculate adaptive width based on current window size
     local book_loader = require("ink.ui.book_loader")
@@ -342,7 +366,9 @@ end
 
 function M.toggle_justify()
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
   ctx.justify_text = not ctx.justify_text
 
   -- Save viewport position (text-based, survives word wrap changes)
@@ -368,18 +394,21 @@ end
 
 function M.increase_line_spacing()
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
 
   -- Ensure typography config exists
-  context.config.typography = context.config.typography or {
-    line_spacing = 1,
-    paragraph_spacing = 1,
-    indent_size = 4,
-    list_indent = 2
-  }
+  context.config.typography = context.config.typography
+    or {
+      line_spacing = 1,
+      paragraph_spacing = 1,
+      indent_size = 4,
+      list_indent = 2,
+    }
 
   local current = context.config.typography.line_spacing
-  local new_spacing = math.min(5, current + 1)  -- Max 5
+  local new_spacing = math.min(5, current + 1) -- Max 5
   context.config.typography.line_spacing = new_spacing
 
   -- Save viewport position (text-based, survives word wrap changes)
@@ -402,18 +431,21 @@ end
 
 function M.decrease_line_spacing()
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
 
   -- Ensure typography config exists
-  context.config.typography = context.config.typography or {
-    line_spacing = 1,
-    paragraph_spacing = 1,
-    indent_size = 4,
-    list_indent = 2
-  }
+  context.config.typography = context.config.typography
+    or {
+      line_spacing = 1,
+      paragraph_spacing = 1,
+      indent_size = 4,
+      list_indent = 2,
+    }
 
   local current = context.config.typography.line_spacing
-  local new_spacing = math.max(1, current - 1)  -- Min 1
+  local new_spacing = math.max(1, current - 1) -- Min 1
   context.config.typography.line_spacing = new_spacing
 
   -- Save viewport position (text-based, survives word wrap changes)
@@ -436,18 +468,21 @@ end
 
 function M.increase_paragraph_spacing()
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
 
   -- Ensure typography config exists
-  context.config.typography = context.config.typography or {
-    line_spacing = 1,
-    paragraph_spacing = 1,
-    indent_size = 4,
-    list_indent = 2
-  }
+  context.config.typography = context.config.typography
+    or {
+      line_spacing = 1,
+      paragraph_spacing = 1,
+      indent_size = 4,
+      list_indent = 2,
+    }
 
   local current = context.config.typography.paragraph_spacing
-  local new_spacing = math.min(5, current + 1)  -- Max 5
+  local new_spacing = math.min(5, current + 1) -- Max 5
   context.config.typography.paragraph_spacing = new_spacing
 
   -- Save viewport position (text-based, survives word wrap changes)
@@ -470,18 +505,21 @@ end
 
 function M.decrease_paragraph_spacing()
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
 
   -- Ensure typography config exists
-  context.config.typography = context.config.typography or {
-    line_spacing = 1,
-    paragraph_spacing = 1,
-    indent_size = 4,
-    list_indent = 2
-  }
+  context.config.typography = context.config.typography
+    or {
+      line_spacing = 1,
+      paragraph_spacing = 1,
+      indent_size = 4,
+      list_indent = 2,
+    }
 
   local current = context.config.typography.paragraph_spacing
-  local new_spacing = math.max(1, current - 1)  -- Min 1
+  local new_spacing = math.max(1, current - 1) -- Min 1
   context.config.typography.paragraph_spacing = new_spacing
 
   -- Save viewport position (text-based, survives word wrap changes)
@@ -504,15 +542,18 @@ end
 
 function M.reset_line_spacing()
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
 
   -- Ensure typography config exists
-  context.config.typography = context.config.typography or {
-    line_spacing = 1,
-    paragraph_spacing = 1,
-    indent_size = 4,
-    list_indent = 2
-  }
+  context.config.typography = context.config.typography
+    or {
+      line_spacing = 1,
+      paragraph_spacing = 1,
+      indent_size = 4,
+      list_indent = 2,
+    }
 
   context.config.typography.line_spacing = 1
 
@@ -536,15 +577,18 @@ end
 
 function M.reset_paragraph_spacing()
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
 
   -- Ensure typography config exists
-  context.config.typography = context.config.typography or {
-    line_spacing = 1,
-    paragraph_spacing = 1,
-    indent_size = 4,
-    list_indent = 2
-  }
+  context.config.typography = context.config.typography
+    or {
+      line_spacing = 1,
+      paragraph_spacing = 1,
+      indent_size = 4,
+      list_indent = 2,
+    }
 
   context.config.typography.paragraph_spacing = 1
 

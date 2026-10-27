@@ -63,7 +63,7 @@ end
 -- Get preview lines for a TOC item
 local function get_preview_lines(toc_item, ctx)
   if not toc_item or not toc_item.href then
-    return {"", "  No preview available", ""}
+    return { "", "  No preview available", "" }
   end
 
   -- Parse href
@@ -80,7 +80,7 @@ local function get_preview_lines(toc_item, ctx)
   end
 
   if not chapter_idx then
-    return {"", "  Chapter not found", ""}
+    return { "", "  Chapter not found", "" }
   end
 
   -- Check cache first
@@ -90,7 +90,7 @@ local function get_preview_lines(toc_item, ctx)
     -- Get chapter content and parse with wider width for preview
     local content = render.get_chapter_content(chapter_idx, ctx)
     if not content then
-      return {"", "  Failed to load chapter", ""}
+      return { "", "  Failed to load chapter", "" }
     end
 
     -- Parse with preview-specific width (optimized for small screens)
@@ -100,7 +100,7 @@ local function get_preview_lines(toc_item, ctx)
     parsed = html.parse(content, preview_width, class_styles, false) -- No justify for preview
 
     if not parsed or not parsed.lines then
-      return {"", "  Failed to parse chapter", ""}
+      return { "", "  Failed to parse chapter", "" }
     end
 
     -- Cache the result
@@ -136,7 +136,7 @@ local function get_preview_lines(toc_item, ctx)
   end
 
   if #preview_lines == 0 then
-    return {"", "  (Empty chapter)", ""}
+    return { "", "  (Empty chapter)", "" }
   end
 
   -- Add title
@@ -169,7 +169,7 @@ local function update_preview(line_num, ctx)
 
   -- Reset scroll to top
   if floating_state.preview_win and vim.api.nvim_win_is_valid(floating_state.preview_win) then
-    vim.api.nvim_win_set_cursor(floating_state.preview_win, {1, 0})
+    vim.api.nvim_win_set_cursor(floating_state.preview_win, { 1, 0 })
   end
 end
 
@@ -179,7 +179,7 @@ local function get_window_configs()
   local ui_height = vim.o.lines
 
   -- Total window size: optimized for small screens (1366px notebooks)
-  local total_width = math.floor(ui_width * 0.70)  -- 70% instead of 80%
+  local total_width = math.floor(ui_width * 0.70) -- 70% instead of 80%
   local total_height = math.floor(ui_height * 0.70)
 
   -- Center position
@@ -244,7 +244,7 @@ local function navigate_to_item(line_num, ctx)
       if anchor and ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
         vim.schedule(function()
           if ctx.anchors[anchor] then
-            vim.api.nvim_win_set_cursor(ctx.content_win, {ctx.anchors[anchor], 0})
+            vim.api.nvim_win_set_cursor(ctx.content_win, { ctx.anchors[anchor], 0 })
             vim.cmd("normal! zz")
           end
         end)
@@ -260,8 +260,12 @@ function setup_keymaps(toc_buf, preview_buf, ctx)
   local opts = { buffer = toc_buf, noremap = true, silent = true }
 
   -- Close with q or Esc
-  vim.keymap.set("n", "q", function() M.close_floating_toc(ctx) end, opts)
-  vim.keymap.set("n", "<Esc>", function() M.close_floating_toc(ctx) end, opts)
+  vim.keymap.set("n", "q", function()
+    M.close_floating_toc(ctx)
+  end, opts)
+  vim.keymap.set("n", "<Esc>", function()
+    M.close_floating_toc(ctx)
+  end, opts)
 
   -- Navigate and jump
   vim.keymap.set("n", "<CR>", function()
@@ -273,19 +277,29 @@ function setup_keymaps(toc_buf, preview_buf, ctx)
   -- TOC close
   local keymaps = context.config.keymaps or {}
   if keymaps.toggle_toc then
-    vim.keymap.set("n", keymaps.toggle_toc, function() M.close_floating_toc(ctx) end,
-      { buffer = toc_buf, noremap = true, silent = true, desc = "Close TOC" })
-    vim.keymap.set("n", keymaps.toggle_toc, function() M.close_floating_toc(ctx) end,
-      { buffer = preview_buf, noremap = true, silent = true, desc = "Close TOC" })
+    vim.keymap.set("n", keymaps.toggle_toc, function()
+      M.close_floating_toc(ctx)
+    end, { buffer = toc_buf, noremap = true, silent = true, desc = "Close TOC" })
+    vim.keymap.set("n", keymaps.toggle_toc, function()
+      M.close_floating_toc(ctx)
+    end, { buffer = preview_buf, noremap = true, silent = true, desc = "Close TOC" })
   end
 
   -- TOC rebuild
   local toc_keymaps = context.config.toc_keymaps or {}
   if toc_keymaps.rebuild then
-    vim.keymap.set("n", toc_keymaps.rebuild, ":InkRebuildTOC<CR>",
-      { buffer = toc_buf, noremap = true, silent = true, desc = "Rebuild TOC" })
-    vim.keymap.set("n", toc_keymaps.rebuild, ":InkRebuildTOC<CR>",
-      { buffer = preview_buf, noremap = true, silent = true, desc = "Rebuild TOC" })
+    vim.keymap.set(
+      "n",
+      toc_keymaps.rebuild,
+      ":InkRebuildTOC<CR>",
+      { buffer = toc_buf, noremap = true, silent = true, desc = "Rebuild TOC" }
+    )
+    vim.keymap.set(
+      "n",
+      toc_keymaps.rebuild,
+      ":InkRebuildTOC<CR>",
+      { buffer = preview_buf, noremap = true, silent = true, desc = "Rebuild TOC" }
+    )
   end
 
   -- Update preview on cursor move
@@ -304,7 +318,9 @@ end
 function M.get_current_chapter_name(ctx)
   local default_label = "Chapter " .. (ctx.current_chapter_idx or "?")
   local ctx = ctx or context.current()
-  if not ctx then return default_label end
+  if not ctx then
+    return default_label
+  end
 
   local current_idx = find_current_toc_index(ctx)
   local toc_item = ctx.data.toc[current_idx]
@@ -315,26 +331,28 @@ end
 -- Show floating TOC with preview
 function M.show_floating_toc(ctx)
   ctx = ctx or context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
 
   -- Check if TOC is empty
   if #ctx.data.toc == 0 then
     vim.notify("Table of contents is empty", vim.log.levels.WARN)
     return
   end
-  
+
   local current_label = M.get_current_chapter_name(ctx)
 
   -- Create buffers
   local toc_buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_name(toc_buf, "ink://TOC - " .. (ctx.data.title)  .. " | " .. current_label)
+  vim.api.nvim_buf_set_name(toc_buf, "ink://TOC - " .. ctx.data.title .. " | " .. current_label)
   vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = toc_buf })
   vim.api.nvim_set_option_value("buftype", "nofile", { buf = toc_buf })
   vim.api.nvim_set_option_value("swapfile", false, { buf = toc_buf })
   vim.api.nvim_set_option_value("filetype", "ink-toc", { buf = toc_buf })
 
   local preview_buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_name(preview_buf, "ink://Preview - " .. (ctx.data.title) .. " | " .. current_label)
+  vim.api.nvim_buf_set_name(preview_buf, "ink://Preview - " .. ctx.data.title .. " | " .. current_label)
   vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = preview_buf })
   vim.api.nvim_set_option_value("buftype", "nofile", { buf = preview_buf })
   vim.api.nvim_set_option_value("swapfile", false, { buf = preview_buf })
@@ -371,7 +389,7 @@ function M.show_floating_toc(ctx)
   floating_state.ctx = ctx
 
   -- Set cursor to current chapter (adjust for title line)
-  vim.api.nvim_win_set_cursor(toc_win, {current_idx + 1, 0})
+  vim.api.nvim_win_set_cursor(toc_win, { current_idx + 1, 0 })
 
   -- Initial preview update
   update_preview(current_idx + 1, ctx)
@@ -402,7 +420,9 @@ end
 -- Toggle floating TOC
 function M.toggle_floating_toc(ctx)
   ctx = ctx or context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
 
   if floating_state.toc_win and vim.api.nvim_win_is_valid(floating_state.toc_win) then
     M.close_floating_toc(ctx)

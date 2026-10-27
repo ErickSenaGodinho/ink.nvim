@@ -32,50 +32,54 @@ local function setup_auto_save(ctx)
   end
 
   -- Start repeating timer (interval in milliseconds)
-  timer:start(interval * 1000, interval * 1000, vim.schedule_wrap(function()
-    -- Check if context still exists
-    if not ctx then
-      stop_auto_save(ctx)
-      return
-    end
-
-    -- Check if buffer is still valid
-    if not ctx.padnote_buf or not vim.api.nvim_buf_is_valid(ctx.padnote_buf) then
-      stop_auto_save(ctx)
-      return
-    end
-
-    -- Double-check buffer exists in system (race condition protection)
-    local buf_exists = false
-    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-      if buf == ctx.padnote_buf then
-        buf_exists = true
-        break
+  timer:start(
+    interval * 1000,
+    interval * 1000,
+    vim.schedule_wrap(function()
+      -- Check if context still exists
+      if not ctx then
+        stop_auto_save(ctx)
+        return
       end
-    end
 
-    if not buf_exists then
-      stop_auto_save(ctx)
-      return
-    end
+      -- Check if buffer is still valid
+      if not ctx.padnote_buf or not vim.api.nvim_buf_is_valid(ctx.padnote_buf) then
+        stop_auto_save(ctx)
+        return
+      end
 
-    -- Check if buffer is modified
-    local ok_modified, modified = pcall(vim.api.nvim_get_option_value, "modified", { buf = ctx.padnote_buf })
-    if not ok_modified or not modified then
-      return
-    end
+      -- Double-check buffer exists in system (race condition protection)
+      local buf_exists = false
+      for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+        if buf == ctx.padnote_buf then
+          buf_exists = true
+          break
+        end
+      end
 
-    -- Save buffer
-    local ok, err = pcall(vim.api.nvim_buf_call, ctx.padnote_buf, function()
-      vim.cmd("silent! write")
+      if not buf_exists then
+        stop_auto_save(ctx)
+        return
+      end
+
+      -- Check if buffer is modified
+      local ok_modified, modified = pcall(vim.api.nvim_get_option_value, "modified", { buf = ctx.padnote_buf })
+      if not ok_modified or not modified then
+        return
+      end
+
+      -- Save buffer
+      local ok, err = pcall(vim.api.nvim_buf_call, ctx.padnote_buf, function()
+        vim.cmd("silent! write")
+      end)
+
+      if ok then
+        vim.notify("Padnote auto-saved", vim.log.levels.INFO)
+      else
+        vim.notify("Failed to auto-save padnote: " .. tostring(err), vim.log.levels.WARN)
+      end
     end)
-
-    if ok then
-      vim.notify("Padnote auto-saved", vim.log.levels.INFO)
-    else
-      vim.notify("Failed to auto-save padnote: " .. tostring(err), vim.log.levels.WARN)
-    end
-  end))
+  )
 
   ctx.padnote_auto_save_timer = timer
 end
@@ -104,12 +108,12 @@ function M.open(force_chapter_idx)
   -- Get padnote path
   local path = data.get_padnote_path(ctx.data.slug, chapter_idx, ctx.data)
   local is_new = not data.padnote_exists(ctx.data.slug, chapter_idx, ctx.data)
-  
+
   -- Create file if it doesn't exist
   if is_new then
     data.create_padnote(ctx.data.slug, chapter_idx, ctx.data)
   end
-  
+
   -- Create buffer for the file
   -- Use file-backed buffer (listed=false to not clutter buffer list, but file=true for persistence)
   local buf = vim.fn.bufadd(path)
@@ -117,14 +121,14 @@ function M.open(force_chapter_idx)
     vim.notify("Failed to create buffer for padnote", vim.log.levels.ERROR)
     return false
   end
-  
+
   -- Load buffer content from file
   vim.fn.bufload(buf)
-  
+
   -- Set buffer options
   vim.api.nvim_set_option_value("filetype", "markdown", { buf = buf })
   vim.api.nvim_set_option_value("buflisted", false, { buf = buf })
-  
+
   -- Get content window width to calculate split size
   -- Try to recover window if invalid
   if not ctx.content_win or not vim.api.nvim_win_is_valid(ctx.content_win) then
@@ -137,13 +141,13 @@ function M.open(force_chapter_idx)
         break
       end
     end
-    
+
     if not found then
       vim.notify("Content window not found. Please reopen the book.", vim.log.levels.WARN)
       return false
     end
   end
-  
+
   -- Get padnote configuration
   local config = require("ink.padnotes").config
   local position = config.position or "right"
@@ -234,31 +238,31 @@ function M.open(force_chapter_idx)
   else
     vim.api.nvim_win_set_height(padnote_win, split_size)
   end
-  
+
   -- Update context
   ctx.padnote_buf = buf
   ctx.padnote_win = padnote_win
   ctx.padnote_chapter = chapter_idx
-  
+
   -- Setup auto-save
   setup_auto_save(ctx)
-  
+
   -- If new file, insert header and position cursor
   if is_new then
     vim.api.nvim_buf_call(buf, function()
       local cursor_line = template.insert_header_to_buffer(buf, ctx.data, chapter_idx)
       vim.api.nvim_set_option_value("modified", true, { buf = buf })
     end)
-    vim.api.nvim_win_set_cursor(padnote_win, {6, 0})
+    vim.api.nvim_win_set_cursor(padnote_win, { 6, 0 })
   end
-  
+
   -- Ensure we're in normal mode (scheduled to avoid race conditions)
   vim.schedule(function()
     if vim.api.nvim_win_is_valid(padnote_win) then
       vim.cmd("stopinsert")
     end
   end)
-  
+
   vim.notify("Padnote opened: Chapter " .. chapter_idx, vim.log.levels.INFO)
   return true
 end
@@ -269,15 +273,15 @@ function M.close(save_first)
   if not ctx then
     return false
   end
-  
+
   -- Check if padnote is open
   if not ctx.padnote_buf or not vim.api.nvim_buf_is_valid(ctx.padnote_buf) then
     vim.notify("No padnote open", vim.log.levels.WARN)
     return false
   end
-  
+
   local buf = ctx.padnote_buf
-  
+
   -- Save if requested
   if save_first then
     local modified = vim.api.nvim_get_option_value("modified", { buf = buf })
@@ -285,32 +289,32 @@ function M.close(save_first)
       local ok, err = pcall(vim.api.nvim_buf_call, buf, function()
         vim.cmd("write")
       end)
-      
+
       if not ok then
         vim.notify("Failed to save padnote: " .. tostring(err), vim.log.levels.ERROR)
         return false
       end
     end
   end
-  
+
   -- Stop auto-save timer
   stop_auto_save(ctx)
-  
+
   -- Close window if valid
   if ctx.padnote_win and vim.api.nvim_win_is_valid(ctx.padnote_win) then
     vim.api.nvim_win_close(ctx.padnote_win, false)
   end
-  
+
   -- Delete buffer (wipe to unload from memory)
   if vim.api.nvim_buf_is_valid(buf) then
     vim.api.nvim_buf_delete(buf, { force = false })
   end
-  
+
   -- Clear context
   ctx.padnote_buf = nil
   ctx.padnote_win = nil
   ctx.padnote_chapter = nil
-  
+
   vim.notify("Padnote closed", vim.log.levels.INFO)
   return true
 end
@@ -322,26 +326,26 @@ function M.toggle()
     vim.notify("No active book", vim.log.levels.WARN)
     return false
   end
-  
+
   local current_chapter = ctx.current_chapter_idx
   local pad_exists = data.padnote_exists(ctx.data.slug, current_chapter, ctx.data)
   local pad_is_open = ctx.padnote_buf and vim.api.nvim_buf_is_valid(ctx.padnote_buf)
-  
+
   -- Caso 1: Sem pad → criar e abrir
   if not pad_exists then
-    return M.open()  -- M.open() will create the file with template
+    return M.open() -- M.open() will create the file with template
   end
-  
+
   -- Caso 2: Pad existe, fechado → abrir
   if not pad_is_open then
     return M.open()
   end
-  
+
   -- Caso 3: Pad aberto, mesmo capítulo → fechar e salvar
   if ctx.padnote_chapter == current_chapter then
-    return M.close(true)  -- save_first = true
+    return M.close(true) -- save_first = true
   end
-  
+
   -- Caso 4: Pad aberto, capítulo diferente → trocar automaticamente
   -- Salva e fecha o anterior
   M.close(true)

@@ -17,7 +17,9 @@ end
 
 -- Navigate to a note (opens book if needed and jumps to highlight)
 local function goto_note(note)
-  if not note then return end
+  if not note then
+    return
+  end
 
   local ui = require("ink.ui")
   local context = require("ink.ui.context")
@@ -49,7 +51,9 @@ local function goto_note(note)
 
   -- Now navigate to the chapter with the highlight
   ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
 
   -- Render the chapter if not already there
   if ctx.current_chapter_idx ~= note.chapter then
@@ -58,12 +62,7 @@ local function goto_note(note)
 
   -- Find the highlight position in the buffer
   local lines = vim.api.nvim_buf_get_lines(ctx.content_buf, 0, -1, false)
-  local start_line = util.find_text_position(
-    lines,
-    note.text,
-    note.context_before,
-    note.context_after
-  )
+  local start_line = util.find_text_position(lines, note.text, note.context_before, note.context_after)
 
   if start_line then
     -- Jump to the highlight
@@ -104,12 +103,7 @@ local function show_notes_telescope(notes, title)
             note_preview = note_preview:sub(1, 57) .. "..."
           end
 
-          local display = string.format(
-            "[%s] Ch %d: %s",
-            note.book_title or note.book_slug,
-            note.chapter,
-            note_preview
-          )
+          local display = string.format("[%s] Ch %d: %s", note.book_title or note.book_slug, note.chapter, note_preview)
 
           return {
             value = note,

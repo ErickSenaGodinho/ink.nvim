@@ -93,7 +93,7 @@ local function calculate_stats(highlights, bookmarks)
   return {
     highlight_count = highlight_count,
     bookmark_count = #bookmarks,
-    notes_count = notes_count
+    notes_count = notes_count,
   }
 end
 
@@ -156,13 +156,13 @@ function M.collect_book_data(slug, options)
       tag = metadata.tag or "",
       slug = slug,
       export_date = os.time(),
-      total_chapters = metadata.total_chapters or 1
+      total_chapters = metadata.total_chapters or 1,
     },
     chapter_map = chapter_map,
     highlights = highlights_grouped,
     bookmarks = bookmarks,
     toc = toc,
-    stats = stats
+    stats = stats,
   }
 end
 

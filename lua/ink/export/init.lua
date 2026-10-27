@@ -15,9 +15,19 @@ local function validate_export_path(path)
 
   -- List of unsafe system directories
   local unsafe_dirs = {
-    "/etc", "/bin", "/sbin", "/usr/bin", "/usr/sbin",
-    "/boot", "/dev", "/proc", "/sys", "/var/log",
-    "/root", "/lib", "/lib64"
+    "/etc",
+    "/bin",
+    "/sbin",
+    "/usr/bin",
+    "/usr/sbin",
+    "/boot",
+    "/dev",
+    "/proc",
+    "/sys",
+    "/var/log",
+    "/root",
+    "/lib",
+    "/lib64",
   }
 
   -- Check if path starts with any unsafe directory
@@ -30,10 +40,7 @@ local function validate_export_path(path)
   -- Warn if path is outside home directory (but allow it)
   local home_dir = vim.fn.expand("~")
   if not resolved:match("^" .. vim.pesc(home_dir)) then
-    vim.notify(
-      "Warning: Exporting to location outside home directory",
-      vim.log.levels.WARN
-    )
+    vim.notify("Warning: Exporting to location outside home directory", vim.log.levels.WARN)
   end
 
   return true, nil
@@ -50,7 +57,7 @@ local function export_glossary(slug, book_title, base_output_path)
 
   if not entries or #entries == 0 then
     vim.notify("No glossary entries to export", vim.log.levels.INFO)
-    return true  -- Not an error, just nothing to export
+    return true -- Not an error, just nothing to export
   end
 
   -- Validate base export path

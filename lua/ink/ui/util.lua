@@ -6,7 +6,9 @@ local M = {}
 
 function M.open_image(src, ctx)
   ctx = ctx or context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
 
   -- Check if image opening is enabled
   if context.config and context.config.image_open == false then
@@ -56,12 +58,12 @@ function M.open_image(src, ctx)
   if not fs.exists(image_path) and ctx.data.format ~= "markdown" then
     local chapter_dir = vim.fn.fnamemodify(chapter_path, ":h")
     local fallback_path = vim.fn.fnamemodify(chapter_dir .. "/" .. src, ":p")
-    
+
     if fs.exists(fallback_path) then
-        image_path = fallback_path
+      image_path = fallback_path
     else
-        vim.notify("Image not found: " .. src, vim.log.levels.ERROR)
-        return
+      vim.notify("Image not found: " .. src, vim.log.levels.ERROR)
+      return
     end
   elseif not fs.exists(image_path) then
     -- For Markdown or any other format without fallback
@@ -77,15 +79,21 @@ function M.open_image(src, ctx)
     return
   end
 
-
   -- Use resolved path for opening
   image_path = resolved_path
 
   local ext = image_path:lower():match("%.(%w+)$")
   local valid_images = {
-    jpg = true, jpeg = true, png = true, gif = true,
-    webp = true, svg = true, bmp = true, ico = true,
-    tiff = true, tif = true
+    jpg = true,
+    jpeg = true,
+    png = true,
+    gif = true,
+    webp = true,
+    svg = true,
+    bmp = true,
+    ico = true,
+    tiff = true,
+    tif = true,
   }
   if not ext or not valid_images[ext] then
     vim.notify("Access denied: Not a valid image file", vim.log.levels.ERROR)
@@ -94,16 +102,16 @@ function M.open_image(src, ctx)
 
   local cmd
   if vim.fn.has("mac") == 1 then
-    cmd = {"open", image_path}
+    cmd = { "open", image_path }
   elseif vim.fn.has("unix") == 1 then
     -- Get configured image viewer
     local configured_viewer = context.config and context.config.image_viewer or "default"
-    local default_viewers = {"feh", "sxiv", "imv", "eog", "gwenview", "xdg-open"}
+    local default_viewers = { "feh", "sxiv", "imv", "eog", "gwenview", "xdg-open" }
 
     if configured_viewer ~= "default" then
       -- Try configured viewer first
       if vim.fn.executable(configured_viewer) == 1 then
-        cmd = {configured_viewer, image_path}
+        cmd = { configured_viewer, image_path }
       else
         vim.notify("Configured viewer '" .. configured_viewer .. "' not found, trying fallback", vim.log.levels.WARN)
       end
@@ -113,13 +121,13 @@ function M.open_image(src, ctx)
     if not cmd then
       for _, viewer in ipairs(default_viewers) do
         if vim.fn.executable(viewer) == 1 then
-          cmd = {viewer, image_path}
+          cmd = { viewer, image_path }
           break
         end
       end
     end
   elseif vim.fn.has("win32") == 1 then
-    cmd = {"cmd", "/c", "start", "", image_path}
+    cmd = { "cmd", "/c", "start", "", image_path }
   end
 
   if not cmd then
@@ -133,7 +141,7 @@ function M.open_image(src, ctx)
       if exit_code ~= 0 then
         vim.notify("Failed to open image: " .. src, vim.log.levels.ERROR)
       end
-    end
+    end,
   })
 end
 
@@ -151,18 +159,18 @@ function M.open_url(url)
 
   local cmd
   if vim.fn.has("mac") == 1 then
-    cmd = {"open", url}
+    cmd = { "open", url }
   elseif vim.fn.has("unix") == 1 then
     -- Check for common browsers and tools
-    local browsers = {"xdg-open", "firefox", "chromium", "google-chrome", "brave"}
+    local browsers = { "xdg-open", "firefox", "chromium", "google-chrome", "brave" }
     for _, browser in ipairs(browsers) do
       if vim.fn.executable(browser) == 1 then
-        cmd = {browser, url}
+        cmd = { browser, url }
         break
       end
     end
   elseif vim.fn.has("win32") == 1 then
-    cmd = {"cmd", "/c", "start", "", url}
+    cmd = { "cmd", "/c", "start", "", url }
   end
 
   if not cmd then
@@ -176,7 +184,7 @@ function M.open_url(url)
       if exit_code ~= 0 then
         vim.notify("Failed to open URL: " .. url, vim.log.levels.ERROR)
       end
-    end
+    end,
   })
 end
 
@@ -185,7 +193,9 @@ function M.get_full_text(lines)
 end
 
 function M.normalize_whitespace(text)
-  if not text then return text end
+  if not text then
+    return text
+  end
   return text:gsub("%s+", " ")
 end
 
@@ -243,13 +253,20 @@ function M.find_text_position(lines, text, context_before, context_after, allow_
       local char = full_text:sub(i, i)
       local is_space = char:match("%s")
       if is_space then
-        local prev_char = i > 1 and full_text:sub(i-1, i-1) or ""
-        if not prev_char:match("%s") then norm_pos = norm_pos + 1 end
+        local prev_char = i > 1 and full_text:sub(i - 1, i - 1) or ""
+        if not prev_char:match("%s") then
+          norm_pos = norm_pos + 1
+        end
       else
         norm_pos = norm_pos + 1
       end
-      if norm_pos == norm_text_start and not start_orig then start_orig = i end
-      if norm_pos == norm_text_end then end_orig = i; break end
+      if norm_pos == norm_text_start and not start_orig then
+        start_orig = i
+      end
+      if norm_pos == norm_text_end then
+        end_orig = i
+        break
+      end
     end
 
     if start_orig and end_orig then
@@ -270,13 +287,20 @@ function M.find_text_position(lines, text, context_before, context_after, allow_
         local char = full_text:sub(i, i)
         local is_space = char:match("%s")
         if is_space then
-          local prev_char = i > 1 and full_text:sub(i-1, i-1) or ""
-          if not prev_char:match("%s") then norm_pos = norm_pos + 1 end
+          local prev_char = i > 1 and full_text:sub(i - 1, i - 1) or ""
+          if not prev_char:match("%s") then
+            norm_pos = norm_pos + 1
+          end
         else
           norm_pos = norm_pos + 1
         end
-        if norm_pos == match_start_simple and not start_orig then start_orig = i end
-        if norm_pos == match_start_simple + #normalized_text - 1 then end_orig = i; break end
+        if norm_pos == match_start_simple and not start_orig then
+          start_orig = i
+        end
+        if norm_pos == match_start_simple + #normalized_text - 1 then
+          end_orig = i
+          break
+        end
       end
       if start_orig and end_orig then
         local start_line, start_col = M.offset_to_line_col(lines, start_orig - 1)
@@ -291,7 +315,9 @@ end
 
 function M.get_highlight_at_cursor(ctx)
   ctx = ctx or context.current()
-  if not ctx then return nil end
+  if not ctx then
+    return nil
+  end
   local cursor = vim.api.nvim_win_get_cursor(0)
   local line = cursor[1]
   local col = cursor[2]
@@ -310,9 +336,8 @@ function M.get_highlight_at_cursor(ctx)
       end_col = cached.end_col
     else
       -- Fallback: calculate position (should rarely happen)
-      start_line, start_col, end_line, end_col = M.find_text_position(
-        ctx.rendered_lines, hl.text, hl.context_before, hl.context_after, false
-      )
+      start_line, start_col, end_line, end_col =
+        M.find_text_position(ctx.rendered_lines, hl.text, hl.context_before, hl.context_after, false)
     end
 
     if start_line then
@@ -328,7 +353,9 @@ end
 
 function M.get_link_at_cursor(line, col, ctx)
   ctx = ctx or context.current()
-  if not ctx then return nil end
+  if not ctx then
+    return nil
+  end
   for _, link in ipairs(ctx.links) do
     if link[1] == line and col >= link[2] and col < link[3] then
       return link[4]
@@ -358,10 +385,10 @@ function M.wrap_note_text(note, max_width)
     if vim.fn.strwidth(test_line) > max_width then
       if #current_words > 0 then
         table.insert(lines, current_words)
-        current_words = {word}
+        current_words = { word }
       else
         -- Word alone is larger than max_width, force break
-        table.insert(lines, {word:sub(1, max_width)})
+        table.insert(lines, { word:sub(1, max_width) })
         current_words = {}
       end
     else
@@ -376,7 +403,7 @@ function M.wrap_note_text(note, max_width)
   -- Phase 2: Determine if note should be justified
   -- Calculate total character count
   local total_chars = #note
-  local is_short_note = total_chars < (max_width * 1.5)  -- Less than 1.5 lines worth
+  local is_short_note = total_chars < (max_width * 1.5) -- Less than 1.5 lines worth
 
   -- Phase 3: Format lines
   local formatted_lines = {}
@@ -394,7 +421,7 @@ function M.wrap_note_text(note, max_width)
 
       -- Only justify if line is at least 85% full
       if text_width >= (max_width * 0.85) and extra_spaces > 0 then
-        local gaps = #words - 1  -- number of gaps between words
+        local gaps = #words - 1 -- number of gaps between words
         local spaces_per_gap = math.floor(extra_spaces / gaps)
         local extra_spaces_remainder = extra_spaces % gaps
 
@@ -427,14 +454,18 @@ function M.get_paragraph(buf, line)
   local start = line
   while start > 0 do
     local l = vim.api.nvim_buf_get_lines(buf, start - 1, start, false)[1] or ""
-    if l == "" then break end
+    if l == "" then
+      break
+    end
     start = start - 1
   end
 
   local finish = line
   while finish < line_count - 1 do
     local l = vim.api.nvim_buf_get_lines(buf, finish, finish + 1, false)[1] or ""
-    if l == "" then break end
+    if l == "" then
+      break
+    end
     finish = finish + 1
   end
 
@@ -443,21 +474,18 @@ end
 
 function M.get_highlights_in_range(ctx, start_line, end_line)
   ctx = ctx or context.current()
-  if not ctx then return {} end
+  if not ctx then
+    return {}
+  end
 
   local result = {}
-  local chapter_highlights =
-    user_highlights.get_chapter_highlights(ctx.data.slug, ctx.current_chapter_idx)
+  local chapter_highlights = user_highlights.get_chapter_highlights(ctx.data.slug, ctx.current_chapter_idx)
 
   for _, hl in ipairs(chapter_highlights) do
     local start_line_hl, start_col, end_line_hl, end_col
 
     -- usa cache se possível
-    local cached = user_highlights.get_cached_position(
-      ctx.data.slug,
-      ctx.current_chapter_idx,
-      hl
-    )
+    local cached = user_highlights.get_cached_position(ctx.data.slug, ctx.current_chapter_idx, hl)
 
     if cached and cached.start_line and cached.start_line >= 1 then
       start_line_hl = cached.start_line
@@ -466,18 +494,11 @@ function M.get_highlights_in_range(ctx, start_line, end_line)
       end_col = cached.end_col
     else
       start_line_hl, start_col, end_line_hl, end_col =
-        M.find_text_position(
-          ctx.rendered_lines,
-          hl.text,
-          hl.context_before,
-          hl.context_after,
-          false
-        )
+        M.find_text_position(ctx.rendered_lines, hl.text, hl.context_before, hl.context_after, false)
     end
 
     if start_line_hl then
-      local overlaps =
-        not (end_line_hl < start_line or start_line_hl > end_line)
+      local overlaps = not (end_line_hl < start_line or start_line_hl > end_line)
 
       if overlaps then
         table.insert(result, hl)

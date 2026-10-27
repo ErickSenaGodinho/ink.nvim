@@ -125,8 +125,10 @@ local function check_broken_paths()
   -- Report results
   if broken_count == 0 then
     if web_count > 0 then
-      add_result("ok", string.format("All %d local book paths are valid (%d web resources skipped)",
-        local_count, web_count))
+      add_result(
+        "ok",
+        string.format("All %d local book paths are valid (%d web resources skipped)", local_count, web_count)
+      )
     else
       add_result("ok", string.format("All %d book paths are valid", #library.books))
     end
@@ -165,7 +167,9 @@ local function check_cache()
   local count = 0
   while true do
     local name, type = vim.loop.fs_scandir_next(handle)
-    if not name then break end
+    if not name then
+      break
+    end
     if type == "directory" then
       count = count + 1
     end
@@ -174,7 +178,7 @@ local function check_cache()
   add_result("ok", string.format("Cache directory contains %d extracted EPUBs", count))
 
   -- Calculate cache size
-  local size_output = vim.fn.system({"du", "-sh", cache_dir})
+  local size_output = vim.fn.system({ "du", "-sh", cache_dir })
   local size = size_output:match("^(%S+)")
   if size then
     add_result("ok", "Cache size: " .. size)
@@ -247,8 +251,10 @@ local function check_related_integrity()
     end
   end
 
-  add_result("ok", string.format("related.json is valid (%d books with %d relationships)",
-    books_with_relations, total_relationships))
+  add_result(
+    "ok",
+    string.format("related.json is valid (%d books with %d relationships)", books_with_relations, total_relationships)
+  )
 
   -- Check for orphan references
   local ok_related, related_module = pcall(require, "ink.data.related")
@@ -267,8 +273,7 @@ local function check_related_integrity()
   add_result("warn", string.format("Found %d orphan reference(s) to deleted books:", #orphans))
   for i, orphan in ipairs(orphans) do
     if i <= 3 then -- Show max 3
-      add_result("warn", string.format("  - '%s' (referenced by %d book(s))",
-        orphan.slug, #orphan.referenced_by))
+      add_result("warn", string.format("  - '%s' (referenced by %d book(s))", orphan.slug, #orphan.referenced_by))
     end
   end
   if #orphans > 3 then
@@ -356,7 +361,7 @@ function M.display_results()
     for _, msg in ipairs(results.ok) do
       local line_idx = #lines
       table.insert(lines, "  " .. msg)
-      table.insert(highlights, {line = line_idx, hl = "DiagnosticOk"})
+      table.insert(highlights, { line = line_idx, hl = "DiagnosticOk" })
     end
     table.insert(lines, "")
   end
@@ -368,7 +373,7 @@ function M.display_results()
     for _, msg in ipairs(results.warn) do
       local line_idx = #lines
       table.insert(lines, "  " .. msg)
-      table.insert(highlights, {line = line_idx, hl = "DiagnosticWarn"})
+      table.insert(highlights, { line = line_idx, hl = "DiagnosticWarn" })
     end
     table.insert(lines, "")
   end
@@ -380,15 +385,14 @@ function M.display_results()
     for _, msg in ipairs(results.error) do
       local line_idx = #lines
       table.insert(lines, "  " .. msg)
-      table.insert(highlights, {line = line_idx, hl = "DiagnosticError"})
+      table.insert(highlights, { line = line_idx, hl = "DiagnosticError" })
     end
     table.insert(lines, "")
   end
 
   -- Summary
   table.insert(lines, string.rep("═", 60))
-  local summary = string.format("Summary: %d OK, %d warnings, %d errors",
-    #results.ok, #results.warn, #results.error)
+  local summary = string.format("Summary: %d OK, %d warnings, %d errors", #results.ok, #results.warn, #results.error)
   table.insert(lines, summary)
 
   -- Create buffer

@@ -18,7 +18,7 @@ local function create_test_spine(articles)
     table.insert(spine, {
       id = "article-" .. article_num,
       href = "#art" .. article_num,
-      title = "Art. " .. article_num
+      title = "Art. " .. article_num,
     })
   end
 
@@ -38,7 +38,7 @@ function M.create_test_highlights(slug, chapters)
       context_before = "Before context",
       context_after = "After context",
       color = "yellow",
-      created_at = os.time()
+      created_at = os.time(),
     })
   end
 
@@ -54,10 +54,10 @@ function M.test_article_addition()
   local test_slug = "test-lei-migration"
 
   -- Create old spine: Articles 1, 2, 3, 4
-  local old_spine = create_test_spine({"1", "2", "3", "4"})
+  local old_spine = create_test_spine({ "1", "2", "3", "4" })
 
   -- Create highlights on articles 3 and 4 (indices 3 and 4)
-  M.create_test_highlights(test_slug, {3, 4})
+  M.create_test_highlights(test_slug, { 3, 4 })
 
   print("\nBefore migration:")
   print("  Highlight 1: chapter = 3 (Art. 3)")
@@ -65,7 +65,7 @@ function M.test_article_addition()
 
   -- Create new spine: Articles 1, 2, 2-A, 3, 4
   -- Now Art. 3 is at index 4, Art. 4 is at index 5
-  local new_spine = create_test_spine({"1", "2", "2-A", "3", "4"})
+  local new_spine = create_test_spine({ "1", "2", "2-A", "3", "4" })
 
   -- Run migration
   local stats = migrate_highlights.migrate_highlights(test_slug, old_spine, new_spine)
@@ -92,16 +92,16 @@ function M.test_article_removal()
   local test_slug = "test-lei-removal"
 
   -- Create old spine: Articles 1, 2, 3, 4
-  local old_spine = create_test_spine({"1", "2", "3", "4"})
+  local old_spine = create_test_spine({ "1", "2", "3", "4" })
 
   -- Create highlight on article 3 (index 3)
-  M.create_test_highlights(test_slug, {3})
+  M.create_test_highlights(test_slug, { 3 })
 
   print("\nBefore migration:")
   print("  Highlight 1: chapter = 3 (Art. 3)")
 
   -- Create new spine: Articles 1, 2, 4 (Art. 3 removed)
-  local new_spine = create_test_spine({"1", "2", "4"})
+  local new_spine = create_test_spine({ "1", "2", "4" })
 
   -- Run migration
   local stats = migrate_highlights.migrate_highlights(test_slug, old_spine, new_spine)
@@ -128,10 +128,10 @@ function M.test_multiple_additions()
   local test_slug = "test-lei-multiple"
 
   -- Create old spine: Articles 1, 2, 3
-  local old_spine = create_test_spine({"1", "2", "3"})
+  local old_spine = create_test_spine({ "1", "2", "3" })
 
   -- Create highlights on all articles
-  M.create_test_highlights(test_slug, {1, 2, 3})
+  M.create_test_highlights(test_slug, { 1, 2, 3 })
 
   print("\nBefore migration:")
   print("  Highlight 1: chapter = 1 (Art. 1)")
@@ -139,7 +139,7 @@ function M.test_multiple_additions()
   print("  Highlight 3: chapter = 3 (Art. 3)")
 
   -- Create new spine with multiple additions
-  local new_spine = create_test_spine({"1", "1-A", "1-B", "2", "2-A", "3"})
+  local new_spine = create_test_spine({ "1", "1-A", "1-B", "2", "2-A", "3" })
 
   -- Run migration
   local stats = migrate_highlights.migrate_highlights(test_slug, old_spine, new_spine)

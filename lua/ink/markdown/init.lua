@@ -6,7 +6,7 @@ local M = {}
 
 -- Generate slug from filepath
 local function generate_slug(filepath)
-  local filename = vim.fn.fnamemodify(filepath, ":t:r")  -- Get filename without extension
+  local filename = vim.fn.fnamemodify(filepath, ":t:r") -- Get filename without extension
   return util.slugify(filename) .. "-md"
 end
 
@@ -46,10 +46,10 @@ function M.open(filepath)
   for idx, chapter in ipairs(chapters) do
     local html = parser.parse(chapter.content)
     table.insert(spine, {
-      content = html,           -- HTML content (Markdown specific)
+      content = html, -- HTML content (Markdown specific)
       href = "chapter-" .. idx, -- Virtual href for compatibility
       title = chapter.title,
-      index = idx
+      index = idx,
     })
   end
 
@@ -68,24 +68,23 @@ function M.open(filepath)
   -- Return structure compatible with EPUB
   return {
     title = title,
-    author = "Unknown",  -- MD files don't have metadata by default
+    author = "Unknown", -- MD files don't have metadata by default
     language = "en",
     date = nil,
     description = nil,
     spine = spine,
     toc = table_of_contents,
     slug = slug,
-    base_dir = vim.fn.fnamemodify(filepath, ":h"),  -- Directory containing the MD file
-    cache_dir = nil,  -- MD doesn't need extraction/caching
+    base_dir = vim.fn.fnamemodify(filepath, ":h"), -- Directory containing the MD file
+    cache_dir = nil, -- MD doesn't need extraction/caching
     path = filepath,
-    format = "markdown"  -- Flag to identify format
+    format = "markdown", -- Flag to identify format
   }
 end
 
 -- Check if a file is a markdown file
 function M.is_markdown(filepath)
-  return filepath:match("%.md$") ~= nil
-    or filepath:match("%.markdown$") ~= nil
+  return filepath:match("%.md$") ~= nil or filepath:match("%.markdown$") ~= nil
 end
 
 -- Export parser for advanced usage

@@ -31,7 +31,7 @@ function M.show_clear_cache_ui()
     table.insert(cache_entries, {
       slug = cached.slug,
       title = title or cached.slug,
-      path = cached.path
+      path = cached.path,
     })
   end
 
@@ -52,43 +52,45 @@ function M.show_cache_telescope(cache_entries)
   local actions = require("telescope.actions")
   local action_state = require("telescope.actions.state")
 
-  pickers.new({}, {
-    prompt_title = "Clear Book Cache",
-    finder = finders.new_table({
-      results = cache_entries,
-      entry_maker = function(entry)
-        return {
-          value = entry,
-          display = entry.title,
-          ordinal = entry.title .. " " .. entry.slug,
-        }
+  pickers
+    .new({}, {
+      prompt_title = "Clear Book Cache",
+      finder = finders.new_table({
+        results = cache_entries,
+        entry_maker = function(entry)
+          return {
+            value = entry,
+            display = entry.title,
+            ordinal = entry.title .. " " .. entry.slug,
+          }
+        end,
+      }),
+      sorter = conf.generic_sorter({}),
+      attach_mappings = function(prompt_bufnr, map)
+        actions.select_default:replace(function()
+          local selection = action_state.get_selected_entry()
+          actions.close(prompt_bufnr)
+
+          if selection then
+            M.clear_book_cache(selection.value.slug, selection.value.title)
+          end
+        end)
+
+        -- Add keymap to clear all
+        map("i", "<C-a>", function()
+          actions.close(prompt_bufnr)
+          M.clear_all_cache()
+        end)
+
+        map("n", "<C-a>", function()
+          actions.close(prompt_bufnr)
+          M.clear_all_cache()
+        end)
+
+        return true
       end,
-    }),
-    sorter = conf.generic_sorter({}),
-    attach_mappings = function(prompt_bufnr, map)
-      actions.select_default:replace(function()
-        local selection = action_state.get_selected_entry()
-        actions.close(prompt_bufnr)
-
-        if selection then
-          M.clear_book_cache(selection.value.slug, selection.value.title)
-        end
-      end)
-
-      -- Add keymap to clear all
-      map("i", "<C-a>", function()
-        actions.close(prompt_bufnr)
-        M.clear_all_cache()
-      end)
-
-      map("n", "<C-a>", function()
-        actions.close(prompt_bufnr)
-        M.clear_all_cache()
-      end)
-
-      return true
-    end,
-  }):find()
+    })
+    :find()
 end
 
 -- Fallback floating window for cache management

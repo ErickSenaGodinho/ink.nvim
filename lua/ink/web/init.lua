@@ -143,9 +143,7 @@ local function validate_url(url)
   hostname = hostname:lower():gsub("%.$", "") -- normalize trailing dot
 
   -- Reject IP literals entirely (IPv4, IPv6, decimal, hex, shorthand)
-  if hostname:match("^%d+%.") or
-     hostname:match("^%d+$") or
-     hostname:match(":") then
+  if hostname:match("^%d+%.") or hostname:match("^%d+$") or hostname:match(":") then
     return false, "IP literal hosts are not allowed"
   end
 
@@ -194,22 +192,19 @@ local function validate_url(url)
       end
 
       -- Block loopback, private, link-local
-      if a == 10 or
-         a == 127 or
-         (a == 169 and b == 254) or
-         (a == 192 and b == 168) or
-         (a == 172 and b >= 16 and b <= 31) then
+      if
+        a == 10
+        or a == 127
+        or (a == 169 and b == 254)
+        or (a == 192 and b == 168)
+        or (a == 172 and b >= 16 and b <= 31)
+      then
         return false, "Resolved to private IPv4 address"
       end
-
     elseif entry.family == "inet6" then
       -- Conservative IPv6 policy
       local ip = entry.addr:lower()
-      if ip == "::1" or
-         ip:match("^fe80:") or
-         ip:match("^fc") or
-         ip:match("^fd") or
-         ip:match("^::ffff:") then
+      if ip == "::1" or ip:match("^fe80:") or ip:match("^fc") or ip:match("^fd") or ip:match("^::ffff:") then
         return false, "Resolved to disallowed IPv6 address"
       end
     else
@@ -253,7 +248,7 @@ function M.open(url, opts)
   -- Update changelog if we had a cached version and content changed
   -- Use hash comparison to avoid false positives from whitespace changes
   local has_changes = false
-  local old_spine = nil  -- For highlight migration
+  local old_spine = nil -- For highlight migration
 
   if cached_metadata and cached_metadata.hash then
     -- Compare hashes instead of raw HTML
@@ -262,10 +257,7 @@ function M.open(url, opts)
       has_changes = changed
 
       if has_changes then
-        vim.notify(
-          "Página atualizada! Use :InkWebChangelog para ver as mudanças.",
-          vim.log.levels.WARN
-        )
+        vim.notify("Página atualizada! Use :InkWebChangelog para ver as mudanças.", vim.log.levels.WARN)
 
         -- For Planalto pages, parse old HTML to get old spine for migration
         if is_planalto and cached_html then
@@ -343,7 +335,7 @@ function M.open(url, opts)
     format = "web",
     url = url,
     has_updates = has_changes,
-    is_planalto = is_planalto
+    is_planalto = is_planalto,
   }
 
   -- Add Planalto-specific metadata

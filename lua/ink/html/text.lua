@@ -31,7 +31,14 @@ function M.new_line(state)
     table.insert(state.lines, state.current_line)
 
     local line_idx = #state.lines
-    if state.in_heading or state.in_pre or #state.list_stack > 0 or state.in_dd or state.blockquote_depth > 0 or state.in_title then
+    if
+      state.in_heading
+      or state.in_pre
+      or #state.list_stack > 0
+      or state.in_dd
+      or state.blockquote_depth > 0
+      or state.in_title
+    then
       state.no_justify[line_idx] = true
     end
 
@@ -87,7 +94,7 @@ function M.add_text(state, text)
     end
 
     if #pre_lines == 0 then
-      pre_lines = {""}
+      pre_lines = { "" }
     end
 
     for idx, line in ipairs(pre_lines) do

@@ -174,7 +174,7 @@ function M.add_custom_type(slug, type_name, icon, color)
 
   loaded.custom_types[type_name] = {
     icon = icon or "📝",
-    color = color or "InkGlossary"
+    color = color or "InkGlossary",
   }
 
   data.save(slug, loaded.entries, loaded.custom_types)
@@ -183,7 +183,9 @@ end
 -- Internal function to sync bidirectional relationships
 -- When A has relationship to B, automatically add B → A relationship
 function M._sync_bidirectional_relationships(slug, updated_entry, all_entries)
-  if not updated_entry.relationships then return end
+  if not updated_entry.relationships then
+    return
+  end
 
   -- For each relationship label in the updated entry
   for label, terms in pairs(updated_entry.relationships) do

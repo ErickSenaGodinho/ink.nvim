@@ -8,16 +8,16 @@ local M = {}
 -- Generate header for a new padnote
 -- Format: # {book_title} - Chapter {idx}: {chapter_title}
 --         *Created: {date}*
---         
+--
 --         ---
---         
---         
+--
+--
 function M.generate_header(book_data, chapter_idx)
   local lines = {}
-  
+
   -- Get book title
   local book_title = book_data.title or "Unknown Book"
-  
+
   -- Get chapter title from TOC
   local chapter_title = ""
   if book_data.toc then
@@ -32,15 +32,15 @@ function M.generate_header(book_data, chapter_idx)
       end
     end
   end
-  
+
   -- Fallback to generic chapter name
   if chapter_title == "" then
     chapter_title = "Chapter " .. chapter_idx
   end
-  
+
   -- Format date
   local date = data_module.format_date_ptbr()
-  
+
   -- Build header
   table.insert(lines, "# " .. book_title .. " - Chapter " .. chapter_idx .. ": " .. chapter_title)
   table.insert(lines, "*Created: " .. date .. "*")
@@ -48,7 +48,7 @@ function M.generate_header(book_data, chapter_idx)
   table.insert(lines, "---")
   table.insert(lines, "")
   table.insert(lines, "")
-  
+
   return lines
 end
 
@@ -56,10 +56,10 @@ end
 -- Used when padnote is first created
 function M.insert_header_to_buffer(buf, book_data, chapter_idx)
   local lines = M.generate_header(book_data, chapter_idx)
-  
+
   -- Set lines in buffer
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-  
+
   -- Position cursor after header (line 6, column 0)
   -- User can start typing immediately
   return 6

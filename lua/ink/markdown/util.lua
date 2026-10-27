@@ -12,7 +12,9 @@ function M.slugify(str)
   str = str:gsub("%s+", "-")
   -- Remove only problematic characters, keep unicode letters
   str = str:gsub("[%c%p%s]", function(c)
-    if c == "-" then return c end
+    if c == "-" then
+      return c
+    end
     return ""
   end)
   str = str:gsub("%-+", "-")
@@ -28,7 +30,7 @@ function M.escape_html(text)
     ["<"] = "&lt;",
     [">"] = "&gt;",
     ['"'] = "&quot;",
-    ["'"] = "&#39;"
+    ["'"] = "&#39;",
   }
   return (text:gsub("[&<>\"']", replacements))
 end
@@ -48,9 +50,7 @@ end
 -- Check if line is horizontal rule
 function M.is_horizontal_rule(line)
   local trimmed = M.trim(line)
-  return trimmed:match("^%-%-%-+$") ~= nil
-    or trimmed:match("^%*%*%*+$") ~= nil
-    or trimmed:match("^___+$") ~= nil
+  return trimmed:match("^%-%-%-+$") ~= nil or trimmed:match("^%*%*%*+$") ~= nil or trimmed:match("^___+$") ~= nil
 end
 
 -- Check if line starts a code block

@@ -84,10 +84,9 @@ local function convert_encoding(content, from_encoding, to_encoding)
   end
 
   -- Use vim.system with direct arguments (no shell interpolation)
-  local result = vim.system(
-    {"iconv", "-f", from_encoding, "-t", to_encoding},
-    {stdin = content, text = true}
-  ):wait()
+  local result = vim
+    .system({ "iconv", "-f", from_encoding, "-t", to_encoding }, { stdin = content, text = true })
+    :wait()
 
   if result.code ~= 0 then
     -- If conversion fails, return original content
@@ -114,18 +113,22 @@ local function fetch_url(url)
   -- Planalto website uses ISO-8859-1 encoding
   if web_util.is_planalto_url(url) then
     -- Step 1: Fetch content using curl (direct arguments, no shell)
-    local result = vim.system(
-      {
-        "curl",
-        "-L",              -- Follow redirects
-        "-s",              -- Silent mode
-        "-S",              -- Show errors
-        "--max-time", "30", -- Timeout
-        "-A", user_agent,   -- User agent
-        url                 -- URL as direct argument (safe)
-      },
-      {text = false}  -- Binary mode for encoding conversion
-    ):wait()
+    local result = vim
+      .system(
+        {
+          "curl",
+          "-L", -- Follow redirects
+          "-s", -- Silent mode
+          "-S", -- Show errors
+          "--max-time",
+          "30", -- Timeout
+          "-A",
+          user_agent, -- User agent
+          url, -- URL as direct argument (safe)
+        },
+        { text = false } -- Binary mode for encoding conversion
+      )
+      :wait()
 
     if result.code ~= 0 then
       local error_msg = result.stderr or "Unknown error"
@@ -139,14 +142,19 @@ local function fetch_url(url)
 
   -- For generic URLs, try to detect encoding from content-type or meta tags
   -- First fetch the content
-  local result = vim.system(
-    {
-      "curl", "-L", "-s", "-S", "--max-time", "30",
-      "-A", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
-      url
-    },
-    {text = true}
-  ):wait()
+  local result = vim
+    .system({
+      "curl",
+      "-L",
+      "-s",
+      "-S",
+      "--max-time",
+      "30",
+      "-A",
+      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
+      url,
+    }, { text = true })
+    :wait()
 
   if result.code ~= 0 then
     local error_msg = result.stderr or "Unknown error"
@@ -168,7 +176,7 @@ local function fetch_url(url)
 
   -- Pattern 3: <meta charset=utf-8> (no quotes)
   if not charset then
-    charset = html:match('<meta%s+charset=([^%s>]+)')
+    charset = html:match("<meta%s+charset=([^%s>]+)")
   end
 
   -- Pattern 4: <meta http-equiv="content-type" content="text/html; charset=utf-8">
@@ -269,7 +277,7 @@ function M.fetch_and_cache(url, slug, force)
     downloaded_at = os.time(),
     hash = hash,
     last_checked = os.time(),
-    cache_version = CACHE_VERSION
+    cache_version = CACHE_VERSION,
   }
 
   -- Check if content changed (for update notifications)

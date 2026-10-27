@@ -45,7 +45,7 @@ function M.calculate_version_hash(entries)
   local hash_input = table.concat(parts, "|")
 
   -- Use sha256 if available, otherwise simple checksum
-  if vim.fn.has('nvim-0.10') == 1 and vim.fn.exists('*sha256') == 1 then
+  if vim.fn.has("nvim-0.10") == 1 and vim.fn.exists("*sha256") == 1 then
     return vim.fn.sha256(hash_input)
   else
     -- Fallback: simple checksum (good enough for versioning)
@@ -63,7 +63,7 @@ function M.build_detection_index(entries)
   local index = {
     exact_terms = {},
     aliases = {},
-    entries = {}  -- Map of entry_id -> entry for quick lookup
+    entries = {}, -- Map of entry_id -> entry for quick lookup
   }
 
   for _, entry in ipairs(entries) do
@@ -122,7 +122,9 @@ function M.detect_in_text(text, detection_index)
 
     while true do
       local s, e = normalized:find(pattern, start_pos)
-      if not s then break end
+      if not s then
+        break
+      end
 
       -- Check if this range overlaps with already matched ranges
       local overlaps = false
@@ -144,11 +146,11 @@ function M.detect_in_text(text, detection_index)
         end
 
         table.insert(matches, {
-          term = text:sub(s, e),  -- Original case from text
+          term = text:sub(s, e), -- Original case from text
           entry_id = entry.id,
           start_pos = s,
           end_pos = e,
-          is_alias = is_alias
+          is_alias = is_alias,
         })
 
         -- Mark this range as matched
@@ -180,9 +182,9 @@ function M.detect_in_chapter(lines, detection_index)
         term = match.term,
         entry_id = match.entry_id,
         line = line_idx,
-        start_col = match.start_pos - 1,  -- Convert to 0-based for Neovim
-        end_col = match.end_pos,           -- end_col is exclusive in Neovim
-        is_alias = match.is_alias
+        start_col = match.start_pos - 1, -- Convert to 0-based for Neovim
+        end_col = match.end_pos, -- end_col is exclusive in Neovim
+        is_alias = match.is_alias,
       })
     end
   end

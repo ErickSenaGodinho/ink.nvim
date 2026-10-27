@@ -20,17 +20,14 @@ local function get_all_bookmarks()
 end
 
 local function find_bookmark_line(bm, lines)
-  if not lines then return nil end
+  if not lines then
+    return nil
+  end
   local util = require("ink.ui.util")
 
   -- New bookmarks with text-matching
   if bm.paragraph_text then
-    local start_line = util.find_text_position(
-      lines,
-      bm.paragraph_text,
-      bm.context_before,
-      bm.context_after
-    )
+    local start_line = util.find_text_position(lines, bm.paragraph_text, bm.context_before, bm.context_after)
     return start_line
   -- Legacy bookmarks with line-based positioning
   elseif bm.paragraph_line then
@@ -52,7 +49,9 @@ local function find_paragraph_line(lines, cursor_line)
           if lines[j]:match("^%s*$") then
             return j + 1
           end
-          if j == 1 then return 1 end
+          if j == 1 then
+            return 1
+          end
         end
       end
     end
@@ -64,7 +63,9 @@ local function find_paragraph_line(lines, cursor_line)
     if lines[i]:match("^%s*$") then
       return i + 1
     end
-    if i == 1 then return 1 end
+    if i == 1 then
+      return 1
+    end
   end
   return 1
 end
@@ -74,11 +75,17 @@ local function get_paragraph_text(lines, start_line, max_chars)
   local text = ""
   for i = start_line, #lines do
     local line = lines[i]
-    if line:match("^%s*$") then break end
+    if line:match("^%s*$") then
+      break
+    end
     local trimmed = line:match("^%s*(.-)%s*$")
-    if text ~= "" then text = text .. " " end
+    if text ~= "" then
+      text = text .. " "
+    end
     text = text .. trimmed
-    if #text >= max_chars then break end
+    if #text >= max_chars then
+      break
+    end
   end
   if #text > max_chars then
     text = text:sub(1, max_chars)
@@ -117,14 +124,15 @@ local function get_paragraph_context(lines, start_line, context_len)
   end
 
   return util.normalize_whitespace(paragraph_text),
-         util.normalize_whitespace(context_before),
-         util.normalize_whitespace(context_after)
+    util.normalize_whitespace(context_before),
+    util.normalize_whitespace(context_after)
 end
-
 
 function M.add_bookmark()
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
   local buf = vim.api.nvim_get_current_buf()
   if buf ~= ctx.content_buf then
     vim.notify("Bookmarks can only be added in the content buffer", vim.log.levels.WARN)
@@ -149,7 +157,7 @@ function M.add_bookmark()
         book_title = ctx.data.title,
         book_author = ctx.data.author,
         chapter = ctx.current_chapter_idx,
-        paragraph_line = paragraph_line,  -- For legacy compatibility and sorting
+        paragraph_line = paragraph_line, -- For legacy compatibility and sorting
         paragraph_text = paragraph_text,
         context_before = context_before,
         context_after = context_after,
@@ -164,7 +172,9 @@ end
 
 function M.remove_bookmark()
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
   local buf = vim.api.nvim_get_current_buf()
   if buf ~= ctx.content_buf then
     vim.notify("Bookmarks can only be removed in the content buffer", vim.log.levels.WARN)
@@ -224,7 +234,9 @@ end
 
 function M.edit_bookmark()
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
   local buf = vim.api.nvim_get_current_buf()
   if buf ~= ctx.content_buf then
     vim.notify("Bookmarks can only be edited in the content buffer", vim.log.levels.WARN)
@@ -322,13 +334,13 @@ function M.goto_next()
     vim.defer_fn(function()
       local line = find_bookmark_line(next_bm, ctx.rendered_lines)
       if line and ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
-        vim.api.nvim_win_set_cursor(ctx.content_win, {line, 0})
+        vim.api.nvim_win_set_cursor(ctx.content_win, { line, 0 })
       end
     end, 10)
   else
     local line = find_bookmark_line(next_bm, ctx.rendered_lines)
     if line then
-      vim.api.nvim_win_set_cursor(ctx.content_win, {line, 0})
+      vim.api.nvim_win_set_cursor(ctx.content_win, { line, 0 })
     end
   end
 end
@@ -354,13 +366,13 @@ function M.goto_prev()
     vim.defer_fn(function()
       local line = find_bookmark_line(prev_bm, ctx.rendered_lines)
       if line and ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
-        vim.api.nvim_win_set_cursor(ctx.content_win, {line, 0})
+        vim.api.nvim_win_set_cursor(ctx.content_win, { line, 0 })
       end
     end, 10)
   else
     local line = find_bookmark_line(prev_bm, ctx.rendered_lines)
     if line then
-      vim.api.nvim_win_set_cursor(ctx.content_win, {line, 0})
+      vim.api.nvim_win_set_cursor(ctx.content_win, { line, 0 })
     end
   end
 end
@@ -381,123 +393,130 @@ function M.show_bookmarks_telescope(book_slug, switch_callback)
 
   local all_bookmarks = book_slug and bookmarks.get_by_book(book_slug) or get_all_bookmarks()
   local is_local = book_slug ~= nil
-  local title = is_local and "Bookmarks Book (C-d delete, C-f toggle all, C-b goto Library)" or "Bookmarks All (C-d delete, C-f toggle book, C-b goto Library)"
+  local title = is_local and "Bookmarks Book (C-d delete, C-f toggle all, C-b goto Library)"
+    or "Bookmarks All (C-d delete, C-f toggle book, C-b goto Library)"
 
   if #all_bookmarks == 0 then
     vim.notify("No bookmarks found", vim.log.levels.INFO)
     return
   end
 
-  pickers.new({}, {
-    prompt_title = title,
-    finder = finders.new_table({
-      results = all_bookmarks,
-      entry_maker = function(bm)
-        local display = bm.name .. " | " .. (bm.book_title or "Unknown") .. " | " .. (bm.book_author or "Unknown")
-        return {
-          value = bm,
-          display = display,
-          ordinal = bm.name .. " " .. (bm.book_title or "") .. " " .. (bm.book_author or ""),
-        }
-      end,
-    }),
-    sorter = conf.generic_sorter({}),
-    previewer = previewers.new_buffer_previewer({
-      title = "Bookmark Preview",
-      define_preview = function(self, entry)
-        local bm = entry.value
-        local lines = {
-          "Bookmark: " .. bm.name,
-          "",
-          "Book: " .. (bm.book_title or "Unknown"),
-          "Author: " .. (bm.book_author or "Unknown"),
-          "Chapter: " .. bm.chapter,
-          "",
-          "Preview:",
-          bm.text_preview or "",
-        }
-        vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, lines)
-      end,
-    }),
-    attach_mappings = function(prompt_bufnr, map)
-      actions.select_default:replace(function()
-        local entry = action_state.get_selected_entry()
-        actions.close(prompt_bufnr)
-        if entry then
+  pickers
+    .new({}, {
+      prompt_title = title,
+      finder = finders.new_table({
+        results = all_bookmarks,
+        entry_maker = function(bm)
+          local display = bm.name .. " | " .. (bm.book_title or "Unknown") .. " | " .. (bm.book_author or "Unknown")
+          return {
+            value = bm,
+            display = display,
+            ordinal = bm.name .. " " .. (bm.book_title or "") .. " " .. (bm.book_author or ""),
+          }
+        end,
+      }),
+      sorter = conf.generic_sorter({}),
+      previewer = previewers.new_buffer_previewer({
+        title = "Bookmark Preview",
+        define_preview = function(self, entry)
           local bm = entry.value
-          M.goto_bookmark(bm)
-        end
-      end)
+          local lines = {
+            "Bookmark: " .. bm.name,
+            "",
+            "Book: " .. (bm.book_title or "Unknown"),
+            "Author: " .. (bm.book_author or "Unknown"),
+            "Chapter: " .. bm.chapter,
+            "",
+            "Preview:",
+            bm.text_preview or "",
+          }
+          vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, lines)
+        end,
+      }),
+      attach_mappings = function(prompt_bufnr, map)
+        actions.select_default:replace(function()
+          local entry = action_state.get_selected_entry()
+          actions.close(prompt_bufnr)
+          if entry then
+            local bm = entry.value
+            M.goto_bookmark(bm)
+          end
+        end)
 
-      -- Toggle local/global
-      local function toggle_scope()
-        actions.close(prompt_bufnr)
-        local ctx = context.current()
-        if is_local then
-          -- Go to global
-          M.show_bookmarks_telescope(nil, switch_callback)
-        else
-          -- Go to local (book)
-          if ctx and ctx.data and ctx.data.slug then
-            M.show_bookmarks_telescope(ctx.data.slug, switch_callback)
-          else
-            vim.notify("No book open", vim.log.levels.WARN)
+        -- Toggle local/global
+        local function toggle_scope()
+          actions.close(prompt_bufnr)
+          local ctx = context.current()
+          if is_local then
+            -- Go to global
             M.show_bookmarks_telescope(nil, switch_callback)
+          else
+            -- Go to local (book)
+            if ctx and ctx.data and ctx.data.slug then
+              M.show_bookmarks_telescope(ctx.data.slug, switch_callback)
+            else
+              vim.notify("No book open", vim.log.levels.WARN)
+              M.show_bookmarks_telescope(nil, switch_callback)
+            end
           end
         end
-      end
-      map("i", "<C-f>", toggle_scope)
-      map("n", "<C-f>", toggle_scope)
+        map("i", "<C-f>", toggle_scope)
+        map("n", "<C-f>", toggle_scope)
 
-      -- Switch to library
-      map("i", "<C-b>", function()
-        actions.close(prompt_bufnr)
-        if switch_callback then switch_callback() end
-      end)
-      map("n", "<C-b>", function()
-        actions.close(prompt_bufnr)
-        if switch_callback then switch_callback() end
-      end)
-
-      -- Delete bookmark
-      map("i", "<C-d>", function()
-        local entry = action_state.get_selected_entry()
-        if entry then
-          local bm = entry.value
-          bookmarks.remove(bm.book_slug, bm.id)
-
-          -- Re-render if bookmark is from current book/chapter
-          local ctx = context.current()
-          if ctx and ctx.data and ctx.data.slug == bm.book_slug and ctx.current_chapter_idx == bm.chapter then
-            local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
-            render.render_chapter(ctx.current_chapter_idx, cursor[1], ctx)
-          end
-
+        -- Switch to library
+        map("i", "<C-b>", function()
           actions.close(prompt_bufnr)
-          M.show_bookmarks_telescope(book_slug, switch_callback)
-        end
-      end)
-      map("n", "<C-d>", function()
-        local entry = action_state.get_selected_entry()
-        if entry then
-          local bm = entry.value
-          bookmarks.remove(bm.book_slug, bm.id)
-
-          -- Re-render if bookmark is from current book/chapter
-          local ctx = context.current()
-          if ctx and ctx.data and ctx.data.slug == bm.book_slug and ctx.current_chapter_idx == bm.chapter then
-            local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
-            render.render_chapter(ctx.current_chapter_idx, cursor[1], ctx)
+          if switch_callback then
+            switch_callback()
           end
-
+        end)
+        map("n", "<C-b>", function()
           actions.close(prompt_bufnr)
-          M.show_bookmarks_telescope(book_slug, switch_callback)
-        end
-      end)
+          if switch_callback then
+            switch_callback()
+          end
+        end)
 
-      return true
-    end,
-  }):find()
+        -- Delete bookmark
+        map("i", "<C-d>", function()
+          local entry = action_state.get_selected_entry()
+          if entry then
+            local bm = entry.value
+            bookmarks.remove(bm.book_slug, bm.id)
+
+            -- Re-render if bookmark is from current book/chapter
+            local ctx = context.current()
+            if ctx and ctx.data and ctx.data.slug == bm.book_slug and ctx.current_chapter_idx == bm.chapter then
+              local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
+              render.render_chapter(ctx.current_chapter_idx, cursor[1], ctx)
+            end
+
+            actions.close(prompt_bufnr)
+            M.show_bookmarks_telescope(book_slug, switch_callback)
+          end
+        end)
+        map("n", "<C-d>", function()
+          local entry = action_state.get_selected_entry()
+          if entry then
+            local bm = entry.value
+            bookmarks.remove(bm.book_slug, bm.id)
+
+            -- Re-render if bookmark is from current book/chapter
+            local ctx = context.current()
+            if ctx and ctx.data and ctx.data.slug == bm.book_slug and ctx.current_chapter_idx == bm.chapter then
+              local cursor = vim.api.nvim_win_get_cursor(ctx.content_win)
+              render.render_chapter(ctx.current_chapter_idx, cursor[1], ctx)
+            end
+
+            actions.close(prompt_bufnr)
+            M.show_bookmarks_telescope(book_slug, switch_callback)
+          end
+        end)
+
+        return true
+      end,
+    })
+    :find()
 end
 
 function M.show_bookmarks_floating(book_slug)
@@ -530,12 +549,23 @@ function M.show_bookmarks_floating(book_slug)
   local row = math.floor((win_height - height) / 2)
   local col = math.floor((win_width - width) / 2)
   local win = vim.api.nvim_open_win(buf, true, {
-    relative = "editor", row = row, col = col, width = width, height = height,
-    style = "minimal", border = "rounded", title = " Bookmarks ", title_pos = "center",
+    relative = "editor",
+    row = row,
+    col = col,
+    width = width,
+    height = height,
+    style = "minimal",
+    border = "rounded",
+    title = " Bookmarks ",
+    title_pos = "center",
   })
 
-  vim.keymap.set("n", "q", function() vim.api.nvim_win_close(win, true) end, { buffer = buf })
-  vim.keymap.set("n", "<Esc>", function() vim.api.nvim_win_close(win, true) end, { buffer = buf })
+  vim.keymap.set("n", "q", function()
+    vim.api.nvim_win_close(win, true)
+  end, { buffer = buf })
+  vim.keymap.set("n", "<Esc>", function()
+    vim.api.nvim_win_close(win, true)
+  end, { buffer = buf })
   vim.keymap.set("n", "<CR>", function()
     local cursor = vim.api.nvim_win_get_cursor(win)
     local bm = bm_map[cursor[1]]
@@ -590,7 +620,7 @@ function M.goto_bookmark(bm)
             vim.defer_fn(function()
               local line = find_bookmark_line(bm, new_ctx.rendered_lines)
               if line and new_ctx.content_win and vim.api.nvim_win_is_valid(new_ctx.content_win) then
-                vim.api.nvim_win_set_cursor(new_ctx.content_win, {line, 0})
+                vim.api.nvim_win_set_cursor(new_ctx.content_win, { line, 0 })
               end
             end, 10)
           end
@@ -610,13 +640,13 @@ function M.goto_bookmark(bm)
     vim.defer_fn(function()
       local line = find_bookmark_line(bm, ctx.rendered_lines)
       if line and ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
-        vim.api.nvim_win_set_cursor(ctx.content_win, {line, 0})
+        vim.api.nvim_win_set_cursor(ctx.content_win, { line, 0 })
       end
     end, 10)
   else
     local line = find_bookmark_line(bm, ctx.rendered_lines)
     if line then
-      vim.api.nvim_win_set_cursor(ctx.content_win, {line, 0})
+      vim.api.nvim_win_set_cursor(ctx.content_win, { line, 0 })
     end
   end
 end

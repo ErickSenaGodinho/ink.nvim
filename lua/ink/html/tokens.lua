@@ -1,13 +1,29 @@
 local M = {}
 
 M.block_tags = {
-  h1 = true, h2 = true, h3 = true, h4 = true, h5 = true, h6 = true,
-  p = true, div = true, blockquote = true,
-  ul = true, ol = true, li = true,
-  br = true, hr = true,
-  pre = true, code = true,
-  table = true, tr = true, td = true, th = true,
-  dl = true, dt = true, dd = true
+  h1 = true,
+  h2 = true,
+  h3 = true,
+  h4 = true,
+  h5 = true,
+  h6 = true,
+  p = true,
+  div = true,
+  blockquote = true,
+  ul = true,
+  ol = true,
+  li = true,
+  br = true,
+  hr = true,
+  pre = true,
+  code = true,
+  table = true,
+  tr = true,
+  td = true,
+  th = true,
+  dl = true,
+  dt = true,
+  dd = true,
 }
 
 M.highlight_map = {
@@ -29,7 +45,7 @@ M.highlight_map = {
   s = "InkStrikethrough",
   strike = "InkStrikethrough",
   del = "InkStrikethrough",
-  u = "InkUnderlined"
+  u = "InkUnderlined",
 }
 
 return M

@@ -44,7 +44,7 @@ end
 
 -- Release multiple tables at once
 function M.release_tables(...)
-  local tables = {...}
+  local tables = { ... }
   for i = 1, #tables do
     if tables[i] then
       M.release_table(tables[i])
@@ -63,7 +63,7 @@ function M.stats()
   return {
     size = pool_size,
     max_size = max_pool_size,
-    utilization = string.format("%.1f%%", (pool_size / max_pool_size) * 100)
+    utilization = string.format("%.1f%%", (pool_size / max_pool_size) * 100),
   }
 end
 

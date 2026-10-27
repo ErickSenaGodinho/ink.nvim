@@ -22,7 +22,7 @@ function M.split_by_h1(content)
       current_chapter = {
         title = text,
         lines = {},
-        start_line = line_num
+        start_line = line_num,
       }
     end
 
@@ -35,7 +35,7 @@ function M.split_by_h1(content)
         current_chapter = {
           title = "Introduction",
           lines = {},
-          start_line = 1
+          start_line = 1,
         }
       end
       table.insert(current_chapter.lines, line)
@@ -76,7 +76,7 @@ function M.split_by_h2(content)
       current_chapter = {
         title = text,
         lines = {},
-        start_line = line_num
+        start_line = line_num,
       }
     end
 
@@ -89,7 +89,7 @@ function M.split_by_h2(content)
         current_chapter = {
           title = "Content",
           lines = {},
-          start_line = 1
+          start_line = 1,
         }
       end
       table.insert(current_chapter.lines, line)
@@ -125,11 +125,11 @@ function M.split_into_chapters(content)
 
   -- If still only one chapter, return it
   if #chapters == 0 then
-    chapters = {{
+    chapters = { {
       title = "Content",
       content = content,
-      start_line = 1
-    }}
+      start_line = 1,
+    } }
   end
 
   return chapters
@@ -138,7 +138,7 @@ end
 -- Extract all headings from content for TOC
 -- Returns: { {level = 1, text = "...", line = 1, id = "..."}, ... }
 function M.extract_headings(content, max_level)
-  max_level = max_level or 2  -- Default: H1 and H2 only
+  max_level = max_level or 2 -- Default: H1 and H2 only
   local lines = util.split_lines(content)
   local headings = {}
 
@@ -150,7 +150,7 @@ function M.extract_headings(content, max_level)
         level = level,
         text = text,
         line = line_num,
-        id = util.slugify(text)
+        id = util.slugify(text),
       })
     end
   end
@@ -172,7 +172,7 @@ function M.build_toc(chapters, max_level)
       label = chapter.title,
       href = chapter_id,
       level = 1,
-      chapter_index = chapter_idx
+      chapter_index = chapter_idx,
     })
 
     -- Extract sub-headings within this chapter
@@ -186,7 +186,7 @@ function M.build_toc(chapters, max_level)
             label = heading.text,
             href = chapter_id .. "#" .. heading.id,
             level = heading.level,
-            chapter_index = chapter_idx
+            chapter_index = chapter_idx,
           })
         end
       end
@@ -205,7 +205,7 @@ function M.build_simple_toc(chapters)
       label = chapter.title,
       href = "chapter-" .. chapter_idx,
       level = 1,
-      chapter_index = chapter_idx
+      chapter_index = chapter_idx,
     })
   end
 

@@ -13,7 +13,7 @@ function M.save(slug, entries, custom_types)
   local path = M.get_file_path(slug)
   local json = data.json_encode({
     entries = entries or {},
-    custom_types = custom_types or {}
+    custom_types = custom_types or {},
   })
   local file = io.open(path, "w")
   if not file then

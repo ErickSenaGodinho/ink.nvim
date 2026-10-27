@@ -3,13 +3,15 @@ local entities = require("ink.html.entities")
 local M = {}
 
 -- Security limits
-local MAX_LOOP_ITERATIONS = 10000  -- Maximum iterations for any loop
+local MAX_LOOP_ITERATIONS = 10000 -- Maximum iterations for any loop
 
 -- Escape HTML special characters to prevent XSS
 -- This is critical for user-controlled data inserted into HTML
 local function html_escape(str)
-  if not str then return "" end
-  str = tostring(str)  -- Ensure it's a string
+  if not str then
+    return ""
+  end
+  str = tostring(str) -- Ensure it's a string
   str = str:gsub("&", "&amp;")
   str = str:gsub("<", "&lt;")
   str = str:gsub(">", "&gt;")
@@ -31,7 +33,9 @@ local function extract_matching_tag(html, start_pos, tag_name)
 
   -- Find the end of the opening tag
   local opening_tag_end = html:find(">", pos, true)
-  if not opening_tag_end then return nil, pos end
+  if not opening_tag_end then
+    return nil, pos
+  end
 
   pos = opening_tag_end + 1
   depth = 1
@@ -76,16 +80,38 @@ local CONTENT_TAGS = {
 
 -- Tags/classes that typically contain non-content elements
 local NEGATIVE_PATTERNS = {
-  "nav", "navigation", "menu", "sidebar", "side%-bar",
-  "footer", "header", "ad", "advertisement", "social",
-  "share", "comment", "related", "recommended",
-  "widget", "popup", "modal", "cookie", "banner"
+  "nav",
+  "navigation",
+  "menu",
+  "sidebar",
+  "side%-bar",
+  "footer",
+  "header",
+  "ad",
+  "advertisement",
+  "social",
+  "share",
+  "comment",
+  "related",
+  "recommended",
+  "widget",
+  "popup",
+  "modal",
+  "cookie",
+  "banner",
 }
 
 -- Tags/classes that typically contain main content
 local POSITIVE_PATTERNS = {
-  "article", "content", "main", "post", "entry",
-  "story", "body", "text", "paragraph"
+  "article",
+  "content",
+  "main",
+  "post",
+  "entry",
+  "story",
+  "body",
+  "text",
+  "paragraph",
 }
 
 -- Extract title from HTML
@@ -112,7 +138,9 @@ end
 
 -- Check if string matches negative patterns
 local function is_negative(str)
-  if not str then return false end
+  if not str then
+    return false
+  end
   str = str:lower()
 
   for _, pattern in ipairs(NEGATIVE_PATTERNS) do
@@ -126,7 +154,9 @@ end
 
 -- Check if string matches positive patterns
 local function is_positive(str)
-  if not str then return false end
+  if not str then
+    return false
+  end
   str = str:lower()
 
   for _, pattern in ipairs(POSITIVE_PATTERNS) do
@@ -155,8 +185,12 @@ local function calculate_content_score(html_block)
   score = score + math.min(text_length / 100, 50)
 
   -- Bonus for semantic tags
-  if html_block:match("<article[^>]*>") then score = score + 50 end
-  if html_block:match("<main[^>]*>") then score = score + 50 end
+  if html_block:match("<article[^>]*>") then
+    score = score + 50
+  end
+  if html_block:match("<main[^>]*>") then
+    score = score + 50
+  end
 
   -- Extract class and id from the opening tag
   local class_attr = html_block:match('class="([^"]+)"')
@@ -189,12 +223,14 @@ local function extract_main_content(html)
   while iterations < MAX_LOOP_ITERATIONS do
     iterations = iterations + 1
     local article_start = body:find("<article[^>]*>", pos)
-    if not article_start then break end
+    if not article_start then
+      break
+    end
 
     local match, end_pos = extract_matching_tag(body, article_start, "article")
     if match then
       local score = calculate_content_score(match)
-      table.insert(candidates, {content = match, score = score})
+      table.insert(candidates, { content = match, score = score })
       pos = end_pos + 1
     else
       pos = article_start + 1
@@ -207,12 +243,14 @@ local function extract_main_content(html)
   while iterations < MAX_LOOP_ITERATIONS do
     iterations = iterations + 1
     local main_start = body:find("<main[^>]*>", pos)
-    if not main_start then break end
+    if not main_start then
+      break
+    end
 
     local match, end_pos = extract_matching_tag(body, main_start, "main")
     if match then
       local score = calculate_content_score(match)
-      table.insert(candidates, {content = match, score = score})
+      table.insert(candidates, { content = match, score = score })
       pos = end_pos + 1
     else
       pos = main_start + 1
@@ -225,7 +263,9 @@ local function extract_main_content(html)
   while iterations < MAX_LOOP_ITERATIONS do
     iterations = iterations + 1
     local div_start, div_attrs_end = body:find("<div([^>]*)>", pos)
-    if not div_start then break end
+    if not div_start then
+      break
+    end
 
     local attrs = body:sub(div_start + 4, div_attrs_end - 1)
     local class_attr = attrs:match('class="([^"]+)"')
@@ -237,7 +277,7 @@ local function extract_main_content(html)
       if match then
         local score = calculate_content_score(match)
         if score > 20 then
-          table.insert(candidates, {content = match, score = score})
+          table.insert(candidates, { content = match, score = score })
         end
         pos = end_pos + 1
       else
@@ -254,7 +294,9 @@ local function extract_main_content(html)
   end
 
   -- Sort by score and pick the best
-  table.sort(candidates, function(a, b) return a.score > b.score end)
+  table.sort(candidates, function(a, b)
+    return a.score > b.score
+  end)
 
   return candidates[1].content
 end
@@ -269,7 +311,9 @@ local function clean_html(html)
   while iterations < MAX_LOOP_ITERATIONS do
     iterations = iterations + 1
     local script_start = result:find("<script[^>]*>", pos)
-    if not script_start then break end
+    if not script_start then
+      break
+    end
 
     local match, end_pos = extract_matching_tag(result, script_start, "script")
     if match then
@@ -286,7 +330,9 @@ local function clean_html(html)
   while iterations < MAX_LOOP_ITERATIONS do
     iterations = iterations + 1
     local style_start = result:find("<style[^>]*>", pos)
-    if not style_start then break end
+    if not style_start then
+      break
+    end
 
     local match, end_pos = extract_matching_tag(result, style_start, "style")
     if match then
@@ -301,13 +347,15 @@ local function clean_html(html)
   result = result:gsub("<!%-%-.-%-%->", "")
 
   -- Remove common non-content elements (handles nested tags)
-  for _, tag in ipairs({"nav", "header", "footer"}) do
+  for _, tag in ipairs({ "nav", "header", "footer" }) do
     pos = 1
     iterations = 0
     while iterations < MAX_LOOP_ITERATIONS do
       iterations = iterations + 1
       local tag_start = result:find("<" .. tag .. "[^>]*>", pos)
-      if not tag_start then break end
+      if not tag_start then
+        break
+      end
 
       local match, end_pos = extract_matching_tag(result, tag_start, tag)
       if match then
@@ -337,7 +385,7 @@ function M.parse(html, url)
     url = url,
     raw_content = cleaned_html, -- Full body without scripts/styles
     compiled_content = main_content, -- Extracted main content
-    full_html = html -- Original HTML
+    full_html = html, -- Original HTML
   }
 end
 
@@ -348,7 +396,7 @@ local function add_header_ids(html)
   -- Process both h2 and h3 tags in order of appearance
   local result = html:gsub("(<h[23][^>]*)>", function(opening_tag)
     -- Check if already has an id
-    if opening_tag:match('id=') then
+    if opening_tag:match("id=") then
       return opening_tag .. ">"
     end
     heading_count = heading_count + 1
@@ -366,7 +414,8 @@ function M.build_raw_spine(parsed_page)
   -- Security: Escape title to prevent XSS
   local safe_title = html_escape(parsed_page.title)
 
-  local content = string.format([[
+  local content = string.format(
+    [[
 <style>
   body { max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
   img { max-width: 100%%; height: auto; }
@@ -377,15 +426,18 @@ function M.build_raw_spine(parsed_page)
 <div class="content">
 %s
 </div>
-]], safe_title, content_with_ids)
+]],
+    safe_title,
+    content_with_ids
+  )
 
   return {
     {
       content = content,
       href = "page-content",
       title = parsed_page.title,
-      index = 1
-    }
+      index = 1,
+    },
   }
 end
 
@@ -397,7 +449,8 @@ function M.build_compiled_spine(parsed_page)
   -- Security: Escape title to prevent XSS
   local safe_title = html_escape(parsed_page.title)
 
-  local content = string.format([[
+  local content = string.format(
+    [[
 <style>
   body { max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
   img { max-width: 100%%; height: auto; }
@@ -408,15 +461,18 @@ function M.build_compiled_spine(parsed_page)
 <div class="content">
 %s
 </div>
-]], safe_title, content_with_ids)
+]],
+    safe_title,
+    content_with_ids
+  )
 
   return {
     {
       content = content,
       href = "page-content",
       title = parsed_page.title,
-      index = 1
-    }
+      index = 1,
+    },
   }
 end
 
@@ -468,7 +524,7 @@ function M.build_toc(parsed_page)
         table.insert(toc, {
           label = text,
           href = "page-content#heading-" .. heading_count,
-          level = tag_level - 1 -- h2 = level 1, h3 = level 2
+          level = tag_level - 1, -- h2 = level 1, h3 = level 2
         })
       end
     end

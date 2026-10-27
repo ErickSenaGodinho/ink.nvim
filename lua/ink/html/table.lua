@@ -4,17 +4,17 @@ local M = {}
 
 -- Box-drawing characters for table borders
 local BOX = {
-  TL = "┌",      -- Top-left corner
-  TR = "┐",      -- Top-right corner
-  BL = "└",      -- Bottom-left corner
-  BR = "┘",      -- Bottom-right corner
-  H = "─",       -- Horizontal line
-  V = "│",       -- Vertical line
-  TT = "┬",      -- Top T-joint
-  BT = "┴",      -- Bottom T-joint
-  LT = "├",      -- Left T-joint
-  RT = "┤",      -- Right T-joint
-  CROSS = "┼"    -- Cross
+  TL = "┌", -- Top-left corner
+  TR = "┐", -- Top-right corner
+  BL = "└", -- Bottom-left corner
+  BR = "┘", -- Bottom-right corner
+  H = "─", -- Horizontal line
+  V = "│", -- Vertical line
+  TT = "┬", -- Top T-joint
+  BT = "┴", -- Bottom T-joint
+  LT = "├", -- Left T-joint
+  RT = "┤", -- Right T-joint
+  CROSS = "┼", -- Cross
 }
 
 -- Create new table state
@@ -28,7 +28,7 @@ function M.new_table_state()
     rows = {},
     headers = {},
     col_widths = {},
-    current_cell = ""
+    current_cell = "",
   }
 end
 
@@ -39,7 +39,9 @@ function M.calculate_column_widths(headers, rows, max_width, indent_width)
     num_cols = math.max(num_cols, #row)
   end
 
-  if num_cols == 0 then return {} end
+  if num_cols == 0 then
+    return {}
+  end
 
   -- Calculate available width: max_width - indent - borders - padding
   -- Borders: 2 (left/right) + (num_cols - 1) separators
@@ -102,7 +104,7 @@ function M.wrap_cell_text(text, width)
   text = text:gsub("\n", " "):gsub("\r", " ")
 
   if utils.display_width(text) <= width then
-    return {text}
+    return { text }
   end
 
   local lines = {}
@@ -128,7 +130,7 @@ function M.wrap_cell_text(text, width)
     table.insert(lines, current)
   end
 
-  return #lines > 0 and lines or {""}
+  return #lines > 0 and lines or { "" }
 end
 
 -- Pad text to column width
@@ -154,7 +156,7 @@ function M.render_row(cells, col_widths, indent)
 
   -- Fill missing columns
   for i = #cells + 1, #col_widths do
-    wrapped_cells[i] = {""}
+    wrapped_cells[i] = { "" }
   end
 
   -- Render each line
@@ -195,12 +197,7 @@ function M.render_table(table_state, max_width, indent)
   local indent_width = utils.display_width(indent)
 
   -- Calculate column widths
-  local col_widths = M.calculate_column_widths(
-    table_state.headers,
-    table_state.rows,
-    max_width,
-    indent_width
-  )
+  local col_widths = M.calculate_column_widths(table_state.headers, table_state.rows, max_width, indent_width)
 
   if #col_widths == 0 then
     return {}

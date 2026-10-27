@@ -6,14 +6,14 @@ local M = {}
 
 -- Pre-compiled patterns (compiled once on module load)
 M.TAG_PATTERN = "<[^>]+>"
-M.ID_PATTERN = 'id=["\']([^"\']+)["\']'
-M.HREF_PATTERN = 'href=["\']([^"\']+)["\']'
-M.SRC_PATTERN = 'src=["\']([^"\']+)["\']'
-M.CLASS_PATTERN = 'class=["\']([^"\']+)["\']'
-M.STYLE_PATTERN = 'style=["\']([^"\']+)["\']'
-M.TITLE_PATTERN = 'title=["\']([^"\']+)["\']'
-M.NAME_PATTERN = 'name=["\']([^"\']+)["\']'
-M.ALT_PATTERN = 'alt=["\']([^"\']+)["\']'
+M.ID_PATTERN = "id=[\"']([^\"']+)[\"']"
+M.HREF_PATTERN = "href=[\"']([^\"']+)[\"']"
+M.SRC_PATTERN = "src=[\"']([^\"']+)[\"']"
+M.CLASS_PATTERN = "class=[\"']([^\"']+)[\"']"
+M.STYLE_PATTERN = "style=[\"']([^\"']+)[\"']"
+M.TITLE_PATTERN = "title=[\"']([^\"']+)[\"']"
+M.NAME_PATTERN = "name=[\"']([^\"']+)[\"']"
+M.ALT_PATTERN = "alt=[\"']([^\"']+)[\"']"
 
 -- Pattern for extracting tag name from tag content
 M.TAG_NAME_PATTERN = "^/?([%w]+)"
@@ -39,7 +39,7 @@ function M.extract_attributes(tag_content)
     style = tag_content:match(M.STYLE_PATTERN),
     title = tag_content:match(M.TITLE_PATTERN),
     name = tag_content:match(M.NAME_PATTERN),
-    alt = tag_content:match(M.ALT_PATTERN)
+    alt = tag_content:match(M.ALT_PATTERN),
   }
 end
 

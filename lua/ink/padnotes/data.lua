@@ -8,15 +8,25 @@ local M = {}
 
 -- Mapeamento de meses em português
 local MONTHS_PT = {
-  "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-  "Jul", "Ago", "Set", "Out", "Nov", "Dez"
+  "Jan",
+  "Fev",
+  "Mar",
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
 }
 
 -- Get padnotes directory based on config
 function M.get_padnotes_dir(slug, book_data, config)
   config = config or require("ink.padnotes").config
   local path = config.path or "default"
-  
+
   local dir
   if path == "default" then
     -- Default: ~/.local/share/nvim/ink.nvim/books/{slug}/padnotes/
@@ -38,10 +48,10 @@ function M.get_padnotes_dir(slug, book_data, config)
     -- Fallback to default
     dir = data_module.get_book_dir(slug) .. "/padnotes"
   end
-  
+
   -- Ensure directory exists
   fs.ensure_dir(dir)
-  
+
   return dir
 end
 
@@ -52,21 +62,21 @@ function M.sanitize_chapter_title(title)
   if not title or title == "" then
     return ""
   end
-  
+
   -- Remove/replace invalid filesystem characters: / \ : * ? " < > |
   local sanitized = title
-  sanitized = sanitized:gsub('[/\\:*?"<>|]', '_')
-  
+  sanitized = sanitized:gsub('[/\\:*?"<>|]', "_")
+
   -- Replace spaces with underscores
-  sanitized = sanitized:gsub('%s+', '_')
-  
+  sanitized = sanitized:gsub("%s+", "_")
+
   -- Remove leading/trailing underscores
-  sanitized = sanitized:gsub('^_+', '')
-  sanitized = sanitized:gsub('_+$', '')
-  
+  sanitized = sanitized:gsub("^_+", "")
+  sanitized = sanitized:gsub("_+$", "")
+
   -- Collapse multiple underscores
-  sanitized = sanitized:gsub('_+', '_')
-  
+  sanitized = sanitized:gsub("_+", "_")
+
   return sanitized
 end
 
@@ -82,7 +92,7 @@ end
 -- Get full path to padnote file
 function M.get_padnote_path(slug, chapter_idx, book_data)
   local dir = M.get_padnotes_dir(slug, book_data)
-  
+
   -- Get chapter title from TOC
   local chapter_title = ""
   if book_data and book_data.toc then
@@ -98,12 +108,12 @@ function M.get_padnote_path(slug, chapter_idx, book_data)
       end
     end
   end
-  
+
   -- Fallback to generic chapter name
   if chapter_title == "" then
     chapter_title = "Chapter_" .. chapter_idx
   end
-  
+
   local filename = M.get_padnote_filename(chapter_idx, chapter_title)
   return dir .. "/" .. filename
 end
@@ -117,24 +127,24 @@ end
 -- Create new padnote file (empty, template added by actions module)
 function M.create_padnote(slug, chapter_idx, book_data)
   local path = M.get_padnote_path(slug, chapter_idx, book_data)
-  
+
   -- Check directory write permissions
   local dir = vim.fn.fnamemodify(path, ":h")
   local writable = vim.fn.filewritable(dir)
-  
+
   if writable ~= 2 then
     vim.notify("Cannot write to directory: " .. dir, vim.log.levels.ERROR)
     vim.notify("Please check permissions or configure a different path", vim.log.levels.ERROR)
     return nil
   end
-  
+
   -- Create empty file
   local file = io.open(path, "w")
   if not file then
     vim.notify("Failed to create padnote: " .. path, vim.log.levels.ERROR)
     return nil
   end
-  
+
   file:close()
   return path
 end
@@ -144,22 +154,24 @@ end
 function M.list_padnotes(slug, book_data)
   local dir = M.get_padnotes_dir(slug, book_data)
   local padnotes = {}
-  
+
   -- Check if directory exists
   if not fs.dir_exists(dir) then
     return padnotes
   end
-  
+
   -- Scan directory for .md files
   local handle = vim.loop.fs_scandir(dir)
   if not handle then
     return padnotes
   end
-  
+
   while true do
     local name, type = vim.loop.fs_scandir_next(handle)
-    if not name then break end
-    
+    if not name then
+      break
+    end
+
     -- Only process .md files
     if type == "file" and name:match("%.md$") then
       -- Parse filename to extract chapter_idx
@@ -167,7 +179,7 @@ function M.list_padnotes(slug, book_data)
       local chapter_idx = name:match("^chapter_(%d+)")
       if chapter_idx then
         chapter_idx = tonumber(chapter_idx)
-        
+
         -- Extract title from filename (after chapter_XX_)
         local title = name:match("^chapter_%d+_(.+)%.md$")
         if not title then
@@ -176,7 +188,7 @@ function M.list_padnotes(slug, book_data)
           -- Replace underscores with spaces for display
           title = title:gsub("_", " ")
         end
-        
+
         table.insert(padnotes, {
           chapter_idx = chapter_idx,
           filename = name,
@@ -186,12 +198,12 @@ function M.list_padnotes(slug, book_data)
       end
     end
   end
-  
+
   -- Sort by chapter_idx
   table.sort(padnotes, function(a, b)
     return a.chapter_idx < b.chapter_idx
   end)
-  
+
   return padnotes
 end
 
@@ -199,16 +211,16 @@ end
 -- Skips header and empty lines, returns first max_lines of content
 function M.read_padnote_preview(path, max_lines)
   max_lines = max_lines or 15
-  
+
   local content = fs.read_file(path)
   if not content then
     return { "(Failed to read file)" }
   end
-  
+
   local lines = {}
   local line_count = 0
   local skip_header = true
-  
+
   for line in content:gmatch("[^\n]+") do
     -- Skip header section (until we hit ---)
     if skip_header then
@@ -217,26 +229,26 @@ function M.read_padnote_preview(path, max_lines)
       end
       goto continue
     end
-    
+
     -- Skip empty lines at the beginning
     if line_count == 0 and line:match("^%s*$") then
       goto continue
     end
-    
+
     table.insert(lines, line)
     line_count = line_count + 1
-    
+
     if line_count >= max_lines then
       break
     end
-    
+
     ::continue::
   end
-  
+
   if #lines == 0 then
     return { "(Empty padnote)" }
   end
-  
+
   return lines
 end
 
@@ -247,7 +259,7 @@ function M.format_date_ptbr(timestamp)
   local day = string.format("%02d", date_table.day)
   local month = MONTHS_PT[date_table.month]
   local year = date_table.year
-  
+
   return string.format("%s %s %d", day, month, year)
 end
 

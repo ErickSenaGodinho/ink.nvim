@@ -8,14 +8,19 @@ local M = {}
 
 function M.add_note()
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
   local buf = vim.api.nvim_get_current_buf()
   if buf ~= ctx.content_buf then
     vim.notify("Notes can only be added in the content buffer", vim.log.levels.WARN)
     return
   end
   local hl = util.get_highlight_at_cursor(ctx)
-  if not hl then vim.notify("No highlight under cursor", vim.log.levels.WARN); return end
+  if not hl then
+    vim.notify("No highlight under cursor", vim.log.levels.WARN)
+    return
+  end
   local existing_note = hl.note or ""
 
   modals.open_note_input(existing_note, function(text)
@@ -26,10 +31,15 @@ function M.add_note()
       vim.api.nvim_win_set_cursor(ctx.content_win, cursor)
     end
     if text and text ~= "" then
-      if existing_note ~= "" then vim.notify("Note updated", vim.log.levels.INFO)
-      else vim.notify("Note added", vim.log.levels.INFO) end
+      if existing_note ~= "" then
+        vim.notify("Note updated", vim.log.levels.INFO)
+      else
+        vim.notify("Note added", vim.log.levels.INFO)
+      end
     else
-      if existing_note ~= "" then vim.notify("Note removed", vim.log.levels.INFO) end
+      if existing_note ~= "" then
+        vim.notify("Note removed", vim.log.levels.INFO)
+      end
     end
   end)
 end
@@ -38,12 +48,23 @@ M.edit_note = M.add_note
 
 function M.remove_note()
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
   local buf = vim.api.nvim_get_current_buf()
-  if buf ~= ctx.content_buf then vim.notify("Notes can only be removed in the content buffer", vim.log.levels.WARN); return end
+  if buf ~= ctx.content_buf then
+    vim.notify("Notes can only be removed in the content buffer", vim.log.levels.WARN)
+    return
+  end
   local hl = util.get_highlight_at_cursor(ctx)
-  if not hl then vim.notify("No highlight under cursor", vim.log.levels.WARN); return end
-  if not hl.note or hl.note == "" then vim.notify("No note on this highlight", vim.log.levels.INFO); return end
+  if not hl then
+    vim.notify("No highlight under cursor", vim.log.levels.WARN)
+    return
+  end
+  if not hl.note or hl.note == "" then
+    vim.notify("No note on this highlight", vim.log.levels.INFO)
+    return
+  end
 
   -- Require confirmation
   local is_transparent = hl.color == "none"
@@ -78,8 +99,8 @@ end
 local function get_selected_range()
   vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "x", false)
 
-  local start_pos = vim.api.nvim_buf_get_mark(0, '<')
-  local end_pos = vim.api.nvim_buf_get_mark(0, '>')
+  local start_pos = vim.api.nvim_buf_get_mark(0, "<")
+  local end_pos = vim.api.nvim_buf_get_mark(0, ">")
 
   local start_line, start_col = start_pos[1], start_pos[2]
   local end_line, end_col = end_pos[1], end_pos[2]
@@ -93,16 +114,25 @@ end
 
 function M.add_highlight(color)
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
   local buf = vim.api.nvim_get_current_buf()
-  if buf ~= ctx.content_buf then vim.notify("Highlights can only be added in the content buffer", vim.log.levels.WARN); return end
-  if not context.config.highlight_colors[color] then vim.notify("Unknown highlight color: " .. color, vim.log.levels.ERROR); return end
+  if buf ~= ctx.content_buf then
+    vim.notify("Highlights can only be added in the content buffer", vim.log.levels.WARN)
+    return
+  end
+  if not context.config.highlight_colors[color] then
+    vim.notify("Unknown highlight color: " .. color, vim.log.levels.ERROR)
+    return
+  end
 
   local start_line, start_col, end_line, end_col = get_selected_range()
 
   local lines = vim.api.nvim_buf_get_lines(ctx.content_buf, start_line - 1, end_line, false)
   local text
-  if #lines == 1 then text = lines[1]:sub(start_col + 1, end_col)
+  if #lines == 1 then
+    text = lines[1]:sub(start_col + 1, end_col)
   else
     lines[1] = lines[1]:sub(start_col + 1)
     lines[#lines] = lines[#lines]:sub(1, end_col)
@@ -134,25 +164,33 @@ function M.add_highlight(color)
     text = text,
     context_before = context_before,
     context_after = context_after,
-    color = color
+    color = color,
   }
   user_highlights.add_highlight(ctx.data.slug, highlight)
   render.refresh_highlights(ctx)
   if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
-    vim.api.nvim_win_set_cursor(ctx.content_win, {end_line, end_col})
+    vim.api.nvim_win_set_cursor(ctx.content_win, { end_line, end_col })
   end
   vim.notify("Highlight added", vim.log.levels.INFO)
 end
 
 function M.remove_highlight()
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
   local buf = vim.api.nvim_get_current_buf()
-  if buf ~= ctx.content_buf then vim.notify("Highlights can only be removed in the content buffer", vim.log.levels.WARN); return end
+  if buf ~= ctx.content_buf then
+    vim.notify("Highlights can only be removed in the content buffer", vim.log.levels.WARN)
+    return
+  end
   local cursor = vim.api.nvim_win_get_cursor(0)
   local line = cursor[1]
   local hl = util.get_highlight_at_cursor(ctx)
-  if not hl then vim.notify("No highlight under cursor", vim.log.levels.WARN); return end
+  if not hl then
+    vim.notify("No highlight under cursor", vim.log.levels.WARN)
+    return
+  end
 
   -- Check if highlight has a note
   local has_note = hl.note and hl.note ~= ""
@@ -185,7 +223,9 @@ end
 
 function M.change_highlight_color(color)
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
 
   local buf = vim.api.nvim_get_current_buf()
   if buf ~= ctx.content_buf then
@@ -233,7 +273,9 @@ end
 
 function M.add_note_on_selection()
   local ctx = context.current()
-  if not ctx then return end
+  if not ctx then
+    return
+  end
   local buf = vim.api.nvim_get_current_buf()
   if buf ~= ctx.content_buf then
     vim.notify("Notes can only be added in the content buffer", vim.log.levels.WARN)
@@ -278,7 +320,7 @@ function M.add_note_on_selection()
     text = text,
     context_before = context_before,
     context_after = context_after,
-    color = "none"
+    color = "none",
   }
 
   -- Open note input modal
@@ -289,7 +331,7 @@ function M.add_note_on_selection()
       user_highlights.update_note(ctx.data.slug, highlight, note_text)
       render.refresh_highlights(ctx)
       if ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win) then
-        vim.api.nvim_win_set_cursor(ctx.content_win, {end_line, end_col})
+        vim.api.nvim_win_set_cursor(ctx.content_win, { end_line, end_col })
       end
       vim.notify("Note added", vim.log.levels.INFO)
     end

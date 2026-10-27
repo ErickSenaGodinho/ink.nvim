@@ -9,13 +9,13 @@ ParserState.__index = ParserState
 
 function ParserState:new()
   local state = {
-    html = {},           -- Output HTML lines
+    html = {}, -- Output HTML lines
     in_code_block = false,
     in_list = false,
-    list_stack = {},     -- Stack of list types (ul/ol)
+    list_stack = {}, -- Stack of list types (ul/ol)
     in_blockquote = false,
     blockquote_level = 0,
-    prev_was_blank = true
+    prev_was_blank = true,
   }
   setmetatable(state, ParserState)
   return state

@@ -59,7 +59,7 @@ local function convert_to_graph_data(entries)
       definition = entry.definition or "",
       aliases = entry.aliases or {},
       relationships = entry.relationships or {},
-      exists = true
+      exists = true,
     })
   end
 
@@ -73,7 +73,7 @@ local function convert_to_graph_data(entries)
         definition = "This term is referenced but not yet defined in the glossary",
         aliases = {},
         relationships = {},
-        exists = false
+        exists = false,
       })
     end
   end
@@ -88,7 +88,7 @@ local function convert_to_graph_data(entries)
           table.insert(all_links, {
             source = entry.term,
             target = resolved_target,
-            label = label
+            label = label,
           })
         end
       end
@@ -128,7 +128,9 @@ end
 
 -- Check if table is array (has only consecutive numeric keys starting from 1)
 local function is_array(t)
-  if type(t) ~= "table" then return false end
+  if type(t) ~= "table" then
+    return false
+  end
   local count = 0
   for k, _ in pairs(t) do
     count = count + 1

@@ -37,12 +37,13 @@ function M.parse(content, max_width, class_styles, justify_text, typography)
   local table_state = table_module.new_table_state()
 
   -- Default typography settings if not provided
-  typography = typography or {
-    line_spacing = 1,
-    paragraph_spacing = 1,
-    indent_size = 4,
-    list_indent = 2
-  }
+  typography = typography
+    or {
+      line_spacing = 1,
+      paragraph_spacing = 1,
+      indent_size = 4,
+      list_indent = 2,
+    }
 
   local state = {
     lines = lines,
@@ -71,7 +72,7 @@ function M.parse(content, max_width, class_styles, justify_text, typography)
     max_width = max_width,
     class_styles = class_styles,
     table_state = table_state,
-    typography = typography
+    typography = typography,
   }
 
   -- Main parsing loop (optimized with pattern caching)
@@ -138,7 +139,7 @@ function M.parse(content, max_width, class_styles, justify_text, typography)
     anchors = anchors,
     justify_map = justify_map,
     centered_lines = centered_lines,
-    headings = headings
+    headings = headings,
   }
 end
 

@@ -45,7 +45,7 @@ function M.save_preference(slug, version)
 
   local prefs = {
     version = version,
-    updated_at = os.time()
+    updated_at = os.time(),
   }
 
   local content = data.json_encode(prefs)
@@ -90,12 +90,12 @@ function M.create_versioned_data(page_data, raw_spine, compiled_spine)
   page_data.versions = {
     raw = {
       spine = raw_spine,
-      name = M.get_display_name(M.VERSION_RAW)
+      name = M.get_display_name(M.VERSION_RAW),
     },
     compiled = {
       spine = compiled_spine,
-      name = M.get_display_name(M.VERSION_COMPILED)
-    }
+      name = M.get_display_name(M.VERSION_COMPILED),
+    },
   }
   return page_data
 end

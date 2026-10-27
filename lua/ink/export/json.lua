@@ -22,7 +22,7 @@ local function flatten_highlights(highlights_grouped, chapter_map, include_conte
         chapter = ch,
         chapter_title = chapter_map[ch] or ("Chapter " .. ch),
         text = hl.text or "",
-        color = hl.color or "yellow"
+        color = hl.color or "yellow",
       }
 
       -- Add context if requested
@@ -57,7 +57,7 @@ local function enrich_bookmarks(bookmarks, chapter_map)
       chapter_title = chapter_map[bm.chapter] or ("Chapter " .. bm.chapter),
       paragraph_line = bm.paragraph_line or 0,
       text_preview = bm.text_preview or "",
-      created_at = bm.created_at
+      created_at = bm.created_at,
     }
 
     if bm.updated_at then
@@ -86,17 +86,13 @@ function M.format(book_data, options)
       slug = book_data.metadata.slug,
       export_date = book_data.metadata.export_date,
       export_date_formatted = util.format_timestamp(book_data.metadata.export_date),
-      total_chapters = book_data.metadata.total_chapters
+      total_chapters = book_data.metadata.total_chapters,
     },
-    statistics = book_data.stats
+    statistics = book_data.stats,
   }
 
   -- Always include highlights (default export)
-  export.highlights = flatten_highlights(
-    book_data.highlights,
-    book_data.chapter_map,
-    options.include_context
-  )
+  export.highlights = flatten_highlights(book_data.highlights, book_data.chapter_map, options.include_context)
 
   -- Optional: bookmarks
   if options.include_bookmarks and book_data.bookmarks and #book_data.bookmarks > 0 then

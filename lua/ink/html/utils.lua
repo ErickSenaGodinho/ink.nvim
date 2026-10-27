@@ -6,7 +6,9 @@ function M.display_width(str)
 end
 
 function M.merge_highlights(hls)
-  if #hls == 0 then return hls end
+  if #hls == 0 then
+    return hls
+  end
 
   table.sort(hls, function(a, b)
     if a[1] ~= b[1] then
@@ -21,9 +23,7 @@ function M.merge_highlights(hls)
   for i = 2, #hls do
     local next_hl = hls[i]
 
-    if current[1] == next_hl[1] and
-       current[4] == next_hl[4] and
-       current[3] >= next_hl[2] - 1 then
+    if current[1] == next_hl[1] and current[4] == next_hl[4] and current[3] >= next_hl[2] - 1 then
       current[3] = math.max(current[3], next_hl[3])
     else
       table.insert(merged, current)
@@ -36,7 +36,9 @@ function M.merge_highlights(hls)
 end
 
 function M.forward_map_column(word_info, col)
-  if not word_info then return col end
+  if not word_info then
+    return col
+  end
 
   for _, wi in ipairs(word_info) do
     if col >= wi.orig_start and col < wi.orig_end then
@@ -62,7 +64,9 @@ function M.forward_map_column(word_info, col)
 end
 
 function M.reverse_map_column(word_info, col)
-  if not word_info then return col end
+  if not word_info then
+    return col
+  end
 
   for _, wi in ipairs(word_info) do
     if col >= wi.new_start and col < wi.new_end then

@@ -12,48 +12,48 @@ local M = {}
 --- - There's only ONE window in the current tab (to avoid messing up splits)
 --- @return boolean - true if buffer can be reused, false otherwise
 function M.is_current_buffer_empty()
-	-- If there are multiple windows in current tab, don't reuse
-	-- (opening a book creates splits that would mess up the layout)
-	local tabpage = vim.api.nvim_get_current_tabpage()
-	local windows = vim.api.nvim_tabpage_list_wins(tabpage)
-	if #windows > 1 then
-		return false
-	end
+  -- If there are multiple windows in current tab, don't reuse
+  -- (opening a book creates splits that would mess up the layout)
+  local tabpage = vim.api.nvim_get_current_tabpage()
+  local windows = vim.api.nvim_tabpage_list_wins(tabpage)
+  if #windows > 1 then
+    return false
+  end
 
-	local buf = vim.api.nvim_get_current_buf()
+  local buf = vim.api.nvim_get_current_buf()
 
-	-- Check if buffer has a name
-	local bufname = vim.api.nvim_buf_get_name(buf)
-	if bufname ~= "" then
-		return false
-	end
+  -- Check if buffer has a name
+  local bufname = vim.api.nvim_buf_get_name(buf)
+  if bufname ~= "" then
+    return false
+  end
 
-	-- Check if buffer is modified
-	if vim.api.nvim_get_option_value("modified", { buf = buf }) then
-		return false
-	end
+  -- Check if buffer is modified
+  if vim.api.nvim_get_option_value("modified", { buf = buf }) then
+    return false
+  end
 
-	-- Check if it's a special buffer type (should be empty/normal)
-	local buftype = vim.api.nvim_get_option_value("buftype", { buf = buf })
-	if buftype ~= "" then
-		return false
-	end
+  -- Check if it's a special buffer type (should be empty/normal)
+  local buftype = vim.api.nvim_get_option_value("buftype", { buf = buf })
+  if buftype ~= "" then
+    return false
+  end
 
-	-- Check if buffer has any content
-	local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-	if #lines == 0 then
-		return true
-	end
+  -- Check if buffer has any content
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  if #lines == 0 then
+    return true
+  end
 
-	-- Check if all lines are empty or contain only whitespace
-	for _, line in ipairs(lines) do
-		-- Match any non-whitespace character
-		if line:match("%S") then
-			return false
-		end
-	end
+  -- Check if all lines are empty or contain only whitespace
+  for _, line in ipairs(lines) do
+    -- Match any non-whitespace character
+    if line:match("%S") then
+      return false
+    end
+  end
 
-	return true
+  return true
 end
 
 --- Opens a buffer in a new tab or in the current window.
@@ -62,19 +62,19 @@ end
 --- @param buf integer Buffer handle to display.
 --- @return integer win Window handle where the buffer was set.
 function M.open_new_tab(in_new_tab, buf)
-	local win, empty_buffer
+  local win, empty_buffer
 
-	if in_new_tab then
-		vim.cmd("tabnew")
-		empty_buffer = vim.api.nvim_get_current_buf()
-	end
+  if in_new_tab then
+    vim.cmd("tabnew")
+    empty_buffer = vim.api.nvim_get_current_buf()
+  end
 
-	win = vim.api.nvim_get_current_win()
-	vim.api.nvim_win_set_buf(win, buf)
+  win = vim.api.nvim_get_current_win()
+  vim.api.nvim_win_set_buf(win, buf)
 
-	if empty_buffer and vim.api.nvim_buf_is_valid(empty_buffer) then
-		vim.api.nvim_buf_delete(empty_buffer, { force = true })
-	end
-	return win
+  if empty_buffer and vim.api.nvim_buf_is_valid(empty_buffer) then
+    vim.api.nvim_buf_delete(empty_buffer, { force = true })
+  end
+  return win
 end
 return M
