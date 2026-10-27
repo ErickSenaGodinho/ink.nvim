@@ -20,6 +20,12 @@ end
 function M.clear_cache(slug)
   local cache_root = get_cache_dir()
 
+  local valid_slug, err_message = require("ink.data.paths").validate_slug(slug)
+
+  if not valid_slug then
+    return false, err_message
+  end
+
   if slug then
     -- Clear specific book cache
     local cache_dir = cache_root .. "/" .. slug
