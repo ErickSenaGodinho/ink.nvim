@@ -24,13 +24,14 @@ return {
       local new_version_name = web.toggle_version(ctx.data.slug)
 
       -- Reload the book with the new version
-      local ok, data = pcall(web.open, ctx.data.url)
-      if ok then
-        require("ink.ui").open_book(data)
-        vim.notify("Versão alterada para: " .. new_version_name, vim.log.levels.INFO)
-      else
-        vim.notify("Failed to reload page: " .. tostring(data), vim.log.levels.ERROR)
+      local book, err = require("ink.library.core").open_book(ctx.data.url, "web")
+      if not book then
+        vim.notify("Failed to reload page: " .. tostring(err), vim.log.levels.ERROR)
+        return
       end
+
+      require("ink.ui").open_book(book)
+      vim.notify("Switch version to: " .. new_version_name, vim.log.levels.INFO)
     end,
   },
 
@@ -87,7 +88,6 @@ return {
 
       local fs = require("ink.fs")
       local data_module = require("ink.data")
-      local web = require("ink.web")
 
       -- Check if highlights exist and back them up before updating
       local highlights_path = data_module.get_book_dir(ctx.data.slug) .. "/highlights.json"
@@ -121,21 +121,18 @@ return {
       end
 
       -- Now proceed with the update
-      vim.notify("Atualizando página...", vim.log.levels.INFO)
-      local ok, data_or_err = pcall(web.open, ctx.data.url, { force_download = true })
+      vim.notify("Updating page...", vim.log.levels.INFO)
+      local book, err = require("ink.library.core").open_book(ctx.data.url, "web", { force_download = true })
 
-      if ok then
-        require("ink.ui").open_book(data_or_err)
-        if has_highlights then
-          vim.notify(
-            "Página atualizada. Verifique se seus highlights estão alinhados corretamente.",
-            vim.log.levels.WARN
-          )
-        else
-          vim.notify("Página atualizada com sucesso.", vim.log.levels.INFO)
-        end
+      if not book then
+        vim.notify("Failed to update page: " .. tostring(err), vim.log.levels.ERROR)
       else
-        vim.notify("Erro ao atualizar página: " .. tostring(data_or_err), vim.log.levels.ERROR)
+        require("ink.ui").open_book(book)
+        if has_highlights then
+          vim.notify("Page updated successfully. Check your highlights", vim.log.levels.WARN)
+        else
+          vim.notify("Page updated successfully.", vim.log.levels.INFO)
+        end
       end
     end,
   },

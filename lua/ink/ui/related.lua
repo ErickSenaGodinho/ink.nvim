@@ -193,13 +193,12 @@ local function open_book_picker(opts)
     :find()
 end
 
--- Open a related book
-function M.open_related_book(book)
+function M.open_related_book(related_book)
   local ui = require("ink.ui")
-  local ok, data = library.open_book(book.path, book.format)
-  if not ok then
+  local book, err = library.open_book(related_book.path, related_book.format)
+  if not book then
     vim.notify(
-      "Failed to open related book: " .. (book.title or "?") .. " (" .. tostring(data) .. ")",
+      "Failed to open related book: " .. (related_book.title or "?") .. " (" .. tostring(err) .. ")",
       vim.log.levels.ERROR
     )
     return
@@ -211,7 +210,7 @@ function M.open_related_book(book)
     show_toc = false
   end
 
-  ui.open_book(data, { position = related_config.position or "right", show_toc = show_toc })
+  ui.open_book(book, { position = related_config.position or "right", show_toc = show_toc })
 end
 
 -- Show related resources for the current book

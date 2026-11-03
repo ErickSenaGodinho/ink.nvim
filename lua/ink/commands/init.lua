@@ -44,36 +44,27 @@ local function core_commands(deps)
 
         path = vim.fn.expand(path)
 
-        local ui = require("ink.ui")
-        local ok, data
+        local format
 
         if path:match("^https?://") then
-          local web = require("ink.web")
-          ok, data = pcall(web.open, path)
-          if not ok then
-            vim.notify("Failed to open web page: " .. tostring(data), vim.log.levels.ERROR)
-            return
-          end
+          format = "web"
         elseif path:match("%.epub$") then
-          local epub = require("ink.epub")
-          ok, data = pcall(epub.open, path, { force_content_toc = deps.config.force_content_toc })
-          if not ok then
-            vim.notify("Failed to open EPUB: " .. tostring(data), vim.log.levels.ERROR)
-            return
-          end
+          format = "epub"
         elseif path:match("%.md$") or path:match("%.markdown$") then
-          local markdown = require("ink.markdown")
-          ok, data = pcall(markdown.open, path)
-          if not ok then
-            vim.notify("Failed to open Markdown: " .. tostring(data), vim.log.levels.ERROR)
-            return
-          end
+          format = "markdown"
         else
           vim.notify("Unsupported file format. Please use .epub, .md files, or URLs", vim.log.levels.ERROR)
           return
         end
 
-        ui.open_book(data)
+        local book, err = require("ink.library.core").open_book(path, format, {
+          force_content_toc = deps.config.force_content_toc,
+        })
+        if not book then
+          vim.notify(tostring(err), vim.log.levels.ERROR)
+          return
+        end
+        require("ink.ui").open_book(book)
       end,
       opts = { nargs = 1 },
       complete = "file",

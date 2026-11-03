@@ -39,14 +39,13 @@ local function goto_note(note)
     end
 
     -- Open the book
-    local epub = require("ink.epub")
-    local epub_data = epub.open(book.path)
-    if not epub_data then
-      vim.notify("Failed to open book: " .. book.path, vim.log.levels.ERROR)
+    local opened, err = require("ink.library.core").open_book(book.path, book.format)
+    if not opened then
+      vim.notify(tostring(err), vim.log.levels.ERROR)
       return
     end
 
-    ui.open_book(epub_data)
+    ui.open_book(opened)
   end
 
   -- Now navigate to the chapter with the highlight

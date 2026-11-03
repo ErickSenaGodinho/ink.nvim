@@ -686,8 +686,8 @@ end
 
 -- Open book at cursor
 function M.open_book_at_cursor()
-  local book = M.get_book_at_cursor()
-  if not book or not book.path then
+  local selected_book = M.get_book_at_cursor()
+  if not selected_book or not selected_book.path then
     return
   end
 
@@ -695,13 +695,13 @@ function M.open_book_at_cursor()
   local library_core = require("ink.library.core")
   local ui = require("ink.ui")
 
-  local success, book_data = library_core.open_book(book.path, book.format)
-  if not success or not book_data then
-    vim.notify("Failed to open book: " .. (book_data or "unknown error"), vim.log.levels.ERROR)
+  local book, err = library_core.open_book(selected_book.path, selected_book.format)
+  if not book then
+    vim.notify(tostring(err), vim.log.levels.ERROR)
     return
   end
 
-  ui.open_book(book_data)
+  ui.open_book(book)
 end
 
 -- Next page

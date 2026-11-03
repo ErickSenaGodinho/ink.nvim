@@ -1,6 +1,5 @@
 local fs = require("ink.fs")
 local library = require("ink.library")
-local context = require("ink.ui.context")
 
 local M = {}
 
@@ -141,20 +140,19 @@ function M.show_library_telescope(books)
         actions.select_default:replace(function()
           local selection = action_state.get_selected_entry()
           actions.close(prompt_bufnr)
-          local book = selection.book
 
           -- For web URLs, skip file existence check
-          local is_web_url = book.path:match("^https?://") ~= nil
-          if not is_web_url and not fs.exists(book.path) then
-            vim.notify("Book not found: " .. book.path, vim.log.levels.ERROR)
+          local is_web_url = selection.book.path:match("^https?://") ~= nil
+          if not is_web_url and not fs.exists(selection.book.path) then
+            vim.notify("Book not found: " .. selection.book.path, vim.log.levels.ERROR)
             return
           end
 
-          local ok, book_data = library.open_book(book.path, book.format)
-          if ok then
-            open_book_via_init(book_data)
+          local book, err = library.open_book(selection.book.path, selection.book.format)
+          if not book then
+            vim.notify(tostring(err), vim.log.levels.ERROR)
           else
-            vim.notify("Failed to open: " .. tostring(book_data), vim.log.levels.ERROR)
+            open_book_via_init(book)
           end
         end)
         map("i", "<C-d>", function()
@@ -309,24 +307,20 @@ function M.show_library_floating(books)
   vim.keymap.set("n", "<Esc>", close_window, { buffer = buf })
   vim.keymap.set("n", "<CR>", function()
     local cursor = vim.api.nvim_win_get_cursor(win)
-    local book = book_map[cursor[1]]
-    if book then
-      close_window()
-
-      -- For web URLs, skip file existence check
-      local is_web_url = book.path:match("^https?://") ~= nil
-      if not is_web_url and not fs.exists(book.path) then
-        vim.notify("Book not found: " .. book.path, vim.log.levels.ERROR)
-        return
-      end
-
-      local ok, book_data = library.open_book(book.path, book.format)
-      if ok then
-        open_book_via_init(book_data)
-      else
-        vim.notify("Failed to open: " .. tostring(book_data), vim.log.levels.ERROR)
-      end
+    local item = book_map[cursor[1]]
+    if not item then
+      return
     end
+
+    close_window()
+
+    local opened, err = library.open_book(item.path, item.format)
+    if not opened then
+      vim.notify("Failed to open: " .. tostring(err), vim.log.levels.ERROR)
+      return
+    end
+
+    open_book_via_init(opened)
   end, { buffer = buf })
   vim.keymap.set("n", "d", function()
     local cursor = vim.api.nvim_win_get_cursor(win)

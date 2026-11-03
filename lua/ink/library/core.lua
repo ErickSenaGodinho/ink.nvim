@@ -154,14 +154,19 @@ function M.set_book_tag(slug, tag)
   return false
 end
 
--- Open a book with automatic format detection
-function M.open_book(book_path, book_format)
-  local epub = require("ink.epub")
-  local markdown = require("ink.markdown")
-  local web = require("ink.web")
+---@param book_path string
+---@param book_format? "epub"|"markdown"|"web"
+---@param opts? table  repassado ao loader (force_download, force_content_toc, skip_toc_generation...)
+---@return table|nil book, string|nil err
+function M.open_book(book_path, book_format, opts)
+  local loaders = {
+    epub = require("ink.epub").open,
+    markdown = require("ink.markdown").open,
+    web = require("ink.web").open,
+  }
 
-  -- Detect format if not provided
   if not book_format then
+    local web = require("ink.web")
     if book_path:match("^https?://") and web.is_planalto_url(book_path) then
       book_format = "web"
     elseif book_path:match("%.md$") or book_path:match("%.markdown$") then
@@ -171,14 +176,23 @@ function M.open_book(book_path, book_format)
     end
   end
 
-  -- Open with appropriate parser
-  if book_format == "web" then
-    return pcall(web.open, book_path)
-  elseif book_format == "markdown" then
-    return pcall(markdown.open, book_path)
-  else
-    return pcall(epub.open, book_path)
+  local loader = loaders[book_format]
+  if not loader then
+    return nil, "Unknown Format: " .. tostring(book_format)
   end
+
+  if book_format ~= "web" and not require("ink.fs").exists(book_path) then
+    return nil, "File not found: " .. book_path
+  end
+
+  local ok, book, err = pcall(loader, book_path, opts)
+  if not ok then
+    return nil, tostring(book)
+  end
+  if not book then
+    return nil, err or ("Failed to open: " .. book_path)
+  end
+  return book
 end
 
 return M

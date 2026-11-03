@@ -292,12 +292,12 @@ function M.open_last_book()
     end
   end
 
-  local ok, book_data = library.open_book(last_path, book_format)
-  if not ok then
-    vim.notify("Failed to open book: " .. tostring(book_data), vim.log.levels.ERROR)
+  local book, err = library.open_book(last_path, book_format)
+  if not book then
+    vim.notify(tostring(err), vim.log.levels.ERROR)
     return
   end
-  M.open_book(book_data, { show_toc = false })
+  M.open_book(book, { show_toc = false })
 end
 
 function M.enable_focused_mode(ctx)

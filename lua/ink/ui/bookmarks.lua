@@ -610,9 +610,11 @@ function M.goto_bookmark(bm)
     end
     if book_path then
       local ui = require("ink.ui")
-      local ok, book_data = library.open_book(book_path, book_format)
-      if ok then
-        ui.open_book(book_data)
+      local book, err = library.open_book(book_path, book_format)
+      if not book then
+        vim.notify(tostring(err), vim.log.levels.ERROR)
+      else
+        ui.open_book(book)
         vim.defer_fn(function()
           local new_ctx = context.current()
           if new_ctx then
@@ -625,8 +627,6 @@ function M.goto_bookmark(bm)
             end, 10)
           end
         end, 100)
-      else
-        vim.notify("Failed to open book: " .. tostring(book_data), vim.log.levels.ERROR)
       end
     else
       vim.notify("Book not found in library", vim.log.levels.WARN)

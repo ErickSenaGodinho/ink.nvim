@@ -31,9 +31,8 @@ local function get_toc_for_export(slug, book_path)
     return {}
   end
 
-  local epub = require("ink.epub")
-  local ok, epub_data = pcall(epub.open, book_path)
-  if ok and epub_data then
+  local epub_data = require("ink.library.core").open_book(book_path, "epub")
+  if epub_data then
     return epub_data.toc or {}
   end
 

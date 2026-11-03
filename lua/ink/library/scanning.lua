@@ -130,29 +130,35 @@ function M.process_files(files, callback)
     end
 
     local file_path = files[current_idx]
-    local file_type = "unknown"
+    local file_type = nil
 
     if file_path:match("%.epub$") then
-      file_type = "EPUB"
+      file_type = "epub"
     elseif file_path:match("%.md$") or file_path:match("%.markdown$") then
-      file_type = "Markdown"
+      file_type = "markdown"
+    end
+    if not file_type then
+      table.insert(errors, {
+        path = file_path,
+        error = "Unsupported file type",
+      })
+      vim.defer_fn(process_next, 10)
+      return
     end
 
-    show_progress(file_path, file_type, current_idx == 1 or current_idx == total)
+    local labels = { epub = "EPUB", markdown = "Markdown" }
 
-    local ok, parsed_data
+    show_progress(file_path, labels[file_type] or "unknown", current_idx == 1 or current_idx == total)
 
-    if file_type == "EPUB" then
-      ok, parsed_data = pcall(epub.open, file_path, { skip_toc_generation = true })
-    elseif file_type == "Markdown" then
-      ok, parsed_data = pcall(markdown.open, file_path)
-    else
-      ok = false
-      parsed_data = "Unsupported file type"
-    end
+    local parsed_data, err = require("ink.library.core").open_book(file_path, file_type, { skip_toc_generation = true })
 
     vim.schedule(function()
-      if ok then
+      if not parsed_data then
+        table.insert(errors, {
+          path = file_path,
+          error = tostring(err),
+        })
+      else
         local book_info = {
           slug = parsed_data.slug,
           title = parsed_data.title,
@@ -176,17 +182,11 @@ function M.process_files(files, callback)
         end
 
         if not exists then
-          local core = require("ink.library.core")
-          core.add_book(book_info)
+          require("ink.library.core").add_book(book_info)
           added = added + 1
         else
           skipped = skipped + 1
         end
-      else
-        table.insert(errors, {
-          path = file_path,
-          error = tostring(parsed_data),
-        })
       end
 
       vim.defer_fn(process_next, 10)
