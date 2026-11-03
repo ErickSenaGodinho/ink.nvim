@@ -167,7 +167,7 @@ function M.process_files(files, callback)
           date = parsed_data.date,
           description = parsed_data.description,
           path = parsed_data.path,
-          format = parsed_data.format or "epub",
+          format = parsed_data.format,
           total_chapters = #parsed_data.spine,
         }
 

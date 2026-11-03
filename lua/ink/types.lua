@@ -1,0 +1,21 @@
+---@meta
+
+---@alias ink.BookFormat "epub"|"markdown"|"web"
+
+---@class ink.Book
+---@field slug string
+---@field title string
+---@field author? string
+---@field language? string
+---@field date? string
+---@field description? string
+---@field spine table[]
+---@field toc table[]
+---@field path string                 -- File path or URL
+---@field format ink.BookFormat
+---@field base_dir? string
+---@field cache_dir? string           -- nil for Markdown
+---@field class_styles? table         -- EPUB only
+---@field url? string                 -- Web only
+---@field has_updates? boolean        -- Web only
+---@field is_planalto? boolean        -- Web only

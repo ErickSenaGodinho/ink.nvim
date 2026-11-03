@@ -156,8 +156,8 @@ end
 
 ---@param book_path string
 ---@param book_format? "epub"|"markdown"|"web"
----@param opts? table  repassado ao loader (force_download, force_content_toc, skip_toc_generation...)
----@return table|nil book, string|nil err
+---@param opts? table  forwarded to the loader (force_download, force_content_toc, skip_toc_generation...)
+---@return ink.Book|nil book, string|nil err
 function M.open_book(book_path, book_format, opts)
   local loaders = {
     epub = require("ink.epub").open,

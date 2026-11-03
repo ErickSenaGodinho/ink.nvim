@@ -16,7 +16,8 @@ local function generate_title(filepath)
 end
 
 -- Open and parse a markdown file
--- Returns data structure compatible with EPUB format
+---@param filepath string
+---@return ink.Book|nil book, string|nil err
 function M.open(filepath)
   -- local start_time = vim.loop.hrtime()  -- DEBUG: Start timing
 

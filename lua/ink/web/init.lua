@@ -215,11 +215,11 @@ local function validate_url(url)
   return true, nil
 end
 
--- Open and parse a web page from URL
--- Returns data structure compatible with ink.nvim format
--- @param url: URL to the page (any website)
--- @param opts: optional table with { force_download = true }
--- @return data structure or nil, error
+-- Open and parse a web page from URL.
+-- Returns a data structure compatible with the other loaders (see ink.Book).
+---@param url string  URL to the page (any website)
+---@param opts? { force_download?: boolean }
+---@return ink.Book|nil book, string|nil err
 function M.open(url, opts)
   opts = opts or {}
 

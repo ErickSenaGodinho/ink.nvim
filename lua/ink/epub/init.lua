@@ -164,9 +164,10 @@ function M.build_toc_from_content(spine, base_dir, class_styles)
   return toc
 end
 
+---@param epub_path string
+---@param opts? { force_content_toc?: boolean, skip_toc_generation?: boolean }
+---@return ink.Book book  -- throws error() on failure; use library.open_book to get book, err
 function M.open(epub_path, opts)
-  -- local start_time = vim.loop.hrtime()  -- DEBUG: Start timing
-
   opts = opts or {}
   local skip_toc_generation = opts.skip_toc_generation or false
 
@@ -316,6 +317,7 @@ function M.open(epub_path, opts)
     cache_dir = cache_dir,
     class_styles = class_styles,
     path = epub_path,
+    format = "epub",
   }
 end
 
