@@ -284,6 +284,9 @@ function M.open_book(book_data, opts)
       ctx.current_max_width = initial_width
     end
 
+    -- Store initial window width for resize detection
+    ctx._last_win_width = vim.api.nvim_win_get_width(ctx.content_win)
+
     -- Load saved position or render first chapter
     if state_data then
       -- First render the chapter

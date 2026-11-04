@@ -43,6 +43,9 @@ local function handle_book_resize(ctx)
   local book_loader = require("ink.ui.book_loader")
   local new_max_width = book_loader.calculate_adaptive_width(ctx)
 
+  local win_width = vim.api.nvim_win_get_width(ctx.content_win)
+  local window_changed = ctx._last_win_width ~= win_width
+
   if new_max_width and ctx.current_max_width ~= new_max_width then
     ctx.current_max_width = new_max_width
 
@@ -51,6 +54,10 @@ local function handle_book_resize(ctx)
 
     render.invalidate_glossary_cache(ctx)
     require("ink.user_highlights").clear_positions_cache(ctx.data.slug)
+  end
+
+  if window_changed then
+    ctx._last_win_width = win_width
     render.rerender_preserving_viewport(ctx)
   end
 end
