@@ -300,14 +300,20 @@ function M.open_last_book()
   M.open_book(book, { show_toc = false })
 end
 
-function M.enable_focused_mode(ctx)
-  if not ctx or not ctx.content_win or not vim.api.nvim_win_is_valid(ctx.content_win) then
+function M.enable_focused_mode(ctx, win)
+  if not ctx then
+    return
+  end
+
+  win = win or ctx.content_win
+
+  if not win or not vim.api.nvim_win_is_valid(win) then
     return
   end
 
   ctx.focused_windows = ctx.focused_windows or {}
 
-  if ctx.focused_windows[ctx.content_win] then
+  if ctx.focused_windows[win] then
     return
   end
 
@@ -320,55 +326,46 @@ function M.enable_focused_mode(ctx)
     "foldcolumn",
   }) do
     default_options[option] = vim.api.nvim_get_option_value(option, {
-      win = ctx.content_win,
+      win = win,
     })
   end
 
-  ctx.focused_windows[ctx.content_win] = {
+  ctx.focused_windows[win] = {
     default_options = default_options,
   }
 
-  vim.api.nvim_set_option_value("number", false, {
-    win = ctx.content_win,
-  })
-
-  vim.api.nvim_set_option_value("relativenumber", false, {
-    win = ctx.content_win,
-  })
-
-  vim.api.nvim_set_option_value("signcolumn", "no", {
-    win = ctx.content_win,
-  })
-
-  vim.api.nvim_set_option_value("foldcolumn", "0", {
-    win = ctx.content_win,
-  })
+  vim.api.nvim_set_option_value("number", false, { win = win })
+  vim.api.nvim_set_option_value("relativenumber", false, { win = win })
+  vim.api.nvim_set_option_value("signcolumn", "no", { win = win })
+  vim.api.nvim_set_option_value("foldcolumn", "0", { win = win })
 end
 
-function M.disable_focused_mode(ctx)
-  if not ctx or not ctx.content_win then
+function M.disable_focused_mode(ctx, win)
+  if not ctx then
     return
   end
 
-  if not ctx.focused_windows then
+  win = win or ctx.content_win
+
+  if not win or not ctx.focused_windows then
     return
   end
 
-  local focused = ctx.focused_windows[ctx.content_win]
+  local focused = ctx.focused_windows[win]
 
   if not focused then
     return
   end
 
-  if vim.api.nvim_win_is_valid(ctx.content_win) then
+  if vim.api.nvim_win_is_valid(win) then
     for option, value in pairs(focused.default_options) do
       vim.api.nvim_set_option_value(option, value, {
-        win = ctx.content_win,
+        win = win,
       })
     end
   end
 
-  ctx.focused_windows[ctx.content_win] = nil
+  ctx.focused_windows[win] = nil
 end
 
 function M.toggle_focused_mode()
@@ -378,17 +375,19 @@ function M.toggle_focused_mode()
     return
   end
 
-  ctx.focused_mode = not ctx.focused_mode
+  local win = vim.api.nvim_get_current_win()
 
   local state = require("ink.state")
   state.save(ctx.data.slug, {
     focused_mode = ctx.focused_mode,
   })
 
-  if ctx.focused_mode then
-    M.enable_focused_mode(ctx)
+  ctx.focused_windows = ctx.focused_windows or {}
+
+  if ctx.focused_windows[win] then
+    M.disable_focused_mode(ctx, win)
   else
-    M.disable_focused_mode(ctx)
+    M.enable_focused_mode(ctx, win)
   end
 end
 

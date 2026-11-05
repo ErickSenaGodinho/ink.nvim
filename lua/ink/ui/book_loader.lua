@@ -119,12 +119,17 @@ function M.setup_book_autocmds(content_buf, slug)
           return
         end
 
+        local win = vim.fn.win_findbuf(args.buf)[1]
+        if not win or not vim.api.nvim_win_is_valid(win) then
+          return
+        end
+
         if ctx.focused_mode then
-          require("ink.ui").enable_focused_mode(ctx)
+          require("ink.ui").enable_focused_mode(ctx, win)
         end
 
         if ctx.reading_paragraph_mode then
-          require("ink.ui.extmarks").enable_reading_paragraph_mode(ctx)
+          require("ink.ui.extmarks").enable_reading_paragraph_mode(ctx, win)
         end
       end)
     end,
@@ -138,7 +143,10 @@ function M.setup_book_autocmds(content_buf, slug)
       if not ctx then
         return
       end
-      require("ink.ui").disable_focused_mode(ctx)
+
+      local win = vim.api.nvim_get_current_win()
+
+      require("ink.ui").disable_focused_mode(ctx, win)
     end,
   })
 

@@ -120,6 +120,9 @@ function M.apply_user_highlights(buf, chapter_highlights, ns_id, lines, slug, ch
       end
     end
 
+    start_col = tonumber(start_col) or 0
+    end_col = tonumber(end_col) or start_col
+
     if start_line and type(start_line) == "number" and type(end_line) == "number" then
       -- Relaxed validation: only check basic requirements
       if start_line > 0 and start_line <= buf_line_count and end_line > 0 and end_line <= buf_line_count then
@@ -662,14 +665,8 @@ local function apply_focus(buf, ns, start_l, end_l)
   })
 end
 
-local function update_reading_paragraph_highlights(ctx)
-  if not ctx then
-    return
-  end
-
-  local cur = vim.api.nvim_get_current_win()
-  local win = (vim.api.nvim_win_get_buf(cur) == ctx.content_buf) and cur or ctx.content_win
-  if not win or not vim.api.nvim_win_is_valid(win) then
+local function update_reading_paragraph_highlights(ctx, win)
+  if not ctx or not win or not vim.api.nvim_win_is_valid(win) then
     return
   end
 
@@ -678,12 +675,18 @@ local function update_reading_paragraph_highlights(ctx)
 
   local start_l, end_l = util.get_paragraph(ctx.content_buf, line)
 
-  -- Skip the full redraw if the cursor is still inside the same paragraph.
-  if ctx._reading_para_start == start_l and ctx._reading_para_end == end_l then
+  ctx.reading_paragraph_windows = ctx.reading_paragraph_windows or {}
+
+  local state = ctx.reading_paragraph_windows[win] or {}
+
+  -- Skip redraw if cursor is inside the same paragraph.
+  if state.start == start_l and state.finish == end_l then
     return
   end
-  ctx._reading_para_start = start_l
-  ctx._reading_para_end = end_l
+
+  state.start = start_l
+  state.finish = end_l
+  ctx.reading_paragraph_windows[win] = state
 
   vim.api.nvim_buf_clear_namespace(ctx.content_buf, context.ns_reading, 0, -1)
 
@@ -698,14 +701,23 @@ local function update_reading_paragraph_highlights(ctx)
   end
 end
 
-function M.enable_reading_paragraph_mode(ctx)
-  -- Reset cached paragraph bounds so the first call after enabling always renders.
+function M.enable_reading_paragraph_mode(ctx, win)
+  if not ctx then
+    return
+  end
+
+  win = win or ctx.content_win
+
+  if not win or not vim.api.nvim_win_is_valid(win) then
+    return
+  end
+
   ctx._reading_para_start = nil
   ctx._reading_para_end = nil
 
-  update_reading_paragraph_highlights(ctx)
+  update_reading_paragraph_highlights(ctx, win)
 
-  local buf = vim.api.nvim_win_get_buf(ctx.content_win)
+  local buf = vim.api.nvim_win_get_buf(win)
   local group_name = "ReadingMode_Buf_" .. buf
   local group = vim.api.nvim_create_augroup(group_name, { clear = true })
 
@@ -713,20 +725,30 @@ function M.enable_reading_paragraph_mode(ctx)
     group = group,
     buffer = buf,
     callback = function()
-      update_reading_paragraph_highlights(ctx)
+      update_reading_paragraph_highlights(ctx, win)
     end,
   })
 end
 
-local function disable_reading_paragraph_mode(ctx)
-  if ctx then
-    local buf = vim.api.nvim_win_get_buf(ctx.content_win)
-    vim.api.nvim_buf_clear_namespace(buf, context.ns_reading, 0, -1)
-    vim.api.nvim_del_augroup_by_name("ReadingMode_Buf_" .. buf)
-    ctx._reading_para_start = nil
-    ctx._reading_para_end = nil
-    ctx.reading_paragraph_mode = false
+local function disable_reading_paragraph_mode(ctx, win)
+  if not ctx then
+    return
   end
+
+  win = win or ctx.content_win
+
+  if not win or not vim.api.nvim_win_is_valid(win) then
+    return
+  end
+
+  local buf = vim.api.nvim_win_get_buf(win)
+
+  vim.api.nvim_buf_clear_namespace(buf, context.ns_reading, 0, -1)
+  vim.api.nvim_del_augroup_by_name("ReadingMode_Buf_" .. buf)
+
+  ctx._reading_para_start = nil
+  ctx._reading_para_end = nil
+  ctx.reading_paragraph_mode = false
 end
 
 function M.toggle_reading_paragraph_mode()
@@ -736,28 +758,36 @@ function M.toggle_reading_paragraph_mode()
     return
   end
 
+  local win = vim.api.nvim_get_current_win()
+
   ctx.reading_paragraph_mode = not ctx.reading_paragraph_mode
 
   local state = require("ink.state")
-  state.save(ctx.data.slug, { reading_paragraph_mode = ctx.reading_paragraph_mode })
+  state.save(ctx.data.slug, {
+    reading_paragraph_mode = ctx.reading_paragraph_mode,
+  })
 
   if ctx.reading_paragraph_mode then
-    M.enable_reading_paragraph_mode(ctx)
+    M.enable_reading_paragraph_mode(ctx, win)
   else
-    disable_reading_paragraph_mode(ctx)
+    disable_reading_paragraph_mode(ctx, win)
   end
 end
 
-function M.refresh_reading_paragraph_mode(ctx)
+function M.refresh_reading_paragraph_mode(ctx, win)
   if not ctx or not ctx.reading_paragraph_mode then
     return
   end
-  if not (ctx.content_win and vim.api.nvim_win_is_valid(ctx.content_win)) then
+
+  win = win or ctx.content_win
+
+  if not win or not vim.api.nvim_win_is_valid(win) then
     return
   end
 
   ctx._reading_para_start = nil
   ctx._reading_para_end = nil
-  update_reading_paragraph_highlights(ctx)
+
+  update_reading_paragraph_highlights(ctx, win)
 end
 return M
