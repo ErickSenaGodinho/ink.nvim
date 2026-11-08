@@ -1,6 +1,5 @@
 local context = require("ink.ui.context")
 local user_highlights = require("ink.user_highlights")
-local bookmarks_data = require("ink.bookmarks")
 local util = require("ink.ui.util")
 
 local M = {}
@@ -717,7 +716,12 @@ function M.enable_reading_paragraph_mode(ctx, win)
 
   update_reading_paragraph_highlights(ctx, win)
 
-  local buf = vim.api.nvim_win_get_buf(win)
+  local buf = ctx.content_buf
+
+  if not buf or not vim.api.nvim_buf_is_valid(buf) then
+    return
+  end
+
   local group_name = "ReadingMode_Buf_" .. buf
   local group = vim.api.nvim_create_augroup(group_name, { clear = true })
 
@@ -741,10 +745,14 @@ local function disable_reading_paragraph_mode(ctx, win)
     return
   end
 
-  local buf = vim.api.nvim_win_get_buf(win)
+  local buf = ctx.content_buf
+
+  if not buf or not vim.api.nvim_buf_is_valid(buf) then
+    return
+  end
 
   vim.api.nvim_buf_clear_namespace(buf, context.ns_reading, 0, -1)
-  vim.api.nvim_del_augroup_by_name("ReadingMode_Buf_" .. buf)
+  pcall(vim.api.nvim_del_augroup_by_name, "ReadingMode_Buf_" .. buf)
 
   ctx._reading_para_start = nil
   ctx._reading_para_end = nil
