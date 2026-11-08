@@ -630,7 +630,7 @@ function M.render_chapter(idx, restore_line, ctx)
 
   -- Don't save state during book initialization to prevent overwriting saved position
   if not ctx._is_initializing and not ctx._rerendering then
-    local state_data = { chapter = idx }
+    local state_data = { chapter = idx, text = vim.NIL }
     get_state().save(ctx.data.slug, state_data)
     get_library().update_progress(ctx.data.slug, idx, #ctx.data.spine)
   end
