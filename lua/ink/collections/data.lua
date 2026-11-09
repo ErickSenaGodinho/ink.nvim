@@ -18,38 +18,93 @@ end
 function M.load()
   local path = get_collections_file_path()
   local fs = require("ink.fs")
+  local ink_data = require("ink.data")
 
-  if not fs.exists(path) then
+  local function default_data()
     return {
       version = 1,
       collections = {},
     }
+  end
+
+  local function validate_data(decoded)
+    if type(decoded) ~= "table" then
+      return nil
+    end
+
+    if type(decoded.version) ~= "number" then
+      decoded.version = 1
+    end
+
+    if type(decoded.collections) ~= "table" then
+      decoded.collections = {}
+    end
+
+    return decoded
+  end
+
+  -- Candidates, best first: the copy made by save(), then timestamped
+  -- backups (newest first)
+  local function find_backups()
+    local backups = {}
+
+    if fs.exists(path .. ".backup") then
+      table.insert(backups, path .. ".backup")
+    end
+
+    local stamped = vim.fn.glob(path .. ".backup.*", false, true)
+    table.sort(stamped, function(a, b)
+      local timestamp_a = tonumber(a:match("%.backup%.(%d+)$")) or 0
+      local timestamp_b = tonumber(b:match("%.backup%.(%d+)$")) or 0
+
+      return timestamp_a > timestamp_b
+    end)
+
+    vim.list_extend(backups, stamped)
+    return backups
+  end
+
+  if not fs.exists(path) then
+    return default_data()
   end
 
   local content = fs.read_file(path)
   if not content or content == "" then
-    return {
-      version = 1,
-      collections = {},
-    }
+    return default_data()
   end
 
-  local ok, data = pcall(vim.json.decode, content)
-  if not ok then
-    -- Backup corrupted file
-    vim.notify("Corrupted collections file detected, creating backup", vim.log.levels.WARN)
-    os.rename(path, path .. ".corrupt")
-    return {
-      version = 1,
-      collections = {},
-    }
+  -- On failure json_decode_safe already preserves the file (backup + remove)
+  local decoded = ink_data.json_decode_safe(content, path)
+  decoded = validate_data(decoded)
+  if decoded then
+    return decoded
   end
 
-  -- Ensure structure
-  data.version = data.version or 1
-  data.collections = data.collections or {}
+  vim.notify("Invalid collections file, attempting backup recovery", vim.log.levels.WARN)
 
-  return data
+  for _, backup_path in ipairs(find_backups()) do
+    local backup_content = fs.read_file(backup_path)
+
+    if backup_content and backup_content ~= "" then
+      local backup_data = ink_data.json_decode_safe(backup_content)
+      backup_data = validate_data(backup_data)
+
+      if backup_data then
+        -- The original was moved aside, so write the recovered data back
+        -- (otherwise the next session would start empty)
+        local ok, encoded = pcall(vim.json.encode, backup_data)
+        if ok then
+          fs.write_file(path, encoded)
+        end
+
+        vim.notify("Collections recovered from backup: " .. vim.fn.fnamemodify(backup_path, ":t"), vim.log.levels.INFO)
+
+        return backup_data
+      end
+    end
+  end
+
+  return default_data()
 end
 
 -- Save collections to disk
