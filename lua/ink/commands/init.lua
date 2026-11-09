@@ -78,14 +78,6 @@ local function core_commands(deps)
     },
 
     {
-      name = "InkHealth",
-      fn = function()
-        require("ink.health").check()
-      end,
-      opts = { desc = "Run health check diagnostics for ink.nvim" },
-    },
-
-    {
       name = "InkToggleFocusedMode",
       fn = function()
         require("ink.ui").toggle_focused_mode()

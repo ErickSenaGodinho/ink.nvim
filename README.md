@@ -320,7 +320,6 @@ require("ink").setup({
 **Other**
 ```vim
 :InkRebuildTOC            " Rebuild TOC from content
-:InkHealth                " Run diagnostics
 :InkResetStats            " Reset reading statistics
 :InkToggleFocusedMode     " Switch between focused mode
 :InkToggleParagraphMode   " Switch between reading paragraph mode

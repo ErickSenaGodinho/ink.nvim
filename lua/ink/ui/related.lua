@@ -248,7 +248,7 @@ function M.show_related_resources()
   if #broken > 0 then
     vim.notify(
       string.format(
-        "%d broken related reference(s) (%s): book deleted from library. Run :InkHealth to clean up.",
+        "%d broken related reference(s) (%s): book deleted from library. Run :InkCleanupRelated to clean up.",
         #broken,
         table.concat(broken, ", ")
       ),
