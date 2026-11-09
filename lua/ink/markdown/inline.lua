@@ -2,6 +2,25 @@ local util = require("ink.markdown.util")
 
 local M = {}
 
+-- Word characters: ASCII alphanumerics, "_" and UTF-8 bytes (>= 128)
+local WORD = "%w_\128-\255"
+
+-- Characters that would break out of an HTML attribute
+-- ("&" becomes &amp; so query strings keep working)
+local URL_ESCAPES = {
+  ["<"] = "%3C",
+  [">"] = "%3E",
+  ["'"] = "%27",
+  ['"'] = "%22",
+  [" "] = "%20",
+  ["&"] = "&amp;",
+}
+
+-- Escape a url so it is safe inside an href/src attribute
+local function safe_url(url)
+  return (url:gsub("[<>'\" &]", URL_ESCAPES))
+end
+
 -- Restore protected HTML fragments (code spans, links, images)
 -- Placeholders can be nested (e.g. code inside link text), so loop a few times
 local function restore(text, protected)
@@ -15,18 +34,14 @@ local function restore(text, protected)
   return text
 end
 
--- Underscore emphasis requires word boundaries (snake_case_name stays intact)
+-- Underscore emphasis: delimiters must sit on word boundaries
+-- (so snake_case_name is left alone)
+-- Content is already escaped at this point, so no further escaping here
 local function underscore_emphasis(text, delim, open, close)
-  local pat = "(.?)" .. delim .. "([^_]+)" .. delim .. "(.?)"
-  return (
-    text:gsub(pat, function(pre, content, post)
-      -- Delimiter glued to a word character: keep the original text
-      if pre:match("%w") or post:match("%w") then
-        return nil
-      end
-      return pre .. open .. content .. close .. post
-    end)
-  )
+  local pat = "%f[" .. WORD .. "]" .. delim .. "([^_]+)" .. delim .. "%f[^" .. WORD .. "]"
+  return (text:gsub(pat, function(content)
+    return open .. content .. close
+  end))
 end
 
 -- Process inline markdown elements (bold, italic, code, links, images)
@@ -46,18 +61,12 @@ function M.process_inline(text)
     return "\1" .. #protected .. "\2"
   end
 
-  -- Escape quotes in URLs so they can't break out of the attribute
-  local function safe_url(url)
-    return (url:gsub('"', "%%22"))
-  end
-
   -- Inline code: `code` - first, nothing inside a code span is processed
   text = text:gsub("`([^`]+)`", function(code)
     return protect("<code>" .. util.escape_html(code) .. "</code>")
   end)
 
   -- Images: ![alt](url) - must be before links
-  -- A function is used as replacement so "%" in the URL is safe
   text = text:gsub("!%[([^%]]*)%]%(([^%)]+)%)", function(alt, url)
     return protect(string.format('<img src="%s" alt="%s" />', safe_url(url), util.escape_html(alt)))
   end)
@@ -71,7 +80,6 @@ function M.process_inline(text)
   text = util.escape_html(text)
 
   -- Bold + Italic: ***text*** or ___text___ (before individual bold/italic)
-  -- Content is already escaped, so no further escaping here
   text = text:gsub("%*%*%*([^%*]+)%*%*%*", "<strong><em>%1</em></strong>")
   text = underscore_emphasis(text, "___", "<strong><em>", "</em></strong>")
 
@@ -90,22 +98,9 @@ function M.process_inline(text)
   return restore(text, protected)
 end
 
--- Process bold/italic combinations
--- Handles cases like ***text*** (bold + italic)
-function M.process_emphasis(text)
-  -- Bold + Italic: ***text*** or ___text___
-  text = text:gsub("%*%*%*([^%*]+)%*%*%*", "<strong><em>%1</em></strong>")
-  text = text:gsub("___([^_]+)___", "<strong><em>%1</em></strong>")
-
-  return text
-end
-
 -- Extract and process inline elements
+-- Emphasis combinations (***text***, ___text___) are handled by process_inline
 function M.parse(text)
-  if not text or text == "" then
-    return ""
-  end
-
   return M.process_inline(text)
 end
 
